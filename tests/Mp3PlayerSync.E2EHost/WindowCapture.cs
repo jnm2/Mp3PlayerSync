@@ -18,6 +18,8 @@ internal static class WindowCapture
     {
         var request = Path.Combine(dataDirectory, "Capture.request");
         var output = Path.Combine(dataDirectory, "Capture.png");
+        // The test can launch the app on a data folder it hasn't made yet, and the watcher needs the folder to exist.
+        Directory.CreateDirectory(dataDirectory);
         var watcher = new FileSystemWatcher(dataDirectory, Path.GetFileName(request)) { NotifyFilter = NotifyFilters.FileName };
         var busy = 0;
         void Requested()
