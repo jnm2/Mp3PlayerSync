@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Mp3PlayerSync.Core/Mp3PlayerSync.Core.csproj" />
+    <Project Path="src/Mp3PlayerSync/Mp3PlayerSync.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Mp3PlayerSync.E2EHost/Mp3PlayerSync.E2EHost.csproj" />
+    <Project Path="tests/Mp3PlayerSync.Tests/Mp3PlayerSync.Tests.csproj" />
+  </Folder>
+</Solution>

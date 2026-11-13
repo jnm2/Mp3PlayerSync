@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<title>Spotify login (mock)</title>
+	<meta charset="utf-8">
+	<script>
+		// Served from 127.0.0.1 so that, like accounts.spotify.com, it is a different origin from Exportify (localhost).
+		const returnToExportify = () => {
+			document.cookie = 'mock_spotify_session=1; path=/; max-age=31536000' // Persistent, like Spotify's
+			location = 'http://localhost:' + location.port + '/?code=mock-authorization-code'
+		}
+		// Like accounts.spotify.com, return straight to Exportify when there is already a Spotify session.
+		if (document.cookie.includes('mock_spotify_session=1')) returnToExportify()
+		// Test switch: ?auto signs in by itself after a moment, standing in for the user, unless a test holds it
+		// (Start-MockExportify.ps1's sign-in-hold) until it has seen the sign-in screen.
+		else if (new URLSearchParams(location.search).has('auto')) setTimeout(async function signInWhenReleased() {
+			const hold = await fetch('/sign-in-hold', { cache: 'no-store' }).then(r => r.text()).catch(() => 'released')
+			if (hold === 'held') setTimeout(signInWhenReleased, 200)
+			else returnToExportify()
+		}, 2500)
+	</script>
+</head>
+<body style="font-family: sans-serif; padding: 2em; background: #fff; color: #000">
+	<h1>Spotify login (mock)</h1>
+	<p>Stands in for accounts.spotify.com. Signing in redirects back to Exportify with an authorization code.</p>
+	<button id="signIn" onclick="returnToExportify()">Sign in</button>
+	<!-- Like Spotify's sign-up and help links, which lead away from the sign-in -->
+	<p><a href="https://www.spotify.com/signup">Sign up for Spotify</a> · <a href="https://support.spotify.com/" target="_blank">Help</a></p>
+</body>
+</html>

@@ -1,0 +1,13 @@
+<linker>
+  <!-- Built-in COM (see BuiltInComInteropSupport in the .csproj) keeps ComActivator, which lets native code create .NET
+       COM objects. Nothing does that here: the app only calls out to Windows' COM objects. -->
+  <assembly fullname="System.Private.CoreLib">
+    <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+      <argument>ILLink</argument>
+      <argument>IL2026</argument>
+      <property name="Scope">member</property>
+      <property name="Target">M:Internal.Runtime.InteropServices.ComActivator.GetClassFactoryForTypeInternal(Internal.Runtime.InteropServices.ComActivationContextInternal*)</property>
+      <property name="Justification">The app is never a COM server</property>
+    </attribute>
+  </assembly>
+</linker>

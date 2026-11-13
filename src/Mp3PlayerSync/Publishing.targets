@@ -1,0 +1,46 @@
+<Project>
+  <!-- How the released exe is published (dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true), shared with
+       the end-to-end tests' host (tests\Test-PublishedExe.ps1) so they can test the app as it's trimmed. -->
+  <PropertyGroup>
+    <!-- ReadyToRun would add 9 MB to the 37 MB exe for about half a second off each start. -->
+    <PublishReadyToRun>False</PublishReadyToRun>
+    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
+    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <!-- Trimming turns built-in COM off, but taskbar progress uses it through CsWin32. -->
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <SelfContained>true</SelfContained>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- The Windows App SDK's single-file support needs it to embed resources.pri. -->
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- NETSDK1244 says IncludeAllContentForSelfExtract (extracting everything to disk at first launch, rather than
+         loading assemblies from inside the exe) is a legacy mode. The Windows App SDK sets it and requires it for its
+         DLL side-by-side redirection, so it can't go; it only costs the first launch its extraction. -->
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);NETSDK1244</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- TagLib# creates its file types by reflection, which trimming can't see. -->
+    <TrimmerRootAssembly Include="TagLibSharp" />
+    <!-- Keeps every member of the CsWin32 COM interfaces in it: trimming unused ones shifts the rest out of place. -->
+    <TrimmerRootAssembly Include="Mp3PlayerSync" />
+  </ItemGroup>
+
+  <!-- Trimming problems fail the publish, each reported where it is (see also ILLink.Suppressions.xml). -->
+  <PropertyGroup>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
+    <WarningsAsErrors Condition="'$(PublishSingleFile)' == 'true'">$(WarningsAsErrors);IL3000;IL3001;IL3002;IL3003</WarningsAsErrors>
+    <!-- IL2104 only comes from TagLib#, the one assembly whose warnings are summarized (below): it's rooted above, so
+         its reflection finds everything it needs. -->
+    <NoWarn>$(NoWarn);IL2104</NoWarn>
+    <_ExtraTrimmerArgs>$(_ExtraTrimmerArgs) --link-attributes "$(MSBuildThisFileDirectory)ILLink.Suppressions.xml"</_ExtraTrimmerArgs>
+  </PropertyGroup>
+  <Target Name="SummarizeTagLibTrimWarnings" AfterTargets="_PrepareTrimConfiguration">
+    <ItemGroup>
+      <ResolvedFileToPublish Condition="'%(Filename)' == 'TagLibSharp'" TrimmerSingleWarn="true" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -1,0 +1,296 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  # A folder of its own, so the cache holds exactly this repository's packages (about 2 GB, mostly the Windows App SDK).
+  NUGET_PACKAGES: ${{ github.workspace }}\.nuget\packages
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Package versions are pinned in the project files, and the SDK version picks the implicit ones (runtime packs,
+      # ILLink). A partial match still saves most of the download when a project file changes but its packages don't.
+      - name: Restore NuGet package cache
+        id: nuget-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('global.json', '**/*.csproj', '**/Directory.*.props', '**/Directory.*.targets') }}
+          restore-keys: nuget-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Restore
+        run: dotnet restore Mp3PlayerSync.slnx -p:Configuration=Release -bl:logs\restore.binlog
+
+      # Only main saves, so pull requests can't evict its cache from the repository's 10 GB.
+      - name: Save NuGet package cache
+        if: github.ref == 'refs/heads/main' && steps.nuget-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ steps.nuget-cache.outputs.cache-primary-key }}
+
+      - name: Build
+        run: dotnet build Mp3PlayerSync.slnx -c Release --no-restore -bl:logs\build.binlog
+
+      - name: Test
+        run: dotnet test tests\Mp3PlayerSync.Tests\Mp3PlayerSync.Tests.csproj -c Release --no-build --logger trx --results-directory TestResults -bl:logs\test.binlog
+
+      - name: Test summary
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem TestResults -Filter *.trx -Recurse -ErrorAction SilentlyContinue
+          if (!$files) { '### Tests did not run' >> $env:GITHUB_STEP_SUMMARY; exit }
+          # Counted from the results: the summary counters leave out tests NUnit doesn't run, like ignored ones.
+          $results = foreach ($file in $files) { ([xml](Get-Content $file -Raw)).TestRun.Results.UnitTestResult }
+          $passed = @($results | Where-Object outcome -eq 'Passed').Count
+          $failedResults = @($results | Where-Object outcome -eq 'Failed')
+          $failed = $failedResults.Count
+          $skipped = @($results).Count - $passed - $failed
+          $failures = $failedResults | ForEach-Object {
+              $message = "$($_.Output.ErrorInfo.Message)".Trim() -replace '\r?\n', ' ' -replace '\|', '\|'
+              "| $($_.testName -replace '\|', '\|') | $message |"
+          }
+          $icon = if ($failed) { '❌' } else { '✅' }
+          @(
+              "### $icon Tests: $passed passed, $failed failed, $skipped skipped"
+              if ($failures) { ''; '| Failed test | Message |'; '| --- | --- |'; $failures }
+          ) >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: TestResults
+          retention-days: 7
+
+      # MSBuild logs for diagnosing the build (open with https://msbuildlog.com); never part of a release.
+      - name: Upload binlogs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: binlogs-build-test
+          path: logs
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The single-file exe per architecture, on every run: trimming problems fail the publish (see the .csproj), so they
+  # show up in pull requests rather than at release time.
+  publish:
+    needs: build
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Read-only: the build job keeps it current. The runtime packs for the target architecture download on top.
+      - name: Restore NuGet package cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('global.json', '**/*.csproj', '**/Directory.*.props', '**/Directory.*.targets') }}
+          restore-keys: nuget-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          $version = @()
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+              if ($env:GITHUB_REF_NAME -notmatch '^v(\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?)$') {
+                  throw "Tag '$env:GITHUB_REF_NAME' isn't a version like v1.2.3 or v1.2.3-beta.1"
+              }
+              $version = @("-p:Version=$($Matches[1])")
+          }
+          # Single-file, trimming and the rest come from the .csproj. All of the app's files are extracted at first launch
+          # (the Windows App SDK's IncludeAllContentForSelfExtract) for its DLL side-by-side redirection.
+          dotnet publish src\Mp3PlayerSync\Mp3PlayerSync.csproj -c Release -r win-${{ matrix.arch }} -o publish `
+              -p:PublishSingleFile=true @version -bl:logs\publish-${{ matrix.arch }}.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Move-Item publish\Mp3PlayerSync.exe MP3-Player-Sync-${{ matrix.arch }}.exe
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: MP3-Player-Sync-${{ matrix.arch }}
+          path: MP3-Player-Sync-${{ matrix.arch }}.exe
+          if-no-files-found: error
+          retention-days: 7
+
+      # Our own assemblies' portable PDBs, kept out of the exe. They're the ones from the publish output: trimming
+      # rewrites the assemblies, and only these match the ones in the exe.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: symbols-${{ matrix.arch }}
+          path: publish/*.pdb
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload binlogs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: binlogs-publish-${{ matrix.arch }}
+          path: logs
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The end-to-end tests (tests\Invoke-EndToEnd.ps1) against the app trimmed as released, through the tests' host,
+  # the mock Exportify standing in for Spotify and the host's fakes for YouTube Music, on each architecture. A CI VM
+  # has nobody to disturb, so they run on its own desktop.
+  e2e:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # On x64 the build job keeps it current; Arm64 runners can't use that one, so this job saves Arm64's from main.
+      - name: Restore NuGet package cache
+        id: nuget-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('global.json', '**/*.csproj', '**/Directory.*.props', '**/Directory.*.targets') }}
+          restore-keys: nuget-${{ runner.os }}-${{ runner.arch }}-
+
+      # What the tests need from the runner, in the log and the job summary: an interactive session and the WebView2
+      # Runtime. The tests' host bundles the Windows App SDK, so it doesn't need the Windows App Runtime installed.
+      - name: Check the runner
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type @'
+          using System; using System.Runtime.InteropServices;
+          public static class RunnerDesktop {
+              [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+              public static extern IntPtr CreateDesktopW(string name, IntPtr device, IntPtr devmode, int flags, uint access, IntPtr security);
+              [DllImport("user32.dll")] public static extern bool CloseDesktop(IntPtr desktop);
+          }
+          '@
+          $desktop = [RunnerDesktop]::CreateDesktopW("RunnerCheck-$PID", 0, 0, 0, 0x10000000, 0)
+          $desktopResult = if ($desktop -ne [IntPtr]::Zero) { [RunnerDesktop]::CloseDesktop($desktop) | Out-Null; 'yes' } else { "no (error $([Runtime.InteropServices.Marshal]::GetLastWin32Error()))" }
+          $webView2 = foreach ($key in 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+                                       'HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}') {
+              (Get-ItemProperty $key -ErrorAction SilentlyContinue).pv
+          }
+          $windowsAppRuntimes = (Get-AppxPackage -Name 'Microsoft.WindowsAppRuntime.*' -ErrorAction SilentlyContinue |
+              ForEach-Object { "$($_.Name) $($_.Version)" } | Sort-Object -Unique) -join ', '
+          $summary = @(
+              "### Runner for the end-to-end tests (${{ matrix.arch }})"
+              '| | |'
+              '| --- | --- |'
+              "| Session | $((Get-Process -Id $PID).SessionId), interactive: $([Environment]::UserInteractive) |"
+              "| Hidden desktop | $desktopResult |"
+              "| WebView2 Runtime | $(($webView2 | Where-Object { $_ } | Select-Object -First 1) ?? 'not found') |"
+              "| Windows App Runtime | $(if ($windowsAppRuntimes) { $windowsAppRuntimes } else { 'none' }) |"
+              "| Screen | $([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Size) |"
+              "| Processor | $env:PROCESSOR_ARCHITECTURE, $([Environment]::ProcessorCount) cores |"
+          )
+          $summary
+          $summary >> $env:GITHUB_STEP_SUMMARY
+
+      - name: End-to-end tests
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force logs\screenshots | Out-Null
+          tests\Test-PublishedExe.ps1 -Runtime win-${{ matrix.arch }} -Desktop Current -ScreenshotFolder "$PWD\logs\screenshots" -BinlogFolder logs *>&1 | Tee-Object logs\e2e.log
+          exit $LASTEXITCODE
+
+      # After the publishes in the tests, which bring the target architecture's runtime packs.
+      - name: Save NuGet package cache
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.nuget-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ steps.nuget-cache.outputs.cache-primary-key }}
+
+      # Logs, screenshots and binlogs; never part of a release.
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-${{ matrix.arch }}
+          path: logs
+          if-no-files-found: ignore
+          retention-days: 7
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: MP3-Player-Sync-*
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: symbols-*
+          path: symbols
+
+      - name: Zip symbols
+        run: |
+          for arch in x64 arm64; do
+            (cd "symbols/symbols-$arch" && zip -q "$GITHUB_WORKSPACE/MP3-Player-Sync-$arch-symbols.zip" ./*.pdb)
+          done
+
+      # Re-running the workflow for a tag replaces the assets of the release it already created.
+      # Tags with a suffix, like v1.2.3-beta.1, are prereleases, which releases/latest skips.
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          assets=(MP3-Player-Sync-x64.exe MP3-Player-Sync-arm64.exe MP3-Player-Sync-x64-symbols.zip MP3-Player-Sync-arm64-symbols.zip)
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
+          else
+            prerelease=()
+            if [[ "$GITHUB_REF_NAME" == *-* ]]; then prerelease=(--prerelease); fi
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" --verify-tag --generate-notes \
+              --title "MP3 Player Sync ${GITHUB_REF_NAME#v}" "${prerelease[@]}"
+          fi

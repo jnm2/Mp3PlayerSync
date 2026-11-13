@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mp3PlayerSync app icon, hand-hinted for exactly 30 x 30 px: edges on whole pixels, detail simplified. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0.21" x2="1" y2="0.79">
+      <stop offset="0" stop-color="#8A7CFF"/>
+      <stop offset="0.5" stop-color="#6A58F0"/>
+      <stop offset="1" stop-color="#4A35CF"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#C4F3FF"/>
+      <stop offset="1" stop-color="#6DD0FA"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DCD6FF"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="5" y="1" width="20" height="28" rx="2" fill="url(#body)"/>
+  <rect x="8" y="4" width="14" height="11" rx="0.75" fill="url(#screen)"/>
+  <g fill="#3221A8">
+    <ellipse cx="12.3" cy="13" rx="1.75" ry="1.3" transform="rotate(-20 12.3 13)"/>
+    <ellipse cx="17.3" cy="12" rx="1.75" ry="1.3" transform="rotate(-20 17.3 12)"/>
+    <rect x="13" y="7" width="1" height="6"/>
+    <rect x="18" y="6" width="1" height="6"/>
+    <path d="M13 6.6 L19 5.4 L19 7.2 L13 8.4 Z"/>
+  </g>
+  <!-- Pixel-snapped same-metaphor shadow under the ring. -->
+  <g fill="#1A0F6B" stroke="#1A0F6B" opacity="0.3" transform="translate(0 1)">
+    <path d="M11.061 21.305 A4 4 0 0 1 17.571 18.936" fill="none" stroke-width="2" stroke-linecap="round"/>
+    <path d="M16.221 20.545 L18.921 17.327 L18.939 21.305 Z" stroke-width="0.4" stroke-linejoin="round"/>
+    <path d="M18.939 22.695 A4 4 0 0 1 12.429 25.064" fill="none" stroke-width="2" stroke-linecap="round"/>
+    <path d="M13.779 23.455 L11.079 26.673 L11.061 22.695 Z" stroke-width="0.4" stroke-linejoin="round"/>  </g>
+  <g fill="url(#ring)" stroke="url(#ring)">
+    <path d="M11.061 21.305 A4 4 0 0 1 17.571 18.936" fill="none" stroke-width="2" stroke-linecap="round"/>
+    <path d="M16.221 20.545 L18.921 17.327 L18.939 21.305 Z" stroke-width="0.4" stroke-linejoin="round"/>
+    <path d="M18.939 22.695 A4 4 0 0 1 12.429 25.064" fill="none" stroke-width="2" stroke-linecap="round"/>
+    <path d="M13.779 23.455 L11.079 26.673 L11.061 22.695 Z" stroke-width="0.4" stroke-linejoin="round"/>  </g>
+</svg>

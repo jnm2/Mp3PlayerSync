@@ -1,0 +1,55 @@
+<!doctype html>
+<!--
+    Mock of exportify.net for end-to-end testing Mp3PlayerSync without a Spotify account.
+    It mirrors https://exportify.net/index.html and runs the live exportify.js and FileSaver.js unchanged;
+    only the Spotify Web API (fake-spotify.js) and the Spotify login redirect (fake-login.html) are faked.
+-->
+<html lang="en">
+<head>
+	<title>Exportify (mock)</title>
+	<meta charset="utf-8">
+	<script>let code = new URLSearchParams(location.search).get('code'); if (code) history.replaceState({}, '', '/')</script>
+	<!-- Test switches: ?expireToken makes the stored access token more than an hour old, and ?expireAfter=<seconds>
+	     makes it run out that long after the page loads, while it's open. Either way the fake API stops accepting it. -->
+	<script>
+		const expireToken = () => {
+			localStorage.setItem('access_token_timestamp', '0')
+			localStorage.setItem('mock_expired_token', localStorage.getItem('access_token'))
+		}
+		if (new URLSearchParams(location.search).has('expireToken')) expireToken()
+		const expireAfter = Number(new URLSearchParams(location.search).get('expireAfter'))
+		if (expireAfter) setTimeout(() => { expireToken(); document.body.append(document.createElement('i')) }, expireAfter * 1000) // Nudges the app's page observer
+	</script>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+	<script src="https://unpkg.com/react@16/umd/react.production.min.js"></script>
+	<script src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js"></script>
+	<script src="https://exportify.net/FileSaver.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js"></script>
+	<link rel="stylesheet" href="https://exportify.net/style.css">
+	<script src="demo-library.js"></script>
+	<script src="fake-spotify.js"></script>
+	<script src="https://exportify.net/exportify.js"></script>
+	<!-- Spotify only accepts exportify.net as a redirect URI, so the login step goes to a local fake instead.
+	     Test switch: ?autoSignIn makes the fake login page sign in by itself. -->
+	<script>
+		const autoSignIn = new URLSearchParams(location.search).has('autoSignIn')
+		utils.authorize = () => { location = 'http://127.0.0.1:' + location.port + '/fake-login.html' + (autoSignIn ? '?auto' : '') }
+	</script>
+</head>
+
+<body>
+	<div class="container">
+		<div id="header">
+			<div id="logoutContainer" class="text-right"></div>
+			<h1><i class="fa fa-spotify" style="color: #65D36E"></i> Exportify (mock)</h1>
+			<p id="subtitle" class="lead">Export your Spotify playlist data.</p>
+			<p id="error"></p>
+			<button id="loginButton" type="submit" class="btn btn-lg" onclick="utils.authorize()">
+				<i class="fa fa-check-circle-o"></i> Get Started
+			</button>
+		</div>
+		<div id="playlistsContainer"></div>
+	</div>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Mp3PlayerSync app icon: vector master on the 48x48 Windows icon grid.
+  Used as-is for every size of 36 px and up; 16-32 px use the hand-hinted AppIcon.<size>.svg files.
+  Regenerate all assets with: dotnet run build-icons.cs  (from the Assets\Icon folder)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <defs>
+    <!-- 120 degree gradients, lighter toward the top-left ambient light. -->
+    <linearGradient id="body" gradientUnits="userSpaceOnUse" x1="2.5" y1="11.6" x2="45.5" y2="36.4">
+      <stop offset="0" stop-color="#8A7CFF"/>
+      <stop offset="0.5" stop-color="#6A58F0"/>
+      <stop offset="1" stop-color="#4A35CF"/>
+    </linearGradient>
+    <linearGradient id="screen" gradientUnits="userSpaceOnUse" x1="10" y1="9" x2="38" y2="22">
+      <stop offset="0" stop-color="#C4F3FF"/>
+      <stop offset="1" stop-color="#6DD0FA"/>
+    </linearGradient>
+    <linearGradient id="ring" gradientUnits="userSpaceOnUse" x1="15" y1="29" x2="33" y2="42">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DCD6FF"/>
+    </linearGradient>
+    <!-- Same-metaphor shadow (two shadows, values at 48 px). -->
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="0.5" result="b1"/>
+      <feFlood flood-color="#1A0F6B" flood-opacity="0.24"/>
+      <feComposite in2="b1" operator="in" result="s1"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="0.75" result="b2"/>
+      <feOffset in="b2" dy="0.75" result="o2"/>
+      <feFlood flood-color="#1A0F6B" flood-opacity="0.32"/>
+      <feComposite in2="o2" operator="in" result="s2"/>
+      <feMerge>
+        <feMergeNode in="s1"/>
+        <feMergeNode in="s2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Player body: portrait shape inside the 36x48 keyline, soft exterior corners. -->
+  <rect x="8" y="2" width="32" height="44" rx="2.5" fill="url(#body)"/>
+
+  <!-- Screen with a beamed music note. Interior corner radius 1 px. -->
+  <rect x="12" y="6" width="24" height="19" rx="1" fill="url(#screen)"/>
+  <g fill="#3221A8">
+    <ellipse cx="19.4" cy="20.1" rx="2.6" ry="2.05" transform="rotate(-20 19.4 20.1)"/>
+    <ellipse cx="27.4" cy="18.6" rx="2.6" ry="2.05" transform="rotate(-20 27.4 18.6)"/>
+    <rect x="20.55" y="11.6" width="1.5" height="8.6"/>
+    <rect x="28.55" y="10.1" width="1.5" height="8.6"/>
+    <path d="M20.55 11.1 L30.05 9.3 L30.05 11.9 L20.55 13.7 Z"/>
+  </g>
+
+  <!-- Control ring drawn as two sync arrows (clockwise). -->
+  <g filter="url(#shadow)" fill="url(#ring)" stroke="url(#ring)">
+    <path d="M17.599 34.372 A6.5 6.5 0 0 1 28.178 30.521" fill="none" stroke-width="3" stroke-linecap="round"/>
+    <path d="M26.089 33.010 L30.267 28.031 L30.401 34.372 Z" stroke-width="0.6" stroke-linejoin="round"/>
+    <path d="M30.401 36.628 A6.5 6.5 0 0 1 19.822 40.479" fill="none" stroke-width="3" stroke-linecap="round"/>
+    <path d="M21.911 37.990 L17.733 42.969 L17.599 36.628 Z" stroke-width="0.6" stroke-linejoin="round"/>
+  </g>
+</svg>

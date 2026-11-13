@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <!-- Every warning fails the build, test and publish: each is fixed or suppressed where it is, with the reason. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

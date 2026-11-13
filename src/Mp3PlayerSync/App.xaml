@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="Mp3PlayerSync.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Mp3PlayerSync">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+                <!-- Other merged dictionaries here -->
+            </ResourceDictionary.MergedDictionaries>
+            <!-- Other app resources here -->
+            <!--  Page headings next to a back arrow ("Player: …", "Spotify playlist: …"). TrimToCapHeight keeps room for
+                  descenders, which TextTrimming would otherwise clip, and the negative bottom margin (the descent) leaves
+                  a layout box from the capitals' top to the baseline, so centering it centers the capitals.
+                  The e2e measures this alignment from rendered pixels.  -->
+            <Style x:Key="HeadingTextStyle" BasedOn="{StaticResource SubtitleTextBlockStyle}" TargetType="TextBlock">
+                <Setter Property="Margin" Value="0,0,0,-5" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="TextLineBounds" Value="TrimToCapHeight" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Setter Property="TextWrapping" Value="NoWrap" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

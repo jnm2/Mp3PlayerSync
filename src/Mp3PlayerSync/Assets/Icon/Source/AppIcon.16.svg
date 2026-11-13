@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mp3PlayerSync app icon, hand-hinted for exactly 16 x 16 px: edges on whole pixels, detail simplified. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0.21" x2="1" y2="0.79">
+      <stop offset="0" stop-color="#8A7CFF"/>
+      <stop offset="0.5" stop-color="#6A58F0"/>
+      <stop offset="1" stop-color="#4A35CF"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#C4F3FF"/>
+      <stop offset="1" stop-color="#6DD0FA"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DCD6FF"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="2" y="0" width="12" height="16" rx="1.5" fill="url(#body)"/>
+  <rect x="4" y="1" width="8" height="7" rx="0.5" fill="url(#screen)"/>
+  <!-- Single eighth note: 2x2 head, 1 px stem, 2-step flag. -->
+  <g fill="#3221A8">
+    <rect x="6" y="5" width="2" height="2" rx="0.3"/>
+    <rect x="8" y="2" width="1" height="5"/>
+    <rect x="9" y="3" width="1" height="1"/>
+    <rect x="10" y="4" width="1" height="1"/>
+  </g>
+  <!-- The sync arrows reduce to the control ring at this size. -->
+  <circle cx="8" cy="12" r="2.25" fill="none" stroke="#FFFFFF" stroke-width="1.5"/>
+</svg>

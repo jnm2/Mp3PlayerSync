@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mp3PlayerSync app icon, hand-hinted for exactly 32 x 32 px: edges on whole pixels, detail simplified. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0.21" x2="1" y2="0.79">
+      <stop offset="0" stop-color="#8A7CFF"/>
+      <stop offset="0.5" stop-color="#6A58F0"/>
+      <stop offset="1" stop-color="#4A35CF"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#C4F3FF"/>
+      <stop offset="1" stop-color="#6DD0FA"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DCD6FF"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="5" y="1" width="22" height="30" rx="2" fill="url(#body)"/>
+  <rect x="8" y="4" width="16" height="12" rx="0.75" fill="url(#screen)"/>
+  <g fill="#3221A8">
+    <ellipse cx="13.2" cy="13.6" rx="1.75" ry="1.35" transform="rotate(-20 13.2 13.6)"/>
+    <ellipse cx="18.2" cy="12.6" rx="1.75" ry="1.35" transform="rotate(-20 18.2 12.6)"/>
+    <rect x="14" y="7.5" width="1" height="6"/>
+    <rect x="19" y="6.5" width="1" height="6"/>
+    <path d="M14 7.2 L20 6 L20 7.9 L14 9.1 Z"/>
+  </g>
+  <g fill="#1A0F6B" stroke="#1A0F6B" opacity="0.3" transform="translate(0 1)">
+    <path d="M12.061 23.305 A4 4 0 0 1 18.571 20.936" fill="none" stroke-width="2" stroke-linecap="round"/>
+    <path d="M17.221 22.545 L19.921 19.327 L19.939 23.305 Z" stroke-width="0.4" stroke-linejoin="round"/>
+    <path d="M19.939 24.695 A4 4 0 0 1 13.429 27.064" fill="none" stroke-width="2" stroke-linecap="round"/>
+    <path d="M14.779 25.455 L12.079 28.673 L12.061 24.695 Z" stroke-width="0.4" stroke-linejoin="round"/>  </g>
+  <g fill="url(#ring)" stroke="url(#ring)">
+    <path d="M12.061 23.305 A4 4 0 0 1 18.571 20.936" fill="none" stroke-width="2" stroke-linecap="round"/>
+    <path d="M17.221 22.545 L19.921 19.327 L19.939 23.305 Z" stroke-width="0.4" stroke-linejoin="round"/>
+    <path d="M19.939 24.695 A4 4 0 0 1 13.429 27.064" fill="none" stroke-width="2" stroke-linecap="round"/>
+    <path d="M14.779 25.455 L12.079 28.673 L12.061 24.695 Z" stroke-width="0.4" stroke-linejoin="round"/>  </g>
+</svg>

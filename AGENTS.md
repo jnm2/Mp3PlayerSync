@@ -1,0 +1,30 @@
+# Working on MP3 Player Sync
+
+## Settled design decisions
+
+Before any UI or behavior change, read [docs/design-decisions.md](docs/design-decisions.md). It lists every decision
+the user has settled, each with the test that checks it.
+
+- Don't contradict an entry without the user's explicit OK.
+- When the user settles something new, or changes an entry, update the list in the same change, with its check.
+- If a check of a decision fails, fix the code. Don't weaken or remove the check.
+
+## Running the app and tests
+
+The UI must never take focus from the user's desktop (TEST-1). Run it only through the end-to-end test on a hidden
+desktop, never with `dotnet run` or `winapp run` on the user's desktop. The one exception is the upkeep session, which
+launches the app there after each successful warm build of `private` (UPKEEP-1).
+
+```powershell
+dotnet build Mp3PlayerSync.slnx
+dotnet test tests\Mp3PlayerSync.Tests
+pwsh tests\Invoke-EndToEnd.ps1
+```
+
+Agents never pass `-Desktop Current` to `Invoke-EndToEnd.ps1` (or `Test-PublishedExe.ps1`) on the user's PC: it runs the
+app on their own desktop, covering and taking focus from their windows. It's for CI, or for a person who runs it on
+purpose.
+
+The end-to-end run passes when it prints `All end-to-end checks passed`.
+
+See [src/Mp3PlayerSync/AGENTS.md](src/Mp3PlayerSync/AGENTS.md) for WinUI tooling.

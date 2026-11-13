@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="Mp3PlayerSync.PlayerDisplay"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--  "Player: [icon] name", styled like the "Spotify playlist:" heading. One TextBlock, with the icon as a run
+          in the symbol font, so the label, icon and name share one baseline at every scale. At 16px the icon
+          sits centered on the capitals. HeadingTextStyle (App.xaml) centers the box on the capitals.  -->
+    <TextBlock x:Name="Heading" Style="{StaticResource HeadingTextStyle}"><Run Text="Player:&#x2002;" /><Run x:Name="GlyphRun" FontFamily="{ThemeResource SymbolThemeFontFamily}" FontSize="16" /><Run Text="&#x2002;" /><Run x:Name="NameRun" /></TextBlock>
+</UserControl>
