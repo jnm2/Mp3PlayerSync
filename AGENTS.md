@@ -34,6 +34,7 @@ Agents never pass `-Desktop Current` to `Invoke-EndToEnd.ps1` (or `Test-Publishe
 app on their own desktop, covering and taking focus from their windows. It's for CI, or for a person who runs it on
 purpose.
 
-The end-to-end run passes when it prints `All end-to-end checks passed`.
+The end-to-end run passes when it prints `All end-to-end checks passed`. It exits with 1 when a check failed, and with 2
+when nothing failed but some checks were INCONCLUSIVE (they couldn't see what they check), which is not a pass.
 
 See [src/Mp3PlayerSync/AGENTS.md](src/Mp3PlayerSync/AGENTS.md) for WinUI tooling.

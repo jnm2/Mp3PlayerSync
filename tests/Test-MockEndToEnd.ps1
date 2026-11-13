@@ -15,6 +15,11 @@
       4. Sign out: the sign-in screen comes back. Links on it open outside the app, and signing in on it works.
     Throughout, Exportify's own page is never shown. Also checks that nothing was written to the Downloads folder.
 
+    Exits with 0 when every check passed, 1 when any failed, and 2 when none failed but some were inconclusive:
+    they couldn't look at what they check (say, the app drew no picture of its window). Pixel checks read the window
+    as the app's XAML draws it, through the test host, so they work while the PC is locked, when Windows gives
+    PrintWindow stale or blank pictures.
+
     The mock runs the live exportify.net exportify.js and FileSaver.js, so it needs internet access.
     Build first: dotnet build Mp3PlayerSync.slnx
 
@@ -39,6 +44,16 @@ using System; using System.Runtime.InteropServices;
 public static class E2EWin32 {
     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+    [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr hwnd, ref POINT point);
+    public struct POINT { public int X, Y; }
+    [DllImport("wtsapi32.dll")] static extern bool WTSQuerySessionInformationW(IntPtr server, int sessionId, int infoClass, out IntPtr buffer, out int bytes);
+    [DllImport("wtsapi32.dll")] static extern void WTSFreeMemory(IntPtr memory);
+    // WTSSessionInfoEx (25) for this session (-1): its SessionFlags, at offset 16, is WTS_SESSIONSTATE_LOCK (0) while locked.
+    public static bool IsLocked() {
+        IntPtr buffer; int bytes;
+        if (!WTSQuerySessionInformationW(IntPtr.Zero, -1, 25, out buffer, out bytes)) return false;
+        try { return Marshal.ReadInt32(buffer, 16) == 0; } finally { WTSFreeMemory(buffer); }
+    }
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, uint flags);
     public const uint SWP_NOMOVE = 0x2, SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10;
@@ -80,10 +95,18 @@ $AE = [System.Windows.Automation.AutomationElement]
 $TreeScope = [System.Windows.Automation.TreeScope]
 $ControlType = [System.Windows.Automation.ControlType]
 $failures = [System.Collections.Generic.List[string]]::new()
+$inconclusive = [System.Collections.Generic.List[string]]::new()
 
 function Check([bool] $condition, [string] $description) {
     if ($condition) { Write-Host "  PASS  $description" -ForegroundColor Green }
     else { Write-Host "  FAIL  $description" -ForegroundColor Red; $failures.Add($description) }
+}
+
+# A check that couldn't look at what it checks, say because there was no picture of the window: it neither passed nor
+# failed. The run says so at the end and exits with 2 rather than 0, so it's never taken for a pass.
+function Inconclusive([string] $description) {
+    Write-Host "  INCONCLUSIVE  $description" -ForegroundColor Yellow
+    $inconclusive.Add($description)
 }
 
 # Only the app processes this run started, while they run: Windows reuses the IDs of those that have exited.
@@ -316,23 +339,66 @@ function Capture-Window($window) {
     [pscustomobject]@{ Bitmap = $bitmap; Left = $rect.Left; Top = $rect.Top }
 }
 
+# The window's content as the app's XAML draws it, through the test host (see WindowCapture there), placed in screen
+# pixels like UI Automation's rectangles. Unlike Capture-Window, it works while the PC is locked, but it leaves out
+# the title bar, backdrop and web pages. If there's no picture, returns why, as a string.
+function Render-Window($window) {
+    $request = Join-Path $env:MP3PLAYERSYNC_DATA_DIR 'Capture.request'
+    $png = Join-Path $env:MP3PLAYERSYNC_DATA_DIR 'Capture.png'
+    # One left over from an app that has since closed would never be noticed: the host waits for one to be created.
+    Remove-Item $request, $png, "$png.error" -ErrorAction SilentlyContinue
+    Set-Content $request ''
+    $seconds = 10 * $script:waitScale
+    $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+    while ((Test-Path $request) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 50 }
+    if (Test-Path $request) { Remove-Item $request -ErrorAction SilentlyContinue; return "the app didn't draw the window within $seconds s" }
+    if (Test-Path "$png.error") { return "the app couldn't draw the window: $((Get-Content "$png.error" -TotalCount 1))" }
+    if (!(Test-Path $png)) { return 'the app had no window content to draw' }
+    $file = [System.Drawing.Bitmap]::new($png)
+    try { $bitmap = [System.Drawing.Bitmap]::new($file) } finally { $file.Dispose() } # A copy, so the file isn't held open
+    if (Test-Blank $bitmap) { $bitmap.Dispose(); return "the app's drawing of the window was blank" }
+    $origin = New-Object E2EWin32+POINT
+    [E2EWin32]::ClientToScreen([IntPtr]$window.Current.NativeWindowHandle, [ref]$origin) | Out-Null
+    [pscustomobject]@{ Bitmap = $bitmap; Left = $origin.X; Top = $origin.Y }
+}
+
+# Whether a picture shows nothing, as Windows sometimes gives PrintWindow while the PC is locked: one color, perhaps
+# with a border.
+function Test-Blank($bitmap) {
+    $colors = [System.Collections.Generic.HashSet[int]]::new()
+    for ($x = 0; $x -lt $bitmap.Width; $x += 8) {
+        for ($y = 0; $y -lt $bitmap.Height; $y += 8) { if ($colors.Add($bitmap.GetPixel($x, $y).ToArgb()) -and $colors.Count -gt 2) { return $false } }
+    }
+    $true
+}
+
 function Save-Screenshot($window, [string] $name) {
     if (!$ScreenshotFolder) { return }
-    $capture = Capture-Window $window
-    if (!$capture) { Write-Host "  No screenshot of $name (window not laid out)"; return }
+    # While the PC is locked, PrintWindow gets a blank picture, or the window as it was before (say, a page ago).
+    $why = if ([E2EWin32]::IsLocked()) { 'the PC is locked, when Windows gives stale or blank pictures' }
+    $capture = if (!$why) { Capture-Window $window }
+    if (!$why -and !$capture) { Write-Host "  No screenshot of $name (window not laid out)"; return }
+    if (!$why -and (Test-Blank $capture.Bitmap)) { $capture.Bitmap.Dispose(); $why = 'Windows gave a blank picture' }
+    if ($why) {
+        # The app's own drawing is the next best thing.
+        $capture = Render-Window $window
+        if ($capture -is [string]) { Write-Host "  No screenshot of $name ($why, and $capture)"; return }
+    }
     $path = Join-Path $ScreenshotFolder "$name.png"
     $capture.Bitmap.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
     $capture.Bitmap.Dispose()
-    Write-Host "  Screenshot: $path"
+    Write-Host "  Screenshot: $path$(if ($why) { " (as the app draws it, without the title bar, backdrop or web pages: $why)" })"
 }
 
 # The color of the icon just left of a status text in a track row: Success (green), Caution (yellow), Critical (red),
-# Neutral (grey), or None. Status icons aren't in UI Automation (Narrator reads the text instead), so this reads the pixels.
+# Neutral (grey), or None; or "Unknown (why)" without a picture of the window. Status icons aren't in UI Automation
+# (Narrator reads the text instead), so this reads the pixels, as the app draws them, which works while the PC is locked.
 function Status-Tone($window, $row, [string] $status) {
     $text = $row.FindFirst($TreeScope::Descendants, [System.Windows.Automation.AndCondition]::new(
         [System.Windows.Automation.PropertyCondition]::new($AE::NameProperty, $status),
         [System.Windows.Automation.PropertyCondition]::new($AE::ControlTypeProperty, $ControlType::Text))).Current.BoundingRectangle
-    $capture = Capture-Window $window
+    $capture = Render-Window $window
+    if ($capture -is [string]) { return "Unknown ($capture)" }
     $counts = @{ Success = 0; Caution = 0; Critical = 0; Neutral = 0 }
     try {
         # The icon's 18px slot and 4px gap are just left of the text; the gap shows the row's background.
@@ -351,6 +417,13 @@ function Status-Tone($window, $row, [string] $status) {
     } finally { $capture.Bitmap.Dispose() }
     $best = $counts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1
     if ($best.Value -ge 5) { $best.Key } else { 'None' }
+}
+
+# Checks the tones Status-Tone found, which is inconclusive rather than a pass or a failure if any is Unknown.
+function Check-Tones([string[]] $tones, [string[]] $expected, [string] $description) {
+    $found = $tones -join ', '
+    if ($tones -like 'Unknown*') { Inconclusive "$description`: $found" }
+    else { Check ($found -eq ($expected -join ', ')) "$description`: $found" }
 }
 
 # The player page comes first on every start; the folder chosen last time is pre-selected, so Enter continues.
@@ -660,8 +733,7 @@ try {
             function Row-Box($row) { Pattern ($row.FindFirst($TreeScope::Descendants, [System.Windows.Automation.PropertyCondition]::new($AE::ControlTypeProperty, $ControlType::CheckBox))) ([System.Windows.Automation.TogglePattern]) }
             $onPlayer = Find-ListItem $tracksList 'roadtrip song 2 — Artist 1'
             Check ((Row-Texts $onPlayer) -contains 'On player') "The track in the playlist's folder shows ""On player"""
-            $tone = Status-Tone $window $onPlayer 'On player'
-            Check ($tone -eq 'Success') "[STATUS-1] ""On player"" has a success icon: $tone"
+            Check-Tones (Status-Tone $window $onPlayer 'On player') 'Success' '[STATUS-1] "On player" has a success icon'
             Check (@(Row-Texts $onPlayer | Where-Object { $_ -match '[\uE000-\uF8FF]' }).Count -eq 0) '[STATUS-1] Narrator never reads an icon glyph'
             Check ((Row-Box $onPlayer).Current.ToggleState -eq [System.Windows.Automation.ToggleState]::Off) '...and starts unselected'
             $elsewhere = Find-ListItem $tracksList 'roadtrip song 5 — Artist 4'
@@ -768,8 +840,8 @@ try {
                 (Row-Texts (Find-ListItem $cafeList $cafe3)) -contains "Couldn't search"
             } 'the songs to be looked for before syncing' 15 | Out-Null
             Check $true 'Songs are looked for as soon as the playlist opens'
-            $tones = @((Status-Tone $window (Find-ListItem $cafeList $cafe1) 'Source found'), (Status-Tone $window (Find-ListItem $cafeList $cafe2) 'Needs review'), (Status-Tone $window (Find-ListItem $cafeList $cafe3) "Couldn't search")) -join ', '
-            Check ($tones -eq 'None, Caution, Critical') "[STATUS-1] Source found has no icon, Needs review a caution icon, Couldn't search a critical icon: $tones"
+            $tones = (Status-Tone $window (Find-ListItem $cafeList $cafe1) 'Source found'), (Status-Tone $window (Find-ListItem $cafeList $cafe2) 'Needs review'), (Status-Tone $window (Find-ListItem $cafeList $cafe3) "Couldn't search")
+            Check-Tones $tones 'None', 'Caution', 'Critical' "[STATUS-1] Source found has no icon, Needs review a caution icon, Couldn't search a critical icon"
             Save-Screenshot $window 'status-icons'
             Check ((Get-Text $window 'ReviewMatchesButton') -eq 'Review 2 songs') "Review button: '$(Get-Text $window 'ReviewMatchesButton')'"
             Click $window 'ReviewMatchesButton'
@@ -833,8 +905,7 @@ try {
         Check (($result -join ' ') -like "*Synced 2 songs to Folder (*)*1 song skipped.*") "The sync says what it did: '$($result -join ' | ')'"
             $skippedRow = Find-ListItem $tracksList 'cafe song 3 — Artist 2'
             Check ((Row-Texts $skippedRow) -contains 'Skipped' -and (Row-Box $skippedRow).Current.ToggleState -eq [System.Windows.Automation.ToggleState]::Off) 'The skipped song shows as skipped and unselected'
-            $tone = Status-Tone $window $skippedRow 'Skipped'
-            Check ($tone -eq 'Neutral') "[STATUS-1] Skipped has a neutral icon: $tone"
+            Check-Tones (Status-Tone $window $skippedRow 'Skipped') 'Neutral' '[STATUS-1] Skipped has a neutral icon'
             Press (In-Item $skippedRow $ControlType::Hyperlink 'Undo skipping cafe song 3')
             Wait-Until { (Row-Box $skippedRow).Current.ToggleState -eq [System.Windows.Automation.ToggleState]::On } 'the undone skip to be selected again' 5 | Out-Null
             Check ((Row-Texts $skippedRow) -notcontains 'Skipped') 'Undoing a skip selects the song again'
@@ -1156,5 +1227,10 @@ finally {
     Remove-Item Env:\MP3PLAYERSYNC_DATA_DIR -ErrorAction SilentlyContinue
 }
 
-if ($failures.Count) { Write-Host "$($failures.Count) failure(s)" -ForegroundColor Red; exit 1 }
+if ($failures.Count) { Write-Host "$($failures.Count) failure(s)$(if ($inconclusive.Count) { ", and $($inconclusive.Count) inconclusive check(s)" })" -ForegroundColor Red; exit 1 }
+if ($inconclusive.Count) {
+    Write-Host "No failures, but $($inconclusive.Count) check(s) were inconclusive, neither passed nor failed:" -ForegroundColor Yellow
+    $inconclusive | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
+    exit 2
+}
 Write-Host 'All end-to-end checks passed' -ForegroundColor Green

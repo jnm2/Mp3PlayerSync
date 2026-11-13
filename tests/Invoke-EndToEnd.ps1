@@ -12,6 +12,9 @@
     confirm nothing changes it. -Desktop Current runs on this session's own desktop instead, where the app can cover
     and take focus from whatever else is there: for CI, on a throwaway VM with nobody to disturb, or for someone who
     asks for it on purpose. Agents never use it on the user's PC.
+
+    Exits with the script's exit code: for Test-MockEndToEnd.ps1, 0 when everything passed, 1 for failures (or when
+    it timed out or a test process took the foreground), and 2 when nothing failed but some checks were inconclusive.
 #>
 param(
     [string] $ScreenshotFolder,
@@ -218,7 +221,9 @@ try {
     $passed = $exited -and $processExitCode -eq 0 -and $logText -match [regex]::Escape($PassedText)
     if ($stolen.Count) { Write-Host "A test process took the foreground: $($stolen -join ', ')" -ForegroundColor Red }
     elseif ($exited -and $processExitCode -eq 0 -and !$passed) { Write-Host "The script exited with 0 but did not print '$PassedText'" -ForegroundColor Red }
-    $exitCode = if ($passed -and !$stolen.Count) { 0 } elseif ($exited -and $processExitCode -ne 0) { [int]$processExitCode } else { 1 }
+    elseif ($exited -and $processExitCode -eq 2) { Write-Host 'Inconclusive: nothing failed, but some checks could neither pass nor fail (see above)' -ForegroundColor Yellow }
+    # Taking the foreground is a failure, whatever the script found.
+    $exitCode = if ($stolen.Count) { 1 } elseif ($passed) { 0 } elseif ($exited -and $processExitCode -ne 0) { [int]$processExitCode } else { 1 }
 }
 finally {
     # Everything started on the test desktop goes with it.
