@@ -547,7 +547,9 @@ function Prepare-State([string] $lastItem) {
         if (Get-Text $window 'PlaylistTitle') { Click $window 'BackButton' }
         Wait-Until { (Get-Text $window 'LibrarySummaryText') -and !(Find-ById $window 'LibraryBusyText') } 'the library' 90 | Out-Null
         Select-Filter $window 'All'
-        Wait-Until { (Get-Text $window 'LibrarySummaryText') -like '*playlists and albums' -and !(Find-ById $window 'LibraryBusyText') } 'the whole library' 60 | Out-Null
+        # All of it, saved albums included: they arrive after the playlists, without busy text, and rebuild the grid,
+        # which would drop a click on a tile from before.
+        Wait-Until { (Get-Text $window 'LibrarySummaryText') -eq '64 playlists and albums' -and !(Find-ById $window 'LibraryBusyText') } 'the whole library' 60 | Out-Null
         Open-LibraryItem $window $lastItem
         Wait-Until { (Get-Text $window 'SummaryText') -and !(Find-ById $window 'PlaylistBusyText') } "'$lastItem' to load" 60 | Out-Null
     } finally { Stop-App $process }
