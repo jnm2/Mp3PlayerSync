@@ -1,0 +1,122 @@
+# The weekly live check (TEST-4): the app, as released and trimmed, signs in to the Spotify test account on the real
+# exportify.net, and LiveTests (tests\Mp3PlayerSync.EndToEnd) checks that the playlist list and the Liked Songs export
+# still carry every piece of metadata the app needs. Pull requests and pushes never run it: they test against the mock.
+#
+# A failure email's subject is the workflow's name, and the failed job's name says what happened: either the app no
+# longer works with exportify.net, or the check was inconclusive because Spotify stopped the sign-in (a captcha, a login
+# code, a rejected password) or a site was down. Nothing is uploaded: no screenshots, no WebView2 profile, no logs.
+name: "Live check: does MP3 Player Sync still work with exportify.net?"
+
+on:
+  schedule:
+    - cron: '23 10 * * 1' # Mondays, a few hours after the check of the mock's copies of exportify.net
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  NUGET_PACKAGES: ${{ github.workspace }}\.nuget\packages
+
+jobs:
+  check:
+    name: Run the app against exportify.net and Spotify
+    runs-on: windows-latest
+    timeout-minutes: 45
+    outputs:
+      outcome: ${{ steps.check.outputs.outcome }}
+      reason: ${{ steps.check.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # This fetches the git tags, which the version is based on.
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Read-only: the build workflow keeps it current.
+      - name: Restore NuGet package cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('global.json', '**/*.csproj', '**/Directory.*.props', '**/Directory.*.targets') }}
+          restore-keys: nuget-${{ runner.os }}-${{ runner.arch }}-
+
+      # The test host trimmed as the app is released, as tests\Test-PublishedExe.ps1 publishes it. The app's XAML is in
+      # Mp3PlayerSync.pri, which Windows only looks for beside Mp3PlayerSync.exe, while resources.pri is found beside
+      # any exe.
+      - name: Publish the trimmed test host
+        shell: pwsh
+        run: |
+          dotnet publish tests\Mp3PlayerSync.E2EHost\Mp3PlayerSync.E2EHost.csproj -c Release -r win-x64 -o "$env:RUNNER_TEMP\host" -p:SelfContained=true -p:WindowsAppSDKSelfContained=true
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item "$env:RUNNER_TEMP\host\Mp3PlayerSync.pri" "$env:RUNNER_TEMP\host\resources.pri"
+
+      - name: Build the end-to-end tests
+        run: dotnet build tests\Mp3PlayerSync.EndToEnd\Mp3PlayerSync.EndToEnd.csproj -c Release
+
+      # Only this step gets the test account's credentials. The test takes them out of its environment before it
+      # starts the app, and never prints them. The launcher exits with 0 when the check passed, 2 when it was
+      # inconclusive and 1 when it failed. This step passes the outcome on, and fails only when the check didn't run.
+      - name: Live check
+        id: check
+        shell: pwsh
+        env:
+          SPOTIFY_TEST_USERNAME: ${{ secrets.SPOTIFY_TEST_USERNAME }}
+          SPOTIFY_TEST_PASSWORD: ${{ secrets.SPOTIFY_TEST_PASSWORD }}
+        run: |
+          $results = "$env:RUNNER_TEMP\TestResults"
+          dotnet run --project tests\Mp3PlayerSync.EndToEnd -c Release --no-build -- --only Live --app "$env:RUNNER_TEMP\host\Mp3PlayerSync.E2EHost.exe" --desktop Current --timeout-minutes 25 --results-directory $results
+          $exitCode = $LASTEXITCODE
+
+          $trx = Get-ChildItem $results -Filter *.trx -ErrorAction SilentlyContinue | Select-Object -First 1
+          $result = if ($trx) { ([xml](Get-Content $trx.FullName -Raw)).TestRun.Results.UnitTestResult | Select-Object -First 1 }
+          if (!$result) {
+              "::error title=The live check didn't run::The launcher exited with $exitCode without a test result. See the log above."
+              exit 1
+          }
+          $outcome = switch ($exitCode) { 0 { 'passed' } 2 { 'inconclusive' } default { 'failed' } }
+          # A failure's message, or a skip's reason, as the launcher reads them (see TestOutcomes.cs)
+          $text = ($result.SelectSingleNode('.//*[local-name()="Message"]') ?? $result.SelectSingleNode('.//*[local-name()="DebugTrace"]'))?.InnerText
+          $message = "$text".Trim() -replace '^Skipped:\s*', '' -replace '\s+', ' '
+          if ($message.Length -gt 1000) { $message = $message.Substring(0, 1000) + '…' }
+          if (!$message) { $message = if ($outcome -eq 'passed') { 'Everything the app needs is still there.' } else { "The launcher exited with $exitCode. See the log." } }
+
+          "outcome=$outcome" >> $env:GITHUB_OUTPUT
+          "reason=$message" >> $env:GITHUB_OUTPUT
+          $icon = @{ passed = '✅'; inconclusive = '⚠️'; failed = '❌' }[$outcome]
+          @("### $icon Live check: $outcome", '', $message) >> $env:GITHUB_STEP_SUMMARY
+
+  # One of these fails when the check didn't pass, so the failure email lists a job whose name says what happened.
+  broken:
+    name: MP3 Player Sync no longer works with exportify.net
+    needs: check
+    if: needs.check.outputs.outcome == 'failed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        env:
+          REASON: ${{ needs.check.outputs.reason }}
+        run: |
+          echo "::error title=MP3 Player Sync no longer works with exportify.net::$REASON"
+          exit 1
+
+  inconclusive:
+    name: "Inconclusive: the live check couldn't sign in to Spotify"
+    needs: check
+    if: needs.check.outputs.outcome == 'inconclusive'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        env:
+          REASON: ${{ needs.check.outputs.reason }}
+        run: |
+          echo "::error title=Inconclusive: the live check couldn't sign in to Spotify::$REASON Nothing about the app was checked. Rerun it at most once, a few hours later."
+          exit 1
