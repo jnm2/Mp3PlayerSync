@@ -1025,7 +1025,9 @@ try {
             $tags = foreach ($file in $cafeFiles) {
                 $item = $shell.Namespace($file.DirectoryName).ParseName($file.Name)
                 [pscustomobject]@{ Title = $item.ExtendedProperty('System.Title'); Artist = @($item.ExtendedProperty('System.Music.Artist')) -join '; ' }
+                [Runtime.InteropServices.Marshal]::FinalReleaseComObject($item) | Out-Null # So the shell lets go of the file
             }
+            [Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell) | Out-Null
             Check ($cafeFiles.Count -eq 2 -and @($tags | Where-Object { $_.Title -like 'cafe song *' -and $_.Artist }).Count -eq 2) "The copied songs are tagged ($(($tags | ForEach-Object { "$($_.Title) by $($_.Artist)" }) -join ', '))"
             $result = (Get-AllText $window) -split "`n" | Where-Object { $_ -match 'Synced|Sync cancelled|Updated|Nothing was synced|skipped|couldn''t' }
         Check (($result -join ' ') -like "*Synced 2 songs to Folder (*)*1 song skipped.*") "The sync says what it did: '$($result -join ' | ')'"
@@ -1039,7 +1041,8 @@ try {
             # Deleting a synced song's file on the player is noticed, like any other change on the player.
             $synced = Find-ListItem $tracksList 'cafe song 2 — Artist 1'
             $syncedFile = $cafeFiles | Where-Object Name -like '*cafe song 2*' | Select-Object -First 1
-            Remove-Item -LiteralPath $syncedFile.FullName
+            # The shell's property handler, or an antivirus scan of the new file, can still have it open for a moment.
+            Wait-Until { try { Remove-Item -LiteralPath $syncedFile.FullName -ErrorAction Stop; $true } catch { $false } } 'the synced file to be deleted' 5 | Out-Null
             Wait-Until { (Row-Texts $synced) -notcontains 'On player' -and (Row-Box $synced).Current.ToggleState -eq [System.Windows.Automation.ToggleState]::On } 'the deleted song to be back to adding' 20 | Out-Null
             Check $true 'A synced song deleted from the player goes back to being added'
             Save-Screenshot $window 'synced'
