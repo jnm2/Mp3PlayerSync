@@ -34,6 +34,7 @@
     <!-- The app itself is a WinUI exe, which this can't reference -->
     <Compile Include="..\..\src\Mp3PlayerSync\WindowsAlbumArtConverter.cs" Link="Tagging\WindowsAlbumArtConverter.cs" />
     <Compile Include="..\..\src\Mp3PlayerSync\LaunchHandOver.cs" Link="LaunchHandOver.cs" />
+    <Compile Include="..\..\src\Mp3PlayerSync\VolumeChangeFilter.cs" Link="VolumeChangeFilter.cs" />
   </ItemGroup>
 
 </Project>
