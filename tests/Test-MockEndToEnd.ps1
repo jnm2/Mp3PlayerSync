@@ -109,11 +109,22 @@ function Find-WebDocument($window, [string] $name) {
     }
 }
 
-# CI runners, with two cores on Arm64, are slower and busier than a developer's PC.
+# CI runners, with two cores on Arm64, are slower and busier than a developer's PC. So is a PC running other runs at
+# the same time, which Invoke-EndToEnd.ps1 does: each running one adds half as much again, up to twice as long, as
+# counted from its queue (MP3PLAYERSYNC_E2E_QUEUE) at most every 5 s.
 $script:waitScale = if ($env:CI -eq 'true') { 2 } else { 1 }
+$script:waitScaleAt = [DateTime]::MinValue
+function Update-WaitScale {
+    if (!$env:MP3PLAYERSYNC_E2E_QUEUE -or ([DateTime]::UtcNow - $script:waitScaleAt).TotalSeconds -lt 5) { return }
+    $script:waitScaleAt = [DateTime]::UtcNow
+    $running = @(Get-ChildItem $env:MP3PLAYERSYNC_E2E_QUEUE -Filter *.json -ErrorAction SilentlyContinue |
+        ForEach-Object { try { Get-Content $_.FullName -Raw | ConvertFrom-Json } catch { } } | Where-Object running).Count
+    $script:waitScale = [Math]::Max($(if ($env:CI -eq 'true') { 2.0 } else { 1.0 }), [Math]::Min(2.0, 1 + 0.5 * ($running - 1)))
+}
 $script:timeoutShots = 0
 
 function Wait-Until([scriptblock] $probe, [string] $what, [double] $timeoutSeconds = 30) {
+    Update-WaitScale
     $timeoutSeconds *= $script:waitScale
     $deadline = [DateTime]::UtcNow.AddSeconds($timeoutSeconds)
     do {
