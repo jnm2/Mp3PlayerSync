@@ -117,7 +117,7 @@ public sealed partial class MainPage : Page
 
         if (App.MainWindow is { } window)
         {
-            driveWatcher = new DriveChangeWatcher(WinRT.Interop.WindowNative.GetWindowHandle(window));
+            driveWatcher = new DriveChangeWatcher(SynchronizationContext.Current!);
             driveWatcher.DrivesChanged += (_, _) => RecheckPlayers();
 
             // Also covers changes that send no device notification, such as unlocking an encrypted drive.
