@@ -4,6 +4,7 @@
 	<title>Spotify login (mock)</title>
 	<meta charset="utf-8">
 	<script>
+		navigator.sendBeacon('/api-log', 'fake-login loaded') // For the tests: the page loaded, whether or not UI Automation sees it
 		// Served from 127.0.0.1 so that, like accounts.spotify.com, it is a different origin from Exportify (localhost).
 		const returnToExportify = () => {
 			document.cookie = 'mock_spotify_session=1; path=/; max-age=31536000' // Persistent, like Spotify's

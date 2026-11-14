@@ -1005,12 +1005,16 @@ try {
 
             Write-Host 'Run 4: sign out'
             Click $window 'BackButton'
+            $loginLoads = Get-ApiCalls '^fake-login loaded$'
             Click $window 'SignOutButton'
             Wait-Until { Find-ById $window 'SignInTitle' } 'the sign-in screen after signing out' 30 | Out-Null
             Check $true 'Signing out shows the sign-in screen'
 
             # Links to elsewhere open outside the app; the sign-in page stays, and signing in still works.
-            $page = Wait-Until { Find-WebDocument $window 'Spotify login (mock)' } "Spotify's sign-in page" 60
+            # The page reports loading to the mock, which tells a page that never loaded from one UI Automation can't see.
+            Wait-Until { (Get-ApiCalls '^fake-login loaded$') -gt $loginLoads } "Spotify's sign-in page to load" 60 | Out-Null
+            $page = try { Wait-Until { Find-WebDocument $window 'Spotify login (mock)' } "Spotify's sign-in page in UI Automation" 60 }
+                catch { Write-Host "  The page loaded; the sign-in button instead of the page is $(if (Find-ById $window 'SignInPromptButton') { '' } else { 'not ' })showing"; throw }
             $opened = Join-Path $env:MP3PLAYERSYNC_DATA_DIR 'OpenedExternally.txt'
             foreach ($link in @(@('Sign up for Spotify', 'https://www.spotify.com/signup'), @('Help', 'https://support.spotify.com/'))) {
                 (Pattern (Wait-Until { Find-Named $page $ControlType::Hyperlink $link[0] } "the '$($link[0])' link" 10) ([System.Windows.Automation.InvokePattern])).Invoke()
@@ -1102,7 +1106,12 @@ catch {
     Write-Host "  ERROR $_ $($_.ScriptStackTrace)" -ForegroundColor Red
 }
 finally {
-    if ($server) { Stop-Job $server; Remove-Job $server -Force }
+    if ($server) {
+        Stop-Job $server
+        # Requests the mock couldn't answer, which can explain a failure that shows up far from them
+        Receive-Job $server *>&1 | Where-Object { "$_" -like 'Mock: *' } | ForEach-Object { Write-Host "  $_" }
+        Remove-Job $server -Force
+    }
     Remove-Item Env:\MP3PLAYERSYNC_EXPORTIFY_URL -ErrorAction SilentlyContinue
     Remove-Item Env:\MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL -ErrorAction SilentlyContinue
     Remove-Item Env:\MP3PLAYERSYNC_TEST_FAKE_AUDIO -ErrorAction SilentlyContinue
