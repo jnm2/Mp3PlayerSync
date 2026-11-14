@@ -911,19 +911,22 @@ try {
             # "Other folder" opens Windows' folder dialog in the player's folder, where Select Folder picks that folder.
             Click $window 'ChangePlayerButton'
             $grid = Wait-Until { Find-ById $window 'PlayerGridView' } 'the MP3 player page'
-            $appId = $process.Id
-            # The dialog is modal, so invoke the tile from another thread in case Invoke waits for it.
+            $hwnd = $window.Current.NativeWindowHandle
+            # The dialog is modal, so invoke the tile from another thread in case Invoke waits for it. The app's window
+            # is passed by its handle: the process can have other top-level windows too (see Start-App).
             $invoke = Start-ThreadJob {
                 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
                 $AE = [System.Windows.Automation.AutomationElement]; $TS = [System.Windows.Automation.TreeScope]
-                $app = $AE::RootElement.FindFirst($TS::Children, [System.Windows.Automation.PropertyCondition]::new($AE::ProcessIdProperty, $using:appId))
+                $app = $AE::FromHandle([IntPtr]$using:hwnd)
                 $tile = $app.FindFirst($TS::Descendants, [System.Windows.Automation.AndCondition]::new(
                     [System.Windows.Automation.PropertyCondition]::new($AE::ControlTypeProperty, [System.Windows.Automation.ControlType]::ListItem),
                     [System.Windows.Automation.PropertyCondition]::new($AE::NameProperty, 'Other folder')))
                 $tile.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
             }
             # Found through Win32: UI Automation searches from the root can time out while the app waits on the dialog.
-            $dialog = Wait-Until { $h = [E2EWin32]::ProcessWindow([uint32]$process.Id, '#32770'); if ($h -ne [IntPtr]::Zero) { $AE::FromHandle($h) } } 'the folder dialog' 20
+            # The thread's errors would otherwise go unseen, leaving only this timeout.
+            $dialog = try { Wait-Until { $h = [E2EWin32]::ProcessWindow([uint32]$process.Id, '#32770'); if ($h -ne [IntPtr]::Zero) { $AE::FromHandle($h) } } 'the folder dialog' 20 }
+                catch { Receive-Job $invoke *>&1 | ForEach-Object { Write-Host "  Invoking 'Other folder': $_" }; throw }
             # On the test desktop the dialog's Win32 buttons appear as panes without InvokePattern, so the raw view is searched.
             $selectFolder = Wait-Until { Find-Raw $dialog { $_.ClassName -eq 'Button' -and $_.Name -eq 'Select Folder' } } "the dialog's Select Folder button" 10
             $address = Wait-Until { (Find-Raw $dialog { $_.Name -like 'Address: *' })?.Current.Name } "the dialog's address bar" 10
