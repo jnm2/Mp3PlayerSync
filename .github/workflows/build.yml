@@ -128,18 +128,20 @@ jobs:
       - name: Publish
         shell: pwsh
         run: |
-          $version = @()
-          if ($env:GITHUB_REF_TYPE -eq 'tag') {
-              if ($env:GITHUB_REF_NAME -notmatch '^v(\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?)$') {
-                  throw "Tag '$env:GITHUB_REF_NAME' isn't a version like v1.2.3 or v1.2.3-beta.1"
-              }
-              $version = @("-p:Version=$($Matches[1])")
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -notmatch '^v(\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?)$') {
+              throw "Tag '$env:GITHUB_REF_NAME' isn't a version like v1.2.3 or v1.2.3-beta.1"
           }
-          # Single-file, trimming and the rest come from the .csproj. All of the app's files are extracted at first launch
-          # (the Windows App SDK's IncludeAllContentForSelfExtract) for its DLL side-by-side redirection.
+          # Single-file, trimming and the rest come from the .csproj, and the version from the tags
+          # (Directory.Build.targets). All of the app's files are extracted at first launch (the Windows App SDK's
+          # IncludeAllContentForSelfExtract) for its DLL side-by-side redirection.
           dotnet publish src\Mp3PlayerSync\Mp3PlayerSync.csproj -c Release -r win-${{ matrix.arch }} -o publish `
-              -p:PublishSingleFile=true @version -bl:logs\publish-${{ matrix.arch }}.binlog
+              -p:PublishSingleFile=true -bl:logs\publish-${{ matrix.arch }}.binlog
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $productVersion = (Get-Item publish\Mp3PlayerSync.exe).VersionInfo.ProductVersion
+          "Version: $productVersion"
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $productVersion -notlike "$($Matches[1])+*") {
+              throw "The exe's version, $productVersion, isn't the tag's, $($Matches[1])"
+          }
           Move-Item publish\Mp3PlayerSync.exe MP3-Player-Sync-${{ matrix.arch }}.exe
 
       - uses: actions/upload-artifact@v7
