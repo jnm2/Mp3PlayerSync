@@ -20,7 +20,8 @@
     as the app's XAML draws it, through the test host, so they work while the PC is locked, when Windows gives
     PrintWindow stale or blank pictures.
 
-    The mock runs the live exportify.net exportify.js and FileSaver.js, so it needs internet access.
+    The mock runs Exportify's own exportify.js and FileSaver.js, from copies in tests\MockExportify\vendor, so it needs no
+    internet access.
     Build first: dotnet build Mp3PlayerSync.slnx
 
 .PARAMETER Only

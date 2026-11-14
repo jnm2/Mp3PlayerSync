@@ -1,7 +1,8 @@
 <!doctype html>
 <!--
     Mock of exportify.net for end-to-end testing Mp3PlayerSync without a Spotify account.
-    It mirrors https://exportify.net/index.html and runs the live exportify.js and FileSaver.js unchanged;
+    It mirrors https://exportify.net/index.html and runs Exportify's exportify.js and FileSaver.js unchanged, from copies
+    in vendor (see tests\Update-MockExportifyVendor.ps1), like the libraries the page loads, so it needs no internet;
     only the Spotify Web API (fake-spotify.js) and the Spotify login redirect (fake-login.html) are faked.
 -->
 <html lang="en">
@@ -25,16 +26,16 @@
 			document.body.append(document.createElement('i')) // Nudges the app's page observer
 		}, 250)
 	</script>
-	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
-	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
-	<script src="https://unpkg.com/react@16/umd/react.production.min.js"></script>
-	<script src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js"></script>
-	<script src="https://exportify.net/FileSaver.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js"></script>
-	<link rel="stylesheet" href="https://exportify.net/style.css">
+	<link rel="stylesheet" href="vendor/bootstrap.min.css">
+	<link rel="stylesheet" href="vendor/font-awesome.min.css">
+	<script src="vendor/react.production.min.js"></script>
+	<script src="vendor/react-dom.production.min.js"></script>
+	<script src="vendor/exportify/FileSaver.js"></script>
+	<script src="vendor/jszip.min.js"></script>
+	<link rel="stylesheet" href="vendor/exportify/style.css">
 	<script src="demo-library.js"></script>
 	<script src="fake-spotify.js"></script>
-	<script src="https://exportify.net/exportify.js"></script>
+	<script src="vendor/exportify/exportify.js"></script>
 	<!-- Spotify only accepts exportify.net as a redirect URI, so the login step goes to a local fake instead.
 	     Test switch: ?autoSignIn makes the fake login page sign in by itself. -->
 	<script>
