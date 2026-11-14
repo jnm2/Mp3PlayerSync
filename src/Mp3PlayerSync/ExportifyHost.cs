@@ -47,7 +47,7 @@ internal sealed class ExportifyHost
     private bool exportRequested;
     private bool exportInFlight;
     private bool exportNavigatedAway;
-    private bool hostNavigating;
+    private readonly HostNavigations hostNavigations = new();
     private bool awaitingNewToken;
     private ulong currentNavigationId;
     private readonly HashSet<ulong> blockedNavigations = [];
@@ -354,7 +354,7 @@ internal sealed class ExportifyHost
 
     private void Navigate(string url)
     {
-        hostNavigating = true;
+        hostNavigations.Starting(url);
         webView.CoreWebView2?.Navigate(url);
     }
 
@@ -439,8 +439,7 @@ internal sealed class ExportifyHost
 
     private void OnNavigationStarting(CoreWebView2 sender, CoreWebView2NavigationStartingEventArgs args)
     {
-        var byHost = hostNavigating;
-        hostNavigating = false;
+        var byHost = hostNavigations.IsOwn(args.Uri);
 
         Uri.TryCreate(args.Uri, UriKind.Absolute, out var uri);
         if (!byHost && !IsAllowedNavigation(uri, args.IsUserInitiated, args.IsRedirected))

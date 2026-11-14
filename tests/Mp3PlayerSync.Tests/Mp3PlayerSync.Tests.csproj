@@ -36,6 +36,7 @@
     <Compile Include="..\..\src\Mp3PlayerSync\LaunchHandOver.cs" Link="LaunchHandOver.cs" />
     <Compile Include="..\..\src\Mp3PlayerSync\VolumeChangeFilter.cs" Link="VolumeChangeFilter.cs" />
     <Compile Include="..\..\src\Mp3PlayerSync\RerunningCheck.cs" Link="RerunningCheck.cs" />
+    <Compile Include="..\..\src\Mp3PlayerSync\HostNavigations.cs" Link="HostNavigations.cs" />
   </ItemGroup>
 
 </Project>
