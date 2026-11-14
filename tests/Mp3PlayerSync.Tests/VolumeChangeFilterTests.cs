@@ -3,7 +3,7 @@ namespace Mp3PlayerSync.Tests;
 public class VolumeChangeFilterTests
 {
     [Test]
-    public async Task Volumes_already_there_at_the_start_are_not_changes()
+    public void Volumes_already_there_at_the_start_are_not_changes()
     {
         var changes = 0;
         var filter = new VolumeChangeFilter(() => changes++);
@@ -13,11 +13,11 @@ public class VolumeChangeFilterTests
         filter.OnAdded();
         filter.OnEnumerationCompleted();
 
-        await Assert.That(changes).IsZero();
+        changes.ShouldBe(0);
     }
 
     [Test]
-    public async Task Volumes_added_or_updated_after_the_start_are_changes()
+    public void Volumes_added_or_updated_after_the_start_are_changes()
     {
         var changes = 0;
         var filter = new VolumeChangeFilter(() => changes++);
@@ -27,11 +27,11 @@ public class VolumeChangeFilterTests
         filter.OnAdded();
         filter.OnUpdated();
 
-        await Assert.That(changes).IsEqualTo(2);
+        changes.ShouldBe(2);
     }
 
     [Test]
-    public async Task A_volume_removed_while_starting_is_a_change()
+    public void A_volume_removed_while_starting_is_a_change()
     {
         var changes = 0;
         var filter = new VolumeChangeFilter(() => changes++);
@@ -39,6 +39,6 @@ public class VolumeChangeFilterTests
 
         filter.OnRemoved();
 
-        await Assert.That(changes).IsEqualTo(1);
+        changes.ShouldBe(1);
     }
 }

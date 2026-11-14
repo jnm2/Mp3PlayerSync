@@ -6,7 +6,7 @@ namespace Mp3PlayerSync.Tests;
 public class BridgeMessageTests
 {
     [Test]
-    public async Task Parses_playlists_message()
+    public void Parses_playlists_message()
     {
         var message = BridgeMessage.Parse("""
             {"type":"playlists","playlists":[
@@ -14,25 +14,29 @@ public class BridgeMessageTests
               {"key":"row:1","name":"Odd","owner":"","trackCount":null,"url":null}]}
             """);
 
-        await Assert.That(message.Type).IsEqualTo(BridgeMessage.PlaylistsType);
-        await Assert.That(message.Playlists).IsEquivalentTo(new[]
+        message.Type.ShouldBe(BridgeMessage.PlaylistsType);
+        message.Playlists.ShouldBe(new[]
         {
             new PlaylistSummary("https://open.spotify.com/collection/tracks", "Liked Songs", "me", 12, "https://open.spotify.com/collection/tracks", "https://exportify.net/liked_songs.jpeg"),
             new PlaylistSummary("row:1", "Odd", "", null, null),
-        }, CollectionOrdering.Matching);
+        });
     }
 
     [Test]
-    public async Task Parses_state_message()
+    public void Parses_state_message()
     {
         var message = BridgeMessage.Parse("""{"type":"state","signedIn":true,"tokenExpired":false,"signingIn":false,"playlistsReady":true,"url":"https://exportify.net/","error":""}""");
 
-        await Assert.That(message is { Type: BridgeMessage.StateType, SignedIn: true, TokenExpired: false, PlaylistsReady: true }).IsTrue();
+        message.ShouldSatisfyAllConditions(
+            m => m.Type.ShouldBe(BridgeMessage.StateType),
+            m => m.SignedIn.ShouldBe(true),
+            m => m.TokenExpired.ShouldBe(false),
+            m => m.PlaylistsReady.ShouldBe(true));
     }
 
     [Test]
-    public async Task Command_json_omits_unset_fields()
+    public void Command_json_omits_unset_fields()
     {
-        await Assert.That(new BridgeCommand(BridgeCommand.Export, Key: "k").ToJson()).IsEqualTo("""{"cmd":"export","key":"k"}""");
+        new BridgeCommand(BridgeCommand.Export, Key: "k").ToJson().ShouldBe("""{"cmd":"export","key":"k"}""");
     }
 }

@@ -19,78 +19,78 @@ public class MusicFolderTests
     public void TearDown() => Directory.Delete(drive, recursive: true);
 
     [Test]
-    public async Task A_drive_without_a_music_folder_syncs_to_its_root()
+    public void A_drive_without_a_music_folder_syncs_to_its_root()
     {
         Directory.CreateDirectory(Path.Combine(drive, "Podcasts"));
 
-        await Assert.That(MusicFolder.Choose(drive).Folder).IsEmpty();
+        MusicFolder.Choose(drive).Folder.ShouldBeEmpty();
     }
 
     [Test]
     [Arguments("MUSIC")]
     [Arguments("Music")]
     [Arguments("music")]
-    public async Task A_card_with_nothing_from_the_app_uses_its_music_folder_with_its_own_casing(string name)
+    public void A_card_with_nothing_from_the_app_uses_its_music_folder_with_its_own_casing(string name)
     {
         Directory.CreateDirectory(Path.Combine(drive, name));
 
         var choice = MusicFolder.Choose(drive);
 
-        await Assert.That(choice.Folder).IsEqualTo(name);
-        await Assert.That(MusicFolder.PathFor(drive, choice)).IsEqualTo(Path.Combine(drive, name));
+        choice.Folder.ShouldBe(name);
+        MusicFolder.PathFor(drive, choice).ShouldBe(Path.Combine(drive, name));
     }
 
     [Test]
-    public async Task A_music_folder_further_down_is_not_used()
+    public void A_music_folder_further_down_is_not_used()
     {
         Directory.CreateDirectory(Path.Combine(drive, "Audio", "MUSIC"));
 
-        await Assert.That(MusicFolder.Choose(drive).Folder).IsEmpty();
+        MusicFolder.Choose(drive).Folder.ShouldBeEmpty();
     }
 
     [Test]
-    public async Task Playlist_folders_at_the_root_keep_the_root_even_with_an_empty_music_folder()
+    public void Playlist_folders_at_the_root_keep_the_root_even_with_an_empty_music_folder()
     {
         Directory.CreateDirectory(Path.Combine(drive, "MUSIC"));
         Marker(Path.Combine(drive, "Road Trip"));
 
-        await Assert.That(MusicFolder.Choose(drive)).IsEqualTo(new MusicFolderChoice("", InMusic: 0, AtRoot: 1));
+        MusicFolder.Choose(drive).ShouldBe(new MusicFolderChoice("", InMusic: 0, AtRoot: 1));
     }
 
     [Test]
     [Arguments("Queen - Under Pressure.m4a")]
     [Arguments(@"Queen\Hot Space (1982)\11. Under Pressure.m4a")]
-    public async Task The_apps_downloads_at_the_root_keep_the_root(string relativePath)
+    public void The_apps_downloads_at_the_root_keep_the_root(string relativePath)
     {
         Directory.CreateDirectory(Path.Combine(drive, "MUSIC"));
         Download(relativePath, isrc: "GBUM71029605");
 
-        await Assert.That(MusicFolder.Choose(drive).Folder).IsEmpty();
+        MusicFolder.Choose(drive).Folder.ShouldBeEmpty();
     }
 
     [Test]
     [Arguments(@"MUSIC\Road Trip\" + PlaylistFolderMarker.FileName)]
     [Arguments(@"MUSIC\Queen\Hot Space (1982)\11. Under Pressure.m4a")]
-    public async Task The_apps_content_in_the_music_folder_keeps_the_music_folder(string relativePath)
+    public void The_apps_content_in_the_music_folder_keeps_the_music_folder(string relativePath)
     {
         if (relativePath.EndsWith(".m4a", StringComparison.Ordinal)) Download(relativePath, isrc: "GBUM71029605");
         else Marker(Path.Combine(drive, Path.GetDirectoryName(relativePath)!));
 
-        await Assert.That(MusicFolder.Choose(drive).Folder).IsEqualTo("MUSIC");
+        MusicFolder.Choose(drive).Folder.ShouldBe("MUSIC");
     }
 
     [Test]
-    public async Task The_users_own_files_at_the_root_dont_count_as_the_apps()
+    public void The_users_own_files_at_the_root_dont_count_as_the_apps()
     {
         Directory.CreateDirectory(Path.Combine(drive, "MUSIC"));
         Download("Ripped from a CD.m4a", isrc: "");
         File.WriteAllText(Path.Combine(drive, "notes.txt"), "");
 
-        await Assert.That(MusicFolder.Choose(drive).Folder).IsEqualTo("MUSIC");
+        MusicFolder.Choose(drive).Folder.ShouldBe("MUSIC");
     }
 
     [Test]
-    public async Task With_the_apps_content_in_both_places_the_one_with_more_wins()
+    public void With_the_apps_content_in_both_places_the_one_with_more_wins()
     {
         Marker(Path.Combine(drive, "Road Trip"));
         Marker(Path.Combine(drive, "Workout"));
@@ -98,25 +98,25 @@ public class MusicFolderTests
 
         var choice = MusicFolder.Choose(drive);
 
-        await Assert.That(choice).IsEqualTo(new MusicFolderChoice("", InMusic: 1, AtRoot: 2));
-        await Assert.That(choice.FoundInBoth).IsTrue();
+        choice.ShouldBe(new MusicFolderChoice("", InMusic: 1, AtRoot: 2));
+        choice.FoundInBoth.ShouldBeTrue();
 
         Marker(Path.Combine(drive, "Music", "Workout"));
         Marker(Path.Combine(drive, "Music", "Chill"));
-        await Assert.That(MusicFolder.Choose(drive).Folder).IsEqualTo("Music");
+        MusicFolder.Choose(drive).Folder.ShouldBe("Music");
     }
 
     [Test]
-    public async Task A_tie_goes_to_the_music_folder()
+    public void A_tie_goes_to_the_music_folder()
     {
         Marker(Path.Combine(drive, "Road Trip"));
         Marker(Path.Combine(drive, "Music", "Road Trip"));
 
-        await Assert.That(MusicFolder.Choose(drive).Folder).IsEqualTo("Music");
+        MusicFolder.Choose(drive).Folder.ShouldBe("Music");
     }
 
     [Test]
-    public async Task Choosing_writes_nothing()
+    public void Choosing_writes_nothing()
     {
         Directory.CreateDirectory(Path.Combine(drive, "MUSIC"));
         Download(@"Queen\Hot Space\11. Under Pressure.m4a", isrc: "");
@@ -124,7 +124,7 @@ public class MusicFolderTests
 
         MusicFolder.Choose(drive);
 
-        await Assert.That(Snapshot()).IsEquivalentTo(before, CollectionOrdering.Matching);
+        Snapshot().ShouldBe(before);
     }
 
     private static void Marker(string folder)

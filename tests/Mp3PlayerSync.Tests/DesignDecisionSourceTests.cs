@@ -36,29 +36,29 @@ public partial class DesignDecisionSourceTests
     private static partial Regex StringLiteral();
 
     [Test]
-    public async Task DATA_1_The_app_never_calls_Spotify_itself()
+    public void DATA_1_The_app_never_calls_Spotify_itself()
     {
         var calls = SourceFiles("*.cs", "*.js")
             .SelectMany(path => File.ReadLines(path).Select((line, index) => (path, line, index)))
             .Where(l => Regex.IsMatch(l.line, @"api\.spotify\.com|accounts\.spotify\.com/api|\bBearer\b", RegexOptions.IgnoreCase))
             .Select(l => $"{Relative(l.path)}:{l.index + 1}: {l.line.Trim()}");
 
-        await Assert.That(calls).IsEmpty();
+        calls.ShouldBeEmpty();
     }
 
     [Test]
-    public async Task AUDIO_1_Downloads_never_convert_or_use_ffmpeg()
+    public void AUDIO_1_Downloads_never_convert_or_use_ffmpeg()
     {
         var conversions = SourceFiles("*.cs")
             .SelectMany(path => StringLiterals(path).Select(literal => (path, literal)))
             .Where(s => Regex.IsMatch(s.literal, @"ffmpeg|avconv|--extract-audio|^""-x""$|--audio-format|--recode-video|--remux-video|--postprocessor-args|--merge-output-format", RegexOptions.IgnoreCase))
             .Select(s => $"{Relative(s.path)}: {s.literal}");
 
-        await Assert.That(conversions).IsEmpty();
+        conversions.ShouldBeEmpty();
     }
 
     [Test]
-    public async Task TEXT_1_and_TEXT_3_The_UI_never_mentions_the_browser_or_Exportify_or_misnames_the_app()
+    public void TEXT_1_and_TEXT_3_The_UI_never_mentions_the_browser_or_Exportify_or_misnames_the_app()
     {
         string[] shown = ["Text", "Content", "Title", "Header", "PlaceholderText", "ToolTipService.ToolTip", "AutomationProperties.Name"];
         var mentions = SourceFiles("*.xaml")
@@ -69,11 +69,11 @@ public partial class DesignDecisionSourceTests
             .Where(s => Regex.IsMatch(s.text, @"browser|exportify|Mp3PlayerSync", RegexOptions.IgnoreCase))
             .Select(s => $"{Relative(s.path)}: {s.text}");
 
-        await Assert.That(mentions).IsEmpty();
+        mentions.ShouldBeEmpty();
     }
 
     [Test]
-    public async Task TEXT_1_Messages_the_app_shows_never_mention_the_browser_or_Exportify()
+    public void TEXT_1_Messages_the_app_shows_never_mention_the_browser_or_Exportify()
     {
         // Text that can reach the UI: exception messages (shown by ShowMessage), messages and errors set on
         // objects, and the message bar itself. The page's own error text is reworded by FailureText.
@@ -84,28 +84,28 @@ public partial class DesignDecisionSourceTests
             .Where(s => Regex.IsMatch(s.literal, @"browser|exportify", RegexOptions.IgnoreCase))
             .Select(s => $"{Relative(s.path)}:{s.index + 1}: {s.literal}");
 
-        await Assert.That(mentions).IsEmpty();
+        mentions.ShouldBeEmpty();
     }
 
     [Test]
-    public async Task TEXT_3_The_window_is_called_MP3_Player_Sync()
+    public void TEXT_3_The_window_is_called_MP3_Player_Sync()
     {
         var window = XDocument.Load(Path.Combine(RepositoryRoot, @"src\Mp3PlayerSync\MainWindow.xaml")).Root!;
 
-        await Assert.That((string?)window.Attribute("Title")).IsEqualTo("MP3 Player Sync");
+        ((string?)window.Attribute("Title")).ShouldBe("MP3 Player Sync");
     }
 
     [Test]
-    public async Task WIN_1_The_window_has_a_Mica_backdrop()
+    public void WIN_1_The_window_has_a_Mica_backdrop()
     {
         var window = XDocument.Load(Path.Combine(RepositoryRoot, @"src\Mp3PlayerSync\MainWindow.xaml")).Root!;
         var backdrop = window.Elements().SingleOrDefault(e => e.Name.LocalName == "Window.SystemBackdrop")?.Elements().SingleOrDefault();
 
-        await Assert.That(backdrop?.Name.LocalName).IsEqualTo("MicaBackdrop");
+        backdrop.ShouldNotBeNull().Name.LocalName.ShouldBe("MicaBackdrop");
     }
 
     [Test]
-    public async Task DEV_1_DevTools_are_only_ever_enabled_in_Debug_builds()
+    public void DEV_1_DevTools_are_only_ever_enabled_in_Debug_builds()
     {
         var enabled = new List<string>();
         foreach (var path in SourceFiles("*.cs"))
@@ -125,11 +125,11 @@ public partial class DesignDecisionSourceTests
             }
         }
 
-        await Assert.That(enabled).IsEmpty();
+        enabled.ShouldBeEmpty();
     }
 
     [Test]
-    public async Task TEST_2_The_app_has_nothing_that_is_only_for_tests()
+    public void TEST_2_The_app_has_nothing_that_is_only_for_tests()
     {
         var testOnly = SourceFiles("*.cs", "*.xaml", "*.js")
             .SelectMany(path => File.ReadLines(path).Select((line, index) => (path, line: line.Trim(), index)))
@@ -137,7 +137,7 @@ public partial class DesignDecisionSourceTests
             .Where(l => TestOnlyCode().IsMatch(l.line))
             .Select(l => $"{Relative(l.path)}:{l.index + 1}: {l.line}");
 
-        await Assert.That(testOnly).IsEmpty();
+        testOnly.ShouldBeEmpty();
     }
 
     // Fakes and test hooks, and the environment variables that the app used to read to turn them on

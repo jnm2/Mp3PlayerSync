@@ -12,47 +12,43 @@ public class ExportifyCsvTests
         ",,\"undefined\",\"undefined\",\"\",,,,,someone,2024-03-03T00:00:00Z,\"\",\"undefined\"\n";
 
     [Test]
-    public async Task Reads_exportify_net_export()
+    public void Reads_exportify_net_export()
     {
         var playlist = ExportifyCsv.Parse(ExportifyNetCsv);
 
-        await Assert.That(playlist.Tracks).Count().IsEqualTo(3);
+        playlist.Tracks.Count.ShouldBe(3);
 
         var september = playlist.Tracks[0];
-        using (Assert.Multiple())
-        {
-            await Assert.That(september.Number).IsEqualTo(1);
-            await Assert.That(september.Uri).IsEqualTo("spotify:track:1");
-            await Assert.That(september.Title).IsEqualTo("September");
-            await Assert.That(september.Artists).IsEquivalentTo(new[] { "Earth, Wind & Fire" }, CollectionOrdering.Matching);
-            await Assert.That(september.Album).IsEqualTo("The Best Of Earth, Wind & Fire, Vol. 1");
-            await Assert.That(september.Duration).IsEqualTo(TimeSpan.FromMilliseconds(215093));
-            await Assert.That(september.DurationText).IsEqualTo("3:35");
-            await Assert.That(september.AddedAt).IsEqualTo(new DateTimeOffset(2024, 3, 1, 12, 34, 56, TimeSpan.Zero));
-            await Assert.That(september.Explicit).IsFalse();
-            await Assert.That(september.Genres).IsEqualTo("disco,funk");
-        }
+        september.ShouldSatisfyAllConditions(
+            s => s.Number.ShouldBe(1),
+            s => s.Uri.ShouldBe("spotify:track:1"),
+            s => s.Title.ShouldBe("September"),
+            s => s.Artists.ShouldBe(new[] { "Earth, Wind & Fire" }),
+            s => s.Album.ShouldBe("The Best Of Earth, Wind & Fire, Vol. 1"),
+            s => s.Duration.ShouldBe(TimeSpan.FromMilliseconds(215093)),
+            s => s.DurationText.ShouldBe("3:35"),
+            s => s.AddedAt.ShouldBe(new DateTimeOffset(2024, 3, 1, 12, 34, 56, TimeSpan.Zero)),
+            s => s.Explicit.ShouldBe(false),
+            s => s.Genres.ShouldBe("disco,funk"));
 
-        await Assert.That(playlist.Tracks[1].Artists).IsEquivalentTo(new[] { "Queen", "David Bowie" }, CollectionOrdering.Matching);
-        await Assert.That(playlist.Tracks[1].ArtistsText).IsEqualTo("Queen, David Bowie");
+        playlist.Tracks[1].Artists.ShouldBe(new[] { "Queen", "David Bowie" });
+        playlist.Tracks[1].ArtistsText.ShouldBe("Queen, David Bowie");
     }
 
     [Test]
-    public async Task Missing_track_values_written_as_undefined_are_blank()
+    public void Missing_track_values_written_as_undefined_are_blank()
     {
         var removed = ExportifyCsv.Parse(ExportifyNetCsv).Tracks[2];
 
-        using (Assert.Multiple())
-        {
-            await Assert.That(removed.Title).IsEmpty();
-            await Assert.That(removed.Album).IsEmpty();
-            await Assert.That(removed.Artists).IsEmpty();
-            await Assert.That(removed.Duration).IsNull();
-        }
+        removed.ShouldSatisfyAllConditions(
+            r => r.Title.ShouldBeEmpty(),
+            r => r.Album.ShouldBeEmpty(),
+            r => r.Artists.ShouldBeEmpty(),
+            r => r.Duration.ShouldBeNull());
     }
 
     [Test]
-    public async Task Reads_exportify_app_export_with_escaped_commas_in_artist_names()
+    public void Reads_exportify_app_export_with_escaped_commas_in_artist_names()
     {
         const string csv =
             "\"Track URI\",\"Track Name\",\"Artist URI(s)\",\"Artist Name(s)\",\"Album URI\",\"Album Name\",\"Album Artist URI(s)\",\"Album Artist Name(s)\",\"Album Release Date\",\"Album Image URL\",\"Disc Number\",\"Track Number\",\"Track Duration (ms)\",\"Track Preview URL\",\"Explicit\",\"Popularity\",\"ISRC\",\"Added By\",\"Added At\"\n" +
@@ -60,21 +56,21 @@ public class ExportifyCsvTests
 
         var track = ExportifyCsv.Parse(csv).Tracks.Single();
 
-        await Assert.That(track.Artists).IsEquivalentTo(new[] { "Earth, Wind & Fire", "Chaka Khan" }, CollectionOrdering.Matching);
-        await Assert.That(track.DurationText).IsEqualTo("1:02:05");
-        await Assert.That(track.ReleaseDate).IsEqualTo("2000");
+        track.Artists.ShouldBe(new[] { "Earth, Wind & Fire", "Chaka Khan" });
+        track.DurationText.ShouldBe("1:02:05");
+        track.ReleaseDate.ShouldBe("2000");
     }
 
     [Test]
-    public async Task Total_duration_sums_known_durations()
+    public void Total_duration_sums_known_durations()
     {
-        await Assert.That(ExportifyCsv.Parse(ExportifyNetCsv).TotalDuration).IsEqualTo(TimeSpan.FromMilliseconds(215093 + 248440));
+        ExportifyCsv.Parse(ExportifyNetCsv).TotalDuration.ShouldBe(TimeSpan.FromMilliseconds(215093 + 248440));
     }
 
     [Test]
-    public async Task Rejects_csv_without_track_name_column()
+    public void Rejects_csv_without_track_name_column()
     {
-        await Assert.That(() => ExportifyCsv.Parse("Album URI,Album Name\nspotify:album:1,X\n")).ThrowsExactly<FormatException>();
-        await Assert.That(() => ExportifyCsv.Parse("")).ThrowsExactly<FormatException>();
+        Should.Throw<FormatException>(() => ExportifyCsv.Parse("Album URI,Album Name\nspotify:album:1,X\n"));
+        Should.Throw<FormatException>(() => ExportifyCsv.Parse(""));
     }
 }

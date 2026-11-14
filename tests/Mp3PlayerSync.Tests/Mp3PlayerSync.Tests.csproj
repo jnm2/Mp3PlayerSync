@@ -13,10 +13,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.6.0" />
+    <PackageReference Include="Shouldly" Version="4.3.0" />
     <PackageReference Include="TUnit" Version="1.84.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="Shouldly" />
     <!-- For CollectionOrdering.Matching, to compare collections item by item in order: TUnit's IsEqualTo compares
          their references -->
     <Using Include="TUnit.Assertions.Enums" />
