@@ -37,10 +37,10 @@ public class PlayerSyncerTests
             new Collector(progress),
             CancellationToken.None);
 
-        await Assert.That(finder.Downloaded).IsEquivalentTo(new[] { "One" }, CollectionOrdering.Matching);
-        await Assert.That(AudioFilesOnPlayer()).IsEquivalentTo(new[] { Path.Combine("Mix", "01. Queen - One.m4a") }, CollectionOrdering.Matching);
-        await Assert.That(progress.Where(p => p.State == TrackSyncState.Done).Select(p => p.Track.Title)).IsEquivalentTo(new[] { "One" }, CollectionOrdering.Matching);
-        await Assert.That(result.Added).IsEquivalentTo(new[] { songs[0] }, CollectionOrdering.Matching).Using((IEqualityComparer<ExportedTrack>)ReferenceEqualityComparer.Instance).Because("The result says what was added, without relying on progress reports");
+        finder.Downloaded.ShouldBe(new[] { "One" });
+        AudioFilesOnPlayer().ShouldBe(new[] { Path.Combine("Mix", "01. Queen - One.m4a") });
+        progress.Where(p => p.State == TrackSyncState.Done).Select(p => p.Track.Title).ShouldBe(new[] { "One" });
+        result.Added.ShouldBe(new[] { songs[0] }, (IEqualityComparer<ExportedTrack>)ReferenceEqualityComparer.Instance, customMessage: "The result says what was added, without relying on progress reports");
     }
 
     [Test]
@@ -54,12 +54,12 @@ public class PlayerSyncerTests
         var result = await new PlayerSyncer(finder, new TrackTagWriter(), work).SyncAsync(
             library, Request(songs, resolutions: songs.Select(Resolved)), new Collector(progress), CancellationToken.None);
 
-        await Assert.That(result.Errors).IsEmpty();
-        await Assert.That(result.Added).IsEquivalentTo(new[] { songs[0] }, CollectionOrdering.Matching).Using((IEqualityComparer<ExportedTrack>)ReferenceEqualityComparer.Instance);
-        await Assert.That(progress.Last(p => p.Track == songs[1]).State).IsEqualTo(TrackSyncState.NeedsReview);
-        await Assert.That(result.NeedsReview).IsEquivalentTo(new[] { songs[1] }, CollectionOrdering.Matching).Using((IEqualityComparer<ExportedTrack>)ReferenceEqualityComparer.Instance);
-        await Assert.That(result.Failed).IsEmpty();
-        await Assert.That(progress.Last(p => p.Track == songs[0]).State).IsEqualTo(TrackSyncState.Done);
+        result.Errors.ShouldBeEmpty();
+        result.Added.ShouldBe(new[] { songs[0] }, (IEqualityComparer<ExportedTrack>)ReferenceEqualityComparer.Instance);
+        progress.Last(p => p.Track == songs[1]).State.ShouldBe(TrackSyncState.NeedsReview);
+        result.NeedsReview.ShouldBe(new[] { songs[1] }, (IEqualityComparer<ExportedTrack>)ReferenceEqualityComparer.Instance);
+        result.Failed.ShouldBeEmpty();
+        progress.Last(p => p.Track == songs[0]).State.ShouldBe(TrackSyncState.Done);
     }
 
     [Test]
@@ -71,14 +71,13 @@ public class PlayerSyncerTests
         var cache = new DownloadCache(Path.Combine(work, "..", "Cache"));
 
         using var library = await StartLibraryAsync();
-        await Assert.That(
+        await Should.ThrowAsync<OperationCanceledException>(
             async () => await new PlayerSyncer(finder, new TrackTagWriter(), work) { Cache = cache }.SyncAsync(
-                library, Request(songs, resolutions: songs.Select(Resolved)), new Collector([]), cancellation.Token))
-            .Throws<OperationCanceledException>();
+                library, Request(songs, resolutions: songs.Select(Resolved)), new Collector([]), cancellation.Token));
 
-        await Assert.That(Directory.GetFileSystemEntries(root)).IsEmpty().Because("Nothing, not even the playlist's folder, is written to the player");
-        await Assert.That(Directory.GetFiles(work, "*", SearchOption.AllDirectories)).IsEmpty().Because("Staging is cleaned up");
-        await Assert.That(songs.Select(s => cache.TryGet(VideoIdOf(s)) is not null)).All(item => item).Because("The downloads are kept for next time");
+        Directory.GetFileSystemEntries(root).ShouldBeEmpty(customMessage: "Nothing, not even the playlist's folder, is written to the player");
+        Directory.GetFiles(work, "*", SearchOption.AllDirectories).ShouldBeEmpty(customMessage: "Staging is cleaned up");
+        songs.ShouldAllBe(s => cache.TryGet(VideoIdOf(s)) != null, customMessage: "The downloads are kept for next time");
     }
 
     [Test]
@@ -90,21 +89,20 @@ public class PlayerSyncerTests
         var interrupted = new FakeFinder { CancelBefore = "Two", Cancellation = cancellation };
 
         using var library = await StartLibraryAsync();
-        await Assert.That(
+        await Should.ThrowAsync<OperationCanceledException>(
             async () => await new PlayerSyncer(interrupted, new TrackTagWriter(), work) { Cache = cache }.SyncAsync(
-                library, Request(songs, resolutions: songs.Select(Resolved)), new Collector([]), cancellation.Token))
-            .Throws<OperationCanceledException>();
-        await Assert.That(interrupted.Downloaded).IsEquivalentTo(new[] { "One" }, CollectionOrdering.Matching);
+                library, Request(songs, resolutions: songs.Select(Resolved)), new Collector([]), cancellation.Token));
+        interrupted.Downloaded.ShouldBe(new[] { "One" });
 
         var resumed = new FakeFinder();
         var progress = new List<TrackSyncProgress>();
         await new PlayerSyncer(resumed, new TrackTagWriter(), work) { Cache = cache }.SyncAsync(
             library, Request(songs, resolutions: songs.Select(Resolved)), new Collector(progress), CancellationToken.None);
 
-        await Assert.That(resumed.Downloaded).IsEquivalentTo(new[] { "Two", "Three" }, CollectionOrdering.Matching);
-        await Assert.That(AudioFilesOnPlayer()).Count().IsEqualTo(3);
-        await Assert.That(progress.Where(p => p.State == TrackSyncState.Done).Select(p => p.Track.Title)).IsEquivalentTo(new[] { "One", "Two", "Three" });
-        await Assert.That(Directory.GetFiles(cache.Directory)).IsEmpty().Because("Songs on the player aren't kept");
+        resumed.Downloaded.ShouldBe(new[] { "Two", "Three" });
+        AudioFilesOnPlayer().Length.ShouldBe(3);
+        progress.Where(p => p.State == TrackSyncState.Done).Select(p => p.Track.Title).ShouldBe(new[] { "One", "Two", "Three" }, ignoreOrder: true);
+        Directory.GetFiles(cache.Directory).ShouldBeEmpty(customMessage: "Songs on the player aren't kept");
     }
 
     [Test]
@@ -117,11 +115,11 @@ public class PlayerSyncerTests
         var result = await new PlayerSyncer(new FakeFinder(), new TrackTagWriter(), work) { IsWriteProtected = _ => true }.SyncAsync(
             library, Request(songs, resolutions: songs.Select(Resolved)), new Collector(progress), CancellationToken.None);
 
-        await Assert.That(result.Errors).IsEquivalentTo(new[] { "This card is locked" }, CollectionOrdering.Matching);
-        await Assert.That(result.Added).IsEmpty();
-        await Assert.That(result.Failed.Select(f => (f.Track.Title, f.Message))).IsEquivalentTo(new (string, string?)[] { ("One", "This card is locked"), ("Two", "This card is locked") }, CollectionOrdering.Matching);
-        await Assert.That(Directory.GetFileSystemEntries(root)).IsEmpty();
-        await Assert.That(songs.Select(s => progress.Last(p => p.Track == s).State)).All(item => item == TrackSyncState.Failed);
+        result.Errors.ShouldBe(new[] { "This card is locked" });
+        result.Added.ShouldBeEmpty();
+        result.Failed.Select(f => (f.Track.Title, f.Message)).ShouldBe(new (string, string?)[] { ("One", "This card is locked"), ("Two", "This card is locked") });
+        Directory.GetFileSystemEntries(root).ShouldBeEmpty();
+        songs.ShouldAllBe(s => progress.Last(p => p.Track == s).State == TrackSyncState.Failed);
     }
 
     [Test]
@@ -134,9 +132,9 @@ public class PlayerSyncerTests
         await new PlayerSyncer(new FakeFinder { CoverArtUrl = "https://lh3.googleusercontent.com/art=w500-h500-l90-rj" }, new TrackTagWriter(fetcher), work).SyncAsync(
             library, Request(songs, resolutions: songs.Select(Resolved)), new Collector([]), CancellationToken.None);
 
-        await Assert.That(fetcher.Urls).IsEquivalentTo(new[] { "https://lh3.googleusercontent.com/art=w500-h500-l90-rj" }, CollectionOrdering.Matching);
-        using var file = TagLib.File.Create(Path.Combine(root, AudioFilesOnPlayer().Single()));
-        await Assert.That(file.Tag.Pictures.Single().Data.Data).IsEquivalentTo(RecordingArtFetcher.Jpeg, CollectionOrdering.Matching);
+        fetcher.Urls.ShouldBe(new[] { "https://lh3.googleusercontent.com/art=w500-h500-l90-rj" });
+        using var file = TagLib.File.Create(Path.Combine(root, AudioFilesOnPlayer().ShouldHaveSingleItem()));
+        file.Tag.Pictures.ShouldHaveSingleItem().Data.Data.ShouldBe(RecordingArtFetcher.Jpeg);
     }
 
     private static SyncRequest Request(IReadOnlyList<ExportedTrack> songs, IEnumerable<TrackResolution> resolutions)

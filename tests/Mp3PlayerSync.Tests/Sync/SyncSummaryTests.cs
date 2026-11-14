@@ -10,8 +10,8 @@ public class SyncSummaryTests
     [Arguments(0, 3, "Removing 3 songs")]
     [Arguments(1, 1, "Adding 1 song, removing 1 song")]
     [Arguments(0, 0, "")]
-    public async Task Describe(int adding, int removing, string expected)
+    public void Describe(int adding, int removing, string expected)
     {
-        await Assert.That(SyncSummary.Describe(adding, removing)).IsEqualTo(expected);
+        SyncSummary.Describe(adding, removing).ShouldBe(expected);
     }
 }

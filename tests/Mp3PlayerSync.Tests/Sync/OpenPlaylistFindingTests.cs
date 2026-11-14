@@ -17,29 +17,29 @@ public class OpenPlaylistFindingTests
     }
 
     [Test]
-    public async Task Only_the_open_playlists_songs_are_looked_for()
+    public void Only_the_open_playlists_songs_are_looked_for()
     {
         var (finding, finder) = Create();
 
         finding.Find([Song("A1"), Song("A2")], Key);
         finding.Find([Song("B1")], Key);
 
-        await Assert.That(finder.Calls).IsEquivalentTo(new[] { "A1,A2", "B1" }, CollectionOrdering.Matching).Because("Opening another playlist replaces what was queued");
+        finder.Calls.ShouldBe(new[] { "A1,A2", "B1" }, ignoreOrder: false, customMessage: "Opening another playlist replaces what was queued");
     }
 
     [Test]
-    public async Task Leaving_the_playlist_drops_its_queued_lookups()
+    public void Leaving_the_playlist_drops_its_queued_lookups()
     {
         var (finding, finder) = Create();
         finding.Find([Song("A1"), Song("A2")], Key);
 
         finding.Stop();
 
-        await Assert.That(finder.Calls).IsEquivalentTo(new[] { "A1,A2", "" }, CollectionOrdering.Matching);
+        finder.Calls.ShouldBe(new[] { "A1,A2", "" });
     }
 
     [Test]
-    public async Task Nothing_is_looked_for_in_the_background_during_a_sync()
+    public void Nothing_is_looked_for_in_the_background_during_a_sync()
     {
         var (finding, finder) = Create();
         finding.Find([Song("A1"), Song("A2")], Key);
@@ -49,34 +49,34 @@ public class OpenPlaylistFindingTests
         finding.ResumeAfterSync();
         finding.Find([Song("B1")], Key);
 
-        await Assert.That(during).IsNull();
-        await Assert.That(finder.Calls).IsEquivalentTo(new[] { "A1,A2", "", "B1" }, CollectionOrdering.Matching);
+        during.ShouldBeNull();
+        finder.Calls.ShouldBe(new[] { "A1,A2", "", "B1" });
     }
 
     [Test]
-    public async Task The_same_songs_are_not_queued_again_until_stopped()
+    public void The_same_songs_are_not_queued_again_until_stopped()
     {
         var (finding, finder) = Create();
 
-        await Assert.That(finding.Find([Song("A1")], Key)).IsNotNull();
-        await Assert.That(finding.Find([Song("A1")], Key)).IsNull();
+        finding.Find([Song("A1")], Key).ShouldNotBeNull();
+        finding.Find([Song("A1")], Key).ShouldBeNull();
         finding.Stop();
-        await Assert.That(finding.Find([Song("A1")], Key)).IsNotNull().Because("A reloaded playlist is looked for again");
+        finding.Find([Song("A1")], Key).ShouldNotBeNull(customMessage: "A reloaded playlist is looked for again");
 
-        await Assert.That(finder.Calls).IsEquivalentTo(new[] { "A1", "", "A1" }, CollectionOrdering.Matching);
+        finder.Calls.ShouldBe(new[] { "A1", "", "A1" });
     }
 
     [Test]
-    public async Task A_playlist_with_nothing_to_look_for_does_not_start_the_finder()
+    public void A_playlist_with_nothing_to_look_for_does_not_start_the_finder()
     {
         var created = false;
         var finding = new OpenPlaylistFinding(() => { created = true; return new RecordingFinder(); });
 
-        await Assert.That(finding.Find([], Key)).IsEmpty();
+        finding.Find([], Key).ShouldBeEmpty();
         finding.Stop();
         finding.PauseForSync();
 
-        await Assert.That(created).IsFalse();
+        created.ShouldBeFalse();
     }
 
     private sealed class RecordingFinder : ITrackFinder

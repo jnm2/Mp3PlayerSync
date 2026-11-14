@@ -20,35 +20,35 @@ public class DownloadCacheTests
     public void TearDown() => Directory.Delete(Path.GetDirectoryName(source)!, recursive: true);
 
     [Test]
-    public async Task Keeps_a_download_by_video_and_format()
+    public void Keeps_a_download_by_video_and_format()
     {
         var cache = new DownloadCache(directory);
 
         cache.Add("dQw4w9WgXcQ", "140", "https://lh3.googleusercontent.com/art", source);
 
-        await Assert.That(cache.TryGet("dQw4w9WgXcQ")).IsEqualTo(new CachedDownload("dQw4w9WgXcQ", "140", Path.Combine(directory, "dQw4w9WgXcQ.140.m4a"), "https://lh3.googleusercontent.com/art"));
-        await Assert.That(cache.TryGet("other")).IsNull();
+        cache.TryGet("dQw4w9WgXcQ").ShouldBe(new CachedDownload("dQw4w9WgXcQ", "140", Path.Combine(directory, "dQw4w9WgXcQ.140.m4a"), "https://lh3.googleusercontent.com/art"));
+        cache.TryGet("other").ShouldBeNull();
 
         cache.Remove("dQw4w9WgXcQ");
-        await Assert.That(Directory.GetFiles(directory)).IsEmpty();
+        Directory.GetFiles(directory).ShouldBeEmpty();
     }
 
     [Test]
     [Arguments("..\\evil")]
     [Arguments("a/b")]
     [Arguments("")]
-    public async Task Ignores_ids_that_are_not_file_name_safe(string videoId)
+    public void Ignores_ids_that_are_not_file_name_safe(string videoId)
     {
         var cache = new DownloadCache(directory);
 
         cache.Add(videoId, "140", null, source);
 
-        await Assert.That(Directory.Exists(directory)).IsFalse();
-        await Assert.That(cache.TryGet(videoId)).IsNull();
+        Directory.Exists(directory).ShouldBeFalse();
+        cache.TryGet(videoId).ShouldBeNull();
     }
 
     [Test]
-    public async Task Prunes_old_entries_then_the_oldest_until_it_fits()
+    public void Prunes_old_entries_then_the_oldest_until_it_fits()
     {
         var cache = new DownloadCache(directory) { MaxAge = TimeSpan.FromDays(30), MaxBytes = 2500 };
         foreach (var id in new[] { "old", "a", "b", "c" }) cache.Add(id, "140", null, source);
@@ -60,11 +60,11 @@ public class DownloadCacheTests
 
         cache.Prune(now);
 
-        await Assert.That(new[] { "old", "a", "b", "c" }.Select(id => cache.TryGet(id) is not null)).IsEquivalentTo(new[] { false, false, true, true }, CollectionOrdering.Matching);
+        new[] { "old", "a", "b", "c" }.Where(id => cache.TryGet(id) is not null).ShouldBe(new[] { "b", "c" });
     }
 
     [Test]
-    public async Task Prune_removes_leftovers_from_a_crash_but_not_a_copy_in_progress()
+    public void Prune_removes_leftovers_from_a_crash_but_not_a_copy_in_progress()
     {
         Directory.CreateDirectory(directory);
         var crashed = Path.Combine(directory, "x.140.m4a.0123.tmp");
@@ -76,7 +76,7 @@ public class DownloadCacheTests
 
         new DownloadCache(directory).Prune(DateTimeOffset.UtcNow);
 
-        await Assert.That(Directory.GetFiles(directory).Select(Path.GetFileName)).IsEquivalentTo(new string?[] { "y.140.m4a.4567.tmp" }, CollectionOrdering.Matching);
+        Directory.GetFiles(directory).Select(Path.GetFileName).ShouldBe(new string?[] { "y.140.m4a.4567.tmp" });
     }
 
     private void SetSavedAt(string videoId, DateTimeOffset savedAt) =>
