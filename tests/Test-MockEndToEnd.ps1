@@ -575,7 +575,9 @@ try {
             $sawSignIn = $true
             Wait-Library $window '40 playlists' ([ref]$sawSignIn)
             Check ($null -eq (Find-ById $window 'SignInTitle')) 'Sign-in screen is hidden after signing in'
-            Check ((First-LibraryItem $window) -eq 'Liked Songs') "Liked Songs is first (got '$(First-LibraryItem $window)')"
+            # The summary changes in the same call that fills the grid, before its tiles are laid out.
+            $first = Wait-Until { First-LibraryItem $window } 'the first tile in the library' 10
+            Check ($first -eq 'Liked Songs') "Liked Songs is first (got '$first')"
             $firstTab = @($window.FindAll($TreeScope::Descendants, [System.Windows.Automation.PropertyCondition]::new($AE::NameProperty, 'Created playlists'))) |
                 Where-Object { $_.GetSupportedPatterns() -contains [System.Windows.Automation.SelectionItemPattern]::Pattern } | Select-Object -First 1
             $tabs = @([System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($firstTab).FindAll($TreeScope::Children, [System.Windows.Automation.Condition]::TrueCondition)) |
@@ -881,7 +883,7 @@ try {
 
             Select-Filter $window 'Saved albums'
             Wait-Library $window '5 albums' ([ref]$sawSignIn)
-            $albumNames = (Get-Items (Find-ById $window 'LibraryGridView')) | ForEach-Object { $_.Current.Name }
+            $albumNames = Wait-Until { $names = @(Get-Items (Find-ById $window 'LibraryGridView') | ForEach-Object { $_.Current.Name }); if ($names.Count -ge 5) { $names } } "the saved albums' tiles" 10
             Check (($albumNames -join '|') -eq 'Playlist 5|Playlist 14|Mock Album One|Big Album|Old Album') "Saved albums: album-like playlists, then saved albums newest first ($($albumNames -join ', '))"
             Save-Screenshot $window 'saved-albums'
             Open-LibraryItem $window 'Big Album'
