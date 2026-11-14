@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <!-- Windows, for the app's cover art converter, which uses Windows' imaging (linked below) -->
@@ -35,6 +35,7 @@
     <Compile Include="..\..\src\Mp3PlayerSync\WindowsAlbumArtConverter.cs" Link="Tagging\WindowsAlbumArtConverter.cs" />
     <Compile Include="..\..\src\Mp3PlayerSync\LaunchHandOver.cs" Link="LaunchHandOver.cs" />
     <Compile Include="..\..\src\Mp3PlayerSync\VolumeChangeFilter.cs" Link="VolumeChangeFilter.cs" />
+    <Compile Include="..\..\src\Mp3PlayerSync\RerunningCheck.cs" Link="RerunningCheck.cs" />
   </ItemGroup>
 
 </Project>

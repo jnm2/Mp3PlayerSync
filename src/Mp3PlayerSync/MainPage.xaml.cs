@@ -1759,36 +1759,31 @@ public sealed partial class MainPage : Page
     // ---- Whether the player can take the sync ----------------------------------------------------------------
 
     private (string Root, bool Locked, long? FreeBytes)? playerVolume;
-    private bool checkingVolume;
+    private RerunningCheck? volumeCheck;
 
     /// <summary>
     /// Finds out, without writing anything, whether the player is locked and how much space it has, so that a sync
-    /// that can't work isn't started.
+    /// that can't work isn't started. Asked while it's finding out, it finds out again afterwards: a sync may have
+    /// just filled the card, or another player been chosen.
     /// </summary>
-    private async Task CheckPlayerVolumeAsync()
+    private Task CheckPlayerVolumeAsync() => (volumeCheck ??= new(ReadPlayerVolumeAsync)).RunAsync();
+
+    private async Task ReadPlayerVolumeAsync()
     {
-        if (checkingVolume || playerRoot is not { } root) return;
-        checkingVolume = true;
-        try
+        if (playerRoot is not { } root) return;
+        var volume = await Task.Run(() =>
         {
-            var volume = await Task.Run(() =>
+            long? free = null;
+            try
             {
-                long? free = null;
-                try
-                {
-                    free = new DriveInfo(root).AvailableFreeSpace;
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-                {
-                }
-                return (root, DriveProbe.IsWriteProtected(root), free);
-            });
-            if (playerRoot == root) playerVolume = volume;
-        }
-        finally
-        {
-            checkingVolume = false;
-        }
+                free = new DriveInfo(root).AvailableFreeSpace;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+            }
+            return (root, DriveProbe.IsWriteProtected(root), free);
+        });
+        if (playerRoot == root) playerVolume = volume;
         UpdateSyncControls();
     }
 
