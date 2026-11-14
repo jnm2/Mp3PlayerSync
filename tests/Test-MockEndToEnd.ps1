@@ -627,7 +627,7 @@ try {
                 $edges = @(
                     @('TitleHeader', 'roadtrip song 1', 'Left'),
                     @('ArtistsHeader', 'Earth, Wind & Fire, Chaka Khan', 'Left'),
-                    @('AlbumHeader', $firstRow.FindAll($TreeScope::Descendants, [System.Windows.Automation.Condition]::TrueCondition)[4].Current.Name, 'Left'),
+                    @('AlbumHeader', 'Album 0', 'Left'), # The first track's album in fake-spotify.js
                     @('NumberHeader', '1', 'Right'),
                     @('TimeHeader', ($firstRow.FindAll($TreeScope::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.Name -match '^\d+:\d\d$' } | Select-Object -First 1).Current.Name, 'Right'))
                 $off = foreach ($edge in $edges) {
