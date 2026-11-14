@@ -28,11 +28,17 @@ desktop, never with `dotnet run` or `winapp run` on the user's desktop.
 dotnet build Mp3PlayerSync.slnx
 dotnet test tests\Mp3PlayerSync.Tests
 pwsh tests\Invoke-EndToEnd.ps1
+dotnet run --project tests\Mp3PlayerSync.EndToEnd
 ```
 
-Agents never pass `-Desktop Current` to `Invoke-EndToEnd.ps1` (or `Test-PublishedExe.ps1`) on the user's PC: it runs the
-app on their own desktop, covering and taking focus from their windows. It's for CI, or for a person who runs it on
-purpose.
+The end-to-end tests are moving from PowerShell (`Invoke-EndToEnd.ps1`) to C# (`tests\Mp3PlayerSync.EndToEnd`, TUnit
+with Shouldly, driven through FlaUI). The C# project is its own launcher: run as above, it runs its tests on a hidden
+desktop, with the same exit codes and pass text as `Invoke-EndToEnd.ps1`. Its `--only` takes run names, and `--help`
+lists its options. It's never run by `dotnet test`.
+
+Agents never pass `-Desktop Current` to `Invoke-EndToEnd.ps1` (or `Test-PublishedExe.ps1`), or `--desktop Current` to
+the C# launcher, on the user's PC: it runs the app on their own desktop, covering and taking focus from their windows.
+It's for CI, or for a person who runs it on purpose.
 
 The end-to-end run passes when it prints `All end-to-end checks passed`. It exits with 1 when a check failed, and with 2
 when nothing failed but some checks were INCONCLUSIVE (they couldn't see what they check), which is not a pass.
