@@ -505,12 +505,14 @@ try {
         $process, $window = Start-App "$($url)?autoSignIn"
         try {
             Choose-Player $window
-            $sawLibraryEarly = $false
+            # A [ref], like Wait-Library's: Wait-Until runs the probe in a scope of its own, where assigning a variable
+            # would only make a new one.
+            $sawLibraryEarly = [ref]$false
             Wait-Until {
-                if (Find-ById $window 'LibraryGridView') { $sawLibraryEarly = $true }
+                if (Find-ById $window 'LibraryGridView') { $sawLibraryEarly.Value = $true }
                 Find-ById $window 'SignInTitle'
             } 'the sign-in screen' 60 | Out-Null
-            Check (!$sawLibraryEarly) 'No library page before signing in'
+            Check (!$sawLibraryEarly.Value) 'No library page before signing in'
             Save-Screenshot $window 'signin'
             $signInText = "$(Get-Text $window 'SignInTitle') $(Get-Text $window 'SignInText')"
             Check ($signInText -notmatch 'browser|exportify') "Sign-in text mentions neither browser nor Exportify: '$signInText'"
@@ -891,12 +893,13 @@ try {
 
             Choose-Player $window
             $sawSignIn = $false
+            $signInShown = [ref]$false
             Wait-Until {
-                if (Find-ById $window 'SignInTitle') { $sawSignIn = $true }
+                if (Find-ById $window 'SignInTitle') { $signInShown.Value = $true }
                 (Get-Text $window 'PlaylistTitle') -eq 'Spotify playlist: Road Trip, Vol. 2'
             } 'the last opened playlist to reopen' 60 | Out-Null
             Wait-Contents $window 'Road Trip, Vol. 2 (restored)' '250 tracks, *'
-            Check (!$sawSignIn) 'Sign-in screen is never shown when already signed in'
+            Check (!$signInShown.Value) 'Sign-in screen is never shown when already signed in'
             Click $window 'BackButton'
             Wait-Library $window '64 playlists and albums' ([ref]$sawSignIn)
             Check $true 'Selector choice (All) was remembered'
@@ -976,14 +979,14 @@ try {
         $process, $window = Start-App "$($url)?expireOnExport"
         try {
             Choose-Player $window
-            $sawSignIn = $false
+            $signInShown = [ref]$false
             try {
                 Wait-Until {
-                    if (Find-ById $window 'SignInTitle') { $sawSignIn = $true }
+                    if (Find-ById $window 'SignInTitle') { $signInShown.Value = $true }
                     (Get-Text $window 'PlaylistTitle') -eq 'Spotify album: Big Album' -and (Get-Text $window 'SummaryText') -like '*60 tracks*'
                 } 'the album after renewing the token mid-export' 90 | Out-Null
             } catch { Write-Host "  Showing: $((Get-AllText $window) -replace "`n", ' | ')"; throw }
-            Check (!$sawSignIn) 'A token rejected mid-export is renewed without showing the sign-in screen'
+            Check (!$signInShown.Value) 'A token rejected mid-export is renewed without showing the sign-in screen'
             Check ((Get-AllText $window) -notlike '*Could not load*') 'The interrupted export is retried after renewing'
         } finally { Stop-App $process }
         $lastOpened = 'Big Album'
@@ -995,12 +998,12 @@ try {
         $process, $window = Start-App "$($url)?expireToken"
         try {
             Choose-Player $window
-            $sawSignIn = $false
+            $signInShown = [ref]$false
             Wait-Until {
-                if (Find-ById $window 'SignInTitle') { $sawSignIn = $true }
+                if (Find-ById $window 'SignInTitle') { $signInShown.Value = $true }
                 (Get-Text $window 'PlaylistTitle') -eq 'Spotify album: Big Album' -and (Get-Text $window 'SummaryText') -like '*60 tracks*'
             } 'the saved album after renewing the session' 90 | Out-Null
-            Check (!$sawSignIn) 'Expired token is renewed without showing the sign-in screen'
+            Check (!$signInShown.Value) 'Expired token is renewed without showing the sign-in screen'
             Check $true 'The last opened saved album reopened'
 
             Write-Host 'Run 4: sign out'
