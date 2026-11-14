@@ -5,7 +5,8 @@
 .DESCRIPTION
     Trimming can break things that work in the Debug build. This publishes the release exe as CI does (which fails on
     trimming warnings), then publishes the tests' host (Mp3PlayerSync.E2EHost) trimmed with the same settings
-    (src\Mp3PlayerSync\Publishing.targets) and runs Test-MockEndToEnd.ps1 against it (through Invoke-EndToEnd.ps1).
+    (src\Mp3PlayerSync\Publishing.targets) and runs Test-MockEndToEnd.ps1 against it (through Invoke-EndToEnd.ps1), with
+    the mock Exportify built in Release.
     The host is published as a folder rather than a single file, which would leave out the app's XAML (in
     Mp3PlayerSync.pri).
 #>
@@ -27,6 +28,7 @@ $output = Join-Path ([IO.Path]::GetTempPath()) "Mp3PlayerSyncPublished-$PID"
 $exitCode = 1
 $exeLog = if ($BinlogFolder) { "-bl:$BinlogFolder\publish-exe-$Runtime.binlog" } else { '-nologo' }
 $hostLog = if ($BinlogFolder) { "-bl:$BinlogFolder\publish-e2e-host-$Runtime.binlog" } else { '-nologo' }
+$mockLog = if ($BinlogFolder) { "-bl:$BinlogFolder\publish-mock.binlog" } else { '-nologo' }
 try {
     dotnet publish "$PSScriptRoot\..\src\Mp3PlayerSync\Mp3PlayerSync.csproj" -c Release -r $Runtime -o "$output\exe" -p:PublishSingleFile=true $exeLog
     $exitCode = $LASTEXITCODE
@@ -39,9 +41,14 @@ try {
         if (!$exitCode) { Copy-Item "$output\host\Mp3PlayerSync.pri" "$output\host\resources.pri" }
     }
     if (!$exitCode) {
+        # The mock Exportify runs on this PC, whatever $Runtime is.
+        dotnet publish "$PSScriptRoot\Mp3PlayerSync.MockExportify\Mp3PlayerSync.MockExportify.csproj" -c Release -o "$output\mock" $mockLog
+        $exitCode = $LASTEXITCODE
+    }
+    if (!$exitCode) {
         # CI doubles every wait (see Test-MockEndToEnd.ps1), so it gets twice as long in all too.
         $timeout = if ($env:CI -eq 'true') { 30 } else { 15 }
-        & "$PSScriptRoot\Invoke-EndToEnd.ps1" -AppPath "$output\host\Mp3PlayerSync.E2EHost.exe" -Only $Only -ScreenshotFolder $ScreenshotFolder -Desktop $Desktop -TimeoutMinutes $timeout
+        & "$PSScriptRoot\Invoke-EndToEnd.ps1" -AppPath "$output\host\Mp3PlayerSync.E2EHost.exe" -MockPath "$output\mock\Mp3PlayerSync.MockExportify.exe" -Only $Only -ScreenshotFolder $ScreenshotFolder -Desktop $Desktop -TimeoutMinutes $timeout
         $exitCode = $LASTEXITCODE
     }
 }

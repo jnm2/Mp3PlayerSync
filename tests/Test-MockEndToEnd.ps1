@@ -30,6 +30,8 @@
 #>
 param(
     [string] $AppPath = (Get-ChildItem "$PSScriptRoot\Mp3PlayerSync.E2EHost\bin\Debug" -Recurse -Filter Mp3PlayerSync.E2EHost.exe | Select-Object -First 1).FullName,
+    # The mock Exportify (tests\Mp3PlayerSync.MockExportify); otherwise the Debug build
+    [string] $MockPath = (Get-ChildItem "$PSScriptRoot\Mp3PlayerSync.MockExportify\bin\Debug" -Recurse -Filter Mp3PlayerSync.MockExportify.exe | Select-Object -First 1).FullName,
     [string] $ScreenshotFolder,
     [ValidateSet('Run1', 'Run2', 'Run2b', 'Run2c', 'Run3', 'Run4', 'Run5')] [string[]] $Only,
     # Where Invoke-EndToEnd.ps1 runs this. It watches the user's foreground window itself (TEST-1): from here, on a
@@ -678,31 +680,29 @@ foreach ($file in (Join-Path $roadTripFolder '02. Artist 1 - roadtrip song 2.mp3
     [IO.File]::WriteAllBytes($file, [byte[]](1..64))
 }
 @{ player = @{ folderPath = $playerFolder } } | ConvertTo-Json | Set-Content (Join-Path $env:MP3PLAYERSYNC_DATA_DIR 'settings.json')
-# A port that's free now; should another process take it before the mock does, the mock fails and another is tried.
+# The mock picks a free port itself, and the first line it prints is its address.
 function Start-Mock {
-    for ($attempt = 1; ; $attempt++) {
-        $probe = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
-        $probe.Start(); $port = $probe.LocalEndpoint.Port; $probe.Stop()
-        $job = Start-Job { param($script, $port) & $script -Port $port } -ArgumentList "$PSScriptRoot\Start-MockExportify.ps1", $port
-        $deadline = (Get-Date).AddSeconds(30)
-        while ($job.State -eq 'Running' -and (Get-Date) -lt $deadline) {
-            if ($(try { (Invoke-WebRequest "http://localhost:$port/" -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200 } catch { $false })) { return $job, $port }
-            Start-Sleep -Milliseconds 200
-        }
-        $why = "$($job.ChildJobs[0].JobStateInfo.Reason)"
-        Stop-Job $job; Remove-Job $job -Force
-        if ($attempt -ge 5) { throw "The mock server didn't start: $why" }
-        Write-Host "  The mock server couldn't use port $port ($why); trying another"
+    $log = Join-Path ([IO.Path]::GetTempPath()) "Mp3PlayerSyncMock-$PID-$([Guid]::NewGuid().ToString('N').Substring(0, 8))"
+    $process = Start-Process $MockPath -ArgumentList '--port', '0' -PassThru -NoNewWindow -RedirectStandardOutput "$log.out" -RedirectStandardError "$log.err"
+    $deadline = (Get-Date).AddSeconds(30)
+    while (!$process.HasExited -and (Get-Date) -lt $deadline) {
+        $address = Select-String -LiteralPath "$log.out" -Pattern '^Mock Exportify listening on (\S+)' -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($address) { return [pscustomobject]@{ Process = $process; Log = $log; Url = $address.Matches[0].Groups[1].Value } }
+        Start-Sleep -Milliseconds 100
     }
+    $why = (Get-Content "$log.out", "$log.err" -ErrorAction SilentlyContinue) -join ' '
+    if (!$process.HasExited) { $process.Kill(); $process.WaitForExit() }
+    Remove-Item "$log.out", "$log.err" -ErrorAction SilentlyContinue
+    throw "The mock server didn't start: $(if ($why) { $why } else { "it said nothing$(if ($process.HasExited) { " and exited with $($process.ExitCode)" })" })"
 }
 $downloads = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
 $startTime = Get-Date
 
 try {
-    $server, $port = Start-Mock
-    $url = "http://localhost:$port/"
+    $mock = Start-Mock
+    $url = $mock.Url
     # The mock's fake Spotify sign-in page, on another origin like accounts.spotify.com
-    $env:MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL = "http://127.0.0.1:$port/"
+    $env:MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL = $url -replace '//localhost:', '//127.0.0.1:'
 
     if (Test-Selected 'Run1') {
         Write-Host "Run 1: signed out ($url, data in $env:MP3PLAYERSYNC_DATA_DIR)"
@@ -1333,11 +1333,13 @@ catch {
     Write-Host "  ERROR $_ $($_.ScriptStackTrace)" -ForegroundColor Red
 }
 finally {
-    if ($server) {
-        Stop-Job $server
-        # Requests the mock couldn't answer, which can explain a failure that shows up far from them
-        Receive-Job $server *>&1 | Where-Object { "$_" -like 'Mock: *' } | ForEach-Object { Write-Host "  $_" }
-        Remove-Job $server -Force
+    if ($mock) {
+        if (!$mock.Process.HasExited) { $mock.Process.Kill(); $mock.Process.WaitForExit() }
+        # Requests the mock couldn't answer, which can explain a failure that shows up far from them, and anything
+        # that went wrong in the mock itself
+        Get-Content "$($mock.Log).out" -ErrorAction SilentlyContinue | Where-Object { $_ -like 'Mock: *' } | ForEach-Object { Write-Host "  $_" }
+        Get-Content "$($mock.Log).err" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  Mock: $_" }
+        Remove-Item "$($mock.Log).out", "$($mock.Log).err" -ErrorAction SilentlyContinue
     }
     Remove-Item Env:\MP3PLAYERSYNC_EXPORTIFY_URL -ErrorAction SilentlyContinue
     Remove-Item Env:\MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL -ErrorAction SilentlyContinue
