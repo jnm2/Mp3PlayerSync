@@ -3,7 +3,7 @@ using Mp3PlayerSync.EndToEnd;
 using Mp3PlayerSync.EndToEnd.Harness;
 using Shouldly;
 
-[assembly: OnTestDesktop]
+[assembly: DesktopGuard]
 
 namespace Mp3PlayerSync.EndToEnd;
 

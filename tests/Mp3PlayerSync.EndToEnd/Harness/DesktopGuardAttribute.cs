@@ -9,7 +9,7 @@ namespace Mp3PlayerSync.EndToEnd.Harness;
 /// passed.
 /// </summary>
 [AttributeUsage(AttributeTargets.Assembly)]
-public sealed class OnTestDesktopAttribute() : SkipAttribute(
+public sealed class DesktopGuardAttribute() : SkipAttribute(
     @"Run through the launcher, dotnet run --project tests\Mp3PlayerSync.EndToEnd, which keeps the app off your desktop (TEST-1)")
 {
     public override Task<bool> ShouldSkip(TestRegisteredContext context)
