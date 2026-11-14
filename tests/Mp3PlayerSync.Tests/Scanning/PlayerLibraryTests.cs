@@ -376,7 +376,7 @@ public class PlayerLibraryTests
         var stopwatch = Stopwatch.StartNew();
         while (!condition())
         {
-            if (stopwatch.Elapsed > TimeSpan.FromSeconds(15)) Fail.Test("Timed out waiting for the index to change.");
+            if (stopwatch.Elapsed > TimeSpan.FromSeconds(15)) throw new ShouldAssertException("Timed out waiting for the index to change.");
             await Task.Delay(50);
         }
     }

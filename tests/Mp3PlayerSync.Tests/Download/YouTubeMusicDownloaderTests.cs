@@ -46,7 +46,7 @@ public class YouTubeMusicDownloaderTests
     {
         for (var i = 0; downloader.PendingLookupCount > 0; i++)
         {
-            if (i > 500) Fail.Test("Lookups didn't finish.");
+            if (i > 500) throw new ShouldAssertException("Lookups didn't finish.");
             await Task.Delay(10);
         }
     }
@@ -55,7 +55,7 @@ public class YouTubeMusicDownloaderTests
     {
         for (var i = 0; !condition(); i++)
         {
-            if (i > 500) Fail.Test("Timed out.");
+            if (i > 500) throw new ShouldAssertException("Timed out.");
             await Task.Delay(10);
         }
     }

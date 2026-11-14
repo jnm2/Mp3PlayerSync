@@ -39,8 +39,12 @@ when nothing failed but some checks were INCONCLUSIVE (they couldn't see what th
 
 The unit tests use [TUnit](https://tunit.dev) on Microsoft.Testing.Platform, which runs them in parallel, each in a new
 instance of its class. Give each test its own temporary folder, and mark one that can't share a resource with
-`[NotInParallel]`, saying why. Compare collections in order with `IsEquivalentTo(expected, CollectionOrdering.Matching)`:
-`IsEqualTo` compares their references. To run some of them, filter by class:
+`[NotInParallel]`, saying why. Assert with [Shouldly](https://docs.shouldly.org), not TUnit's awaited `Assert.That`, so
+a test is only `async` when it awaits the code it tests. Use the most specific assertion, so a failure says what went
+wrong: `ShouldBeEmpty`, `ShouldHaveSingleItem()` and `ShouldNotBeNull()` (whose results the next checks use, rather than
+`Single()`, `!` or `?.`), `ShouldAllBe` rather than a loop, and `ShouldSatisfyAllConditions` to check several things at
+once. `ShouldBe` compares collections in order (`ignoreOrder: true` for any order); `ShouldContain`, `ShouldStartWith`
+and `ShouldEndWith` on strings ignore case unless given `Case.Sensitive`. To run some of the tests, filter by class:
 
 ```powershell
 dotnet test --project tests\Mp3PlayerSync.Tests --treenode-filter "/*/*/PlayersTests/*"

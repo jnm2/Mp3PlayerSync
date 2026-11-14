@@ -9,6 +9,8 @@
     <IsPackable>false</IsPackable>
     <!-- TUnit runs on Microsoft.Testing.Platform, global.json's test runner, and brings its TRX and code coverage -->
     <OutputType>Exe</OutputType>
+    <!-- The tests assert with Shouldly, which isn't awaited, rather than TUnit's assertions -->
+    <TUnitAssertionsImplicitUsings>false</TUnitAssertionsImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,9 +21,6 @@
 
   <ItemGroup>
     <Using Include="Shouldly" />
-    <!-- For CollectionOrdering.Matching, to compare collections item by item in order: TUnit's IsEqualTo compares
-         their references -->
-    <Using Include="TUnit.Assertions.Enums" />
   </ItemGroup>
 
   <ItemGroup>
