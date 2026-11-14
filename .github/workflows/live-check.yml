@@ -9,7 +9,9 @@ name: "Live check: does MP3 Player Sync still work with exportify.net?"
 
 on:
   schedule:
-    - cron: '23 10 * * 1' # Mondays, a few hours after the check of the mock's copies of exportify.net
+    # GitHub's schedules are in UTC. This is Friday at 23:00 UTC, which is 18:00 on Friday evening in US Eastern
+    # time in winter and 19:00 in summer.
+    - cron: '0 23 * * 5'
   workflow_dispatch:
 
 permissions:
