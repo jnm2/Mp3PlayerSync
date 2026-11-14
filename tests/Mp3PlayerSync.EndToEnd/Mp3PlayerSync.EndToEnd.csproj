@@ -9,15 +9,10 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- Run only through the launcher, never by dotnet test on the solution: the app must never appear on the user's
-         desktop (TEST-1). So it isn't a test project or test application to MSBuild; Program.cs is the entry point,
-         and runs the tests with the platform's extensions as a test application would. -->
-    <IsTestProject>false</IsTestProject>
-    <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
-    <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
+    <!-- A test project, so Visual Studio's Test Explorer finds, runs and debugs its tests on this desktop. Program.cs is
+         the entry point: it runs the tests as the platform's generated one would when an IDE or dotnet test starts it,
+         and is otherwise the launcher. Agents only use the launcher (TEST-1). -->
     <GenerateTestingPlatformEntryPoint>false</GenerateTestingPlatformEntryPoint>
-    <GenerateSelfRegisteredExtensions>true</GenerateSelfRegisteredExtensions>
-    <GenerateTestingPlatformConfigurationFile>true</GenerateTestingPlatformConfigurationFile>
   </PropertyGroup>
 
   <ItemGroup>
