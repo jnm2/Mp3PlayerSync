@@ -171,9 +171,9 @@ jobs:
 
   # The end-to-end tests (tests\Invoke-EndToEnd.ps1) against the app trimmed as released, through the tests' host,
   # the mock Exportify standing in for Spotify and the host's fakes for YouTube Music, on each architecture. A CI VM
-  # has nobody to disturb, so they run on its own desktop.
+  # has nobody to disturb, so they run on its own desktop. They're the longest job and build what they test themselves,
+  # so they start straight away rather than after the build job.
   e2e:
-    needs: build
     strategy:
       fail-fast: false
       matrix:
@@ -264,9 +264,9 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # Only when the publishes and the end-to-end tests on both architectures passed (they need the build job): a job's
-  # own `if` without always() or failure() also requires every job it needs (and each leg of a matrix) to have
-  # succeeded.
+  # Only when the publishes and the end-to-end tests on both architectures passed, and so the build job, which the
+  # publishes need: a job's own `if` without always() or failure() also requires every job it needs (and each leg of a
+  # matrix) to have succeeded.
   release:
     if: github.ref_type == 'tag'
     needs: [publish, e2e]
