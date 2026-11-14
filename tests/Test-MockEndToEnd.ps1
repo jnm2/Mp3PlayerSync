@@ -830,7 +830,8 @@ try {
             Open-LibraryItem $window 'Big Album'
             Wait-Contents $window 'Big Album' 'Prolific Band · 2010 — 60 tracks, 3:29:30'
             Check ($null -eq (Find-ById $window 'AlbumHeader') -and $null -ne (Find-ById $window 'ArtistsHeader')) 'Album pages leave out the Album column'
-            Click $window 'RefreshPlaylistButton'
+            # The summary already matches, so wait until the refresh has asked Spotify (the Saved Albums export's lookup).
+            Click-Refresh $window '^/v1/tracks\?' 'the album refresh'
             Wait-Contents $window 'Big Album (refreshed)' '*60 tracks, *'
             Click $window 'BackButton'
 
