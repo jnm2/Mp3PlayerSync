@@ -1330,7 +1330,10 @@ try {
         }
         $lastOpened = $null
     }
-    $newDownloads = Get-ChildItem $downloads -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt $startTime }
+    # Only what Exportify makes (CSV files, or a zip of them) or a download in progress: the user may well be
+    # downloading something else meanwhile.
+    $newDownloads = Get-ChildItem $downloads -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -gt $startTime -and $_.Extension -in '.csv', '.zip', '.crdownload' }
     Check (@($newDownloads).Count -eq 0) "Nothing was written to $downloads"
     Check (!$script:sawExportifyPage) "Exportify's own page was never shown"
 }
