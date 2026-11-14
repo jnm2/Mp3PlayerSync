@@ -121,7 +121,7 @@ public sealed partial class MainPage : Page
             driveWatcher.DrivesChanged += (watcher, _) => DispatcherQueue.TryEnqueue(() =>
             {
                 // Not once the page has stopped watching: the watcher can still raise this as it's disposed.
-                if (ReferenceEquals(watcher, driveWatcher)) RecheckPlayers();
+                if (watcher == driveWatcher) RecheckPlayers();
             });
 
             // Also covers changes that send no device notification, such as unlocking an encrypted drive.
