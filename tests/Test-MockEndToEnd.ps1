@@ -254,9 +254,17 @@ function Truncated-Cells($window, [double] $fromLeft = 0) {
 # SPACE-1: no two of these elements touch or overlap, and each related pair is at least 8px apart. The rectangles are
 # UI Automation's: a button's background, and a text's full line box, descenders included.
 function Check-Spacing($window, [string] $where, [string[]] $ids, [string[][]] $related = @()) {
+    # What stands for an element that isn't in UI Automation itself: the SelectorBar's items sit in its scroll presenter.
+    $standIns = @{ FilterBar = { $item = Find-ById $window 'AllFilterItem'; if ($item) { [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($item) } } }
     $rects = @{}
-    foreach ($id in $ids) { $e = Find-ById $window $id; if ($e) { $r = $e.Current.BoundingRectangle; if (!$r.IsEmpty -and $r.Width -gt 0) { $rects[$id] = $r } } }
     $problems = [System.Collections.Generic.List[string]]::new()
+    foreach ($id in $ids) {
+        $e = Find-ById $window $id
+        if (!$e -and $standIns[$id]) { $e = & $standIns[$id] }
+        # A renamed or missing element would otherwise just drop out of the check. One that's collapsed has no size.
+        if (!$e) { $problems.Add("$id is missing"); continue }
+        $r = $e.Current.BoundingRectangle; if (!$r.IsEmpty -and $r.Width -gt 0) { $rects[$id] = $r }
+    }
     $names = @($rects.Keys)
     for ($i = 0; $i -lt $names.Count; $i++) {
         for ($j = $i + 1; $j -lt $names.Count; $j++) {
