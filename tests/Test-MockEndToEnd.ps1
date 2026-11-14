@@ -442,10 +442,17 @@ function Status-Tone($window, $row, [string] $status) {
         for ($x = $right - 20; $x -lt $right; $x++) {
             for ($y = $top; $y -lt [int]($text.Bottom - $capture.Top); $y++) {
                 $c = $capture.Bitmap.GetPixel($x, $y)
-                if ($c.G -gt $c.R + 40 -and $c.G -gt $c.B + 20) { $counts.Success++ }
-                elseif ($c.R -gt 120 -and $c.G -gt 100 -and $c.B -lt $c.G - 60 -and [Math]::Abs($c.R - $c.G) -lt 60) { $counts.Caution++ }
-                elseif ($c.R -gt $c.G + 40 -and $c.R -gt $c.B + 30) { $counts.Critical++ }
-                elseif ([Math]::Max($c.R, [Math]::Max($c.G, $c.B)) - [Math]::Min($c.R, [Math]::Min($c.G, $c.B)) -lt 30 -and [Math]::Abs($c.GetBrightness() - $background) -gt 0.25) { $counts.Neutral++ }
+                # By hue, which anti-aliasing against the background keeps, unlike the channels themselves. Fluent's
+                # brushes: success #0F7B0F (light) and #6CCB5F (dark) at 120° and 113°, caution #9D5D00 and #FCE100 at
+                # 36° and 54°, critical #C42B1C and #FF99A4 at 5° and 354°.
+                $chroma = [Math]::Max($c.R, [Math]::Max($c.G, $c.B)) - [Math]::Min($c.R, [Math]::Min($c.G, $c.B))
+                $hue = $c.GetHue()
+                if ($chroma -ge 40) {
+                    if ($hue -ge 90 -and $hue -le 150) { $counts.Success++ }
+                    elseif ($hue -ge 25 -and $hue -le 65) { $counts.Caution++ }
+                    elseif ($hue -lt 15 -or $hue -gt 340) { $counts.Critical++ }
+                }
+                elseif ($chroma -lt 30 -and [Math]::Abs($c.GetBrightness() - $background) -gt 0.25) { $counts.Neutral++ }
             }
         }
     } finally { $capture.Bitmap.Dispose() }
@@ -1018,7 +1025,9 @@ try {
             $tags = foreach ($file in $cafeFiles) {
                 $item = $shell.Namespace($file.DirectoryName).ParseName($file.Name)
                 [pscustomobject]@{ Title = $item.ExtendedProperty('System.Title'); Artist = @($item.ExtendedProperty('System.Music.Artist')) -join '; ' }
+                [Runtime.InteropServices.Marshal]::FinalReleaseComObject($item) | Out-Null # So the shell lets go of the file
             }
+            [Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell) | Out-Null
             Check ($cafeFiles.Count -eq 2 -and @($tags | Where-Object { $_.Title -like 'cafe song *' -and $_.Artist }).Count -eq 2) "The copied songs are tagged ($(($tags | ForEach-Object { "$($_.Title) by $($_.Artist)" }) -join ', '))"
             $result = (Get-AllText $window) -split "`n" | Where-Object { $_ -match 'Synced|Sync cancelled|Updated|Nothing was synced|skipped|couldn''t' }
         Check (($result -join ' ') -like "*Synced 2 songs to Folder (*)*1 song skipped.*") "The sync says what it did: '$($result -join ' | ')'"
@@ -1032,7 +1041,8 @@ try {
             # Deleting a synced song's file on the player is noticed, like any other change on the player.
             $synced = Find-ListItem $tracksList 'cafe song 2 — Artist 1'
             $syncedFile = $cafeFiles | Where-Object Name -like '*cafe song 2*' | Select-Object -First 1
-            Remove-Item -LiteralPath $syncedFile.FullName
+            # The shell's property handler, or an antivirus scan of the new file, can still have it open for a moment.
+            Wait-Until { try { Remove-Item -LiteralPath $syncedFile.FullName -ErrorAction Stop; $true } catch { $false } } 'the synced file to be deleted' 5 | Out-Null
             Wait-Until { (Row-Texts $synced) -notcontains 'On player' -and (Row-Box $synced).Current.ToggleState -eq [System.Windows.Automation.ToggleState]::On } 'the deleted song to be back to adding' 20 | Out-Null
             Check $true 'A synced song deleted from the player goes back to being added'
             Save-Screenshot $window 'synced'
@@ -1331,7 +1341,10 @@ try {
         }
         $lastOpened = $null
     }
-    $newDownloads = Get-ChildItem $downloads -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt $startTime }
+    # Only what Exportify makes (CSV files, or a zip of them) or a download in progress: the user may well be
+    # downloading something else meanwhile.
+    $newDownloads = Get-ChildItem $downloads -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -gt $startTime -and $_.Extension -in '.csv', '.zip', '.crdownload' }
     Check (@($newDownloads).Count -eq 0) "Nothing was written to $downloads"
     Check (!$script:sawExportifyPage) "Exportify's own page was never shown"
 }
