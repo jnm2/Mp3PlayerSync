@@ -6,7 +6,7 @@ namespace Mp3PlayerSync.Tests;
 public class BridgeMessageTests
 {
     [Test]
-    public void Parses_playlists_message()
+    public async Task Parses_playlists_message()
     {
         var message = BridgeMessage.Parse("""
             {"type":"playlists","playlists":[
@@ -14,25 +14,25 @@ public class BridgeMessageTests
               {"key":"row:1","name":"Odd","owner":"","trackCount":null,"url":null}]}
             """);
 
-        Assert.That(message.Type, Is.EqualTo(BridgeMessage.PlaylistsType));
-        Assert.That(message.Playlists, Is.EqualTo(new[]
+        await Assert.That(message.Type).IsEqualTo(BridgeMessage.PlaylistsType);
+        await Assert.That(message.Playlists).IsEquivalentTo(new[]
         {
             new PlaylistSummary("https://open.spotify.com/collection/tracks", "Liked Songs", "me", 12, "https://open.spotify.com/collection/tracks", "https://exportify.net/liked_songs.jpeg"),
             new PlaylistSummary("row:1", "Odd", "", null, null),
-        }));
+        }, CollectionOrdering.Matching);
     }
 
     [Test]
-    public void Parses_state_message()
+    public async Task Parses_state_message()
     {
         var message = BridgeMessage.Parse("""{"type":"state","signedIn":true,"tokenExpired":false,"signingIn":false,"playlistsReady":true,"url":"https://exportify.net/","error":""}""");
 
-        Assert.That(message is { Type: BridgeMessage.StateType, SignedIn: true, TokenExpired: false, PlaylistsReady: true }, Is.True);
+        await Assert.That(message is { Type: BridgeMessage.StateType, SignedIn: true, TokenExpired: false, PlaylistsReady: true }).IsTrue();
     }
 
     [Test]
-    public void Command_json_omits_unset_fields()
+    public async Task Command_json_omits_unset_fields()
     {
-        Assert.That(new BridgeCommand(BridgeCommand.Export, Key: "k").ToJson(), Is.EqualTo("""{"cmd":"export","key":"k"}"""));
+        await Assert.That(new BridgeCommand(BridgeCommand.Export, Key: "k").ToJson()).IsEqualTo("""{"cmd":"export","key":"k"}""");
     }
 }

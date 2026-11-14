@@ -16,12 +16,12 @@ public class RerunningCheckTests
         // Asked twice while the first check waits, such as after a sync and by the drive watcher
         var asked = check.RunAsync();
         var askedAgain = check.RunAsync();
-        Assert.That(asked.IsCompleted && askedAgain.IsCompleted, Is.True, "Asking while it runs doesn't wait for it");
+        await Assert.That(asked.IsCompleted && askedAgain.IsCompleted).IsTrue().Because("Asking while it runs doesn't wait for it");
 
         first.SetResult();
         await running;
 
-        Assert.That(runs, Is.EqualTo(2));
+        await Assert.That(runs).IsEqualTo(2);
     }
 
     [Test]
@@ -30,9 +30,9 @@ public class RerunningCheckTests
         var runs = 0;
         var check = new RerunningCheck(() => ++runs == 1 ? Task.FromException(new IOException("gone")) : Task.CompletedTask);
 
-        Assert.ThrowsAsync<IOException>(check.RunAsync);
+        await Assert.That(() => check.RunAsync()).ThrowsExactly<IOException>();
         await check.RunAsync();
 
-        Assert.That(runs, Is.EqualTo(2));
+        await Assert.That(runs).IsEqualTo(2);
     }
 }

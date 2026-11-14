@@ -37,18 +37,18 @@ public class LibraryBuilderTests
         LibraryBuilder.Present(items, filter, Now).Select(i => i.Name).ToArray();
 
     [Test]
-    public void Splits_playlists_by_owner_and_puts_album_like_playlists_with_saved_albums()
+    public async Task Splits_playlists_by_owner_and_puts_album_like_playlists_with_saved_albums()
     {
         var items = LibraryBuilder.Build(Rows, Albums, NoExports);
 
-        Assert.That(Names(items, LibraryFilter.CreatedPlaylists), Is.EqualTo(new[] { "Liked Songs", "Mine", "Empty" }));
-        Assert.That(Names(items, LibraryFilter.SavedPlaylists), Is.EqualTo(new[] { "Theirs" }));
-        Assert.That(Names(items, LibraryFilter.SavedAlbums), Is.EqualTo(new[] { "Seeker", "Their album", "New album", "Old album" }));
-        Assert.That(Names(items, LibraryFilter.All), Is.EqualTo(new[] { "Liked Songs", "Mine", "Theirs", "Seeker", "Their album", "Empty", "New album", "Old album" }));
+        await Assert.That(Names(items, LibraryFilter.CreatedPlaylists)).IsEquivalentTo(new[] { "Liked Songs", "Mine", "Empty" }, CollectionOrdering.Matching);
+        await Assert.That(Names(items, LibraryFilter.SavedPlaylists)).IsEquivalentTo(new[] { "Theirs" }, CollectionOrdering.Matching);
+        await Assert.That(Names(items, LibraryFilter.SavedAlbums)).IsEquivalentTo(new[] { "Seeker", "Their album", "New album", "Old album" }, CollectionOrdering.Matching);
+        await Assert.That(Names(items, LibraryFilter.All)).IsEquivalentTo(new[] { "Liked Songs", "Mine", "Theirs", "Seeker", "Their album", "Empty", "New album", "Old album" }, CollectionOrdering.Matching);
     }
 
     [Test]
-    public void Liked_songs_is_first_and_never_an_album_wherever_Exportify_lists_it()
+    public async Task Liked_songs_is_first_and_never_an_album_wherever_Exportify_lists_it()
     {
         PlaylistSummary[] rows =
         [
@@ -59,13 +59,13 @@ public class LibraryBuilderTests
 
         var items = LibraryBuilder.Build(rows, Albums, exports);
 
-        Assert.That(Names(items, LibraryFilter.CreatedPlaylists), Is.EqualTo(new[] { "Liked Songs", "Mine" }));
-        Assert.That(Names(items, LibraryFilter.All)[0], Is.EqualTo("Liked Songs"));
-        Assert.That(Names(items, LibraryFilter.SavedAlbums), Does.Not.Contain("Liked Songs"));
+        await Assert.That(Names(items, LibraryFilter.CreatedPlaylists)).IsEquivalentTo(new[] { "Liked Songs", "Mine" }, CollectionOrdering.Matching);
+        await Assert.That(Names(items, LibraryFilter.All)[0]).IsEqualTo("Liked Songs");
+        await Assert.That(Names(items, LibraryFilter.SavedAlbums)).DoesNotContain("Liked Songs");
     }
 
     [Test]
-    public void Spotify_DJ_is_hidden_but_not_other_playlists_called_DJ()
+    public async Task Spotify_DJ_is_hidden_but_not_other_playlists_called_DJ()
     {
         PlaylistSummary[] rows =
         [
@@ -77,10 +77,10 @@ public class LibraryBuilderTests
 
         var items = LibraryBuilder.Build(rows, null, NoExports);
 
-        Assert.That(items.Select(i => i.Key), Is.EqualTo(new[] { "https://open.spotify.com/playlist/my-dj" }));
+        await Assert.That(items.Select(i => i.Key)).IsEquivalentTo(new[] { "https://open.spotify.com/playlist/my-dj" }, CollectionOrdering.Matching);
     }
     [Test]
-    public void Earlier_exports_override_the_cover()
+    public async Task Earlier_exports_override_the_cover()
     {
         var exports = new Dictionary<string, ExportSummary>
         {
@@ -90,12 +90,12 @@ public class LibraryBuilderTests
 
         var items = LibraryBuilder.Build(Rows, albums: null, exports);
 
-        Assert.That(Names(items, LibraryFilter.SavedAlbums), Is.EqualTo(new[] { "Mine", "Their album" }));
-        Assert.That(Names(items, LibraryFilter.CreatedPlaylists), Does.Contain("Seeker"));
+        await Assert.That(Names(items, LibraryFilter.SavedAlbums)).IsEquivalentTo(new[] { "Mine", "Their album" }, CollectionOrdering.Matching);
+        await Assert.That(Names(items, LibraryFilter.CreatedPlaylists)).Contains("Seeker");
     }
 
     [Test]
-    public void Owner_is_shown_except_on_created_playlists_tab()
+    public async Task Owner_is_shown_except_on_created_playlists_tab()
     {
         PlaylistSummary[] rows =
         [
@@ -106,21 +106,21 @@ public class LibraryBuilderTests
 
         string Byline(LibraryFilter filter) => LibraryBuilder.Present(items, filter, Now).Single(i => i.Name == "Mine").Byline;
 
-        Assert.That(Byline(LibraryFilter.CreatedPlaylists), Is.Empty);
-        Assert.That(Byline(LibraryFilter.All), Is.EqualTo("me"));
-        Assert.That(LibraryBuilder.Present(items, LibraryFilter.All, Now)[0].Byline, Is.Empty, "Liked Songs");
+        await Assert.That(Byline(LibraryFilter.CreatedPlaylists)).IsEmpty();
+        await Assert.That(Byline(LibraryFilter.All)).IsEqualTo("me");
+        await Assert.That(LibraryBuilder.Present(items, LibraryFilter.All, Now)[0].Byline).IsEmpty().Because("Liked Songs");
     }
 
     [Test]
-    public void Generated_owner_ids_are_hidden()
+    public async Task Generated_owner_ids_are_hidden()
     {
         PlaylistSummary[] rows = [new("https://open.spotify.com/playlist/x", "X", "7fjct5b53ypygv8hdtcpuwzc2", 3, null, Mosaic)];
 
-        Assert.That(LibraryBuilder.Present(LibraryBuilder.Build(rows, null, NoExports), LibraryFilter.All, Now).Single().Byline, Is.Empty);
+        await Assert.That(LibraryBuilder.Present(LibraryBuilder.Build(rows, null, NoExports), LibraryFilter.All, Now).Single().Byline).IsEmpty();
     }
 
     [Test]
-    public void Playlists_show_only_what_Exportify_lists_even_after_an_export()
+    public async Task Playlists_show_only_what_Exportify_lists_even_after_an_export()
     {
         var exports = new Dictionary<string, ExportSummary>
         {
@@ -129,75 +129,87 @@ public class LibraryBuilderTests
         var items = LibraryBuilder.Present(LibraryBuilder.Build(Rows, null, exports), LibraryFilter.CreatedPlaylists, Now);
 
         var mine = items.Single(i => i.Name == "Mine");
-        Assert.That((mine.Stats, mine.DateText), Is.EqualTo(("30 tracks", "")));
+        await Assert.That((mine.Stats, mine.DateText)).IsEqualTo(("30 tracks", ""));
     }
 
     [Test]
-    public void Saved_albums_show_artist_year_tracks_and_when_saved()
+    public async Task Saved_albums_show_artist_year_tracks_and_when_saved()
     {
         var album = LibraryBuilder.Present(LibraryBuilder.Build(Rows, Albums, NoExports), LibraryFilter.SavedAlbums, Now)
             .Single(i => i.Name == "New album");
 
-        Assert.That((album.Byline, album.Stats, album.DateText), Is.EqualTo(("Band · 2020", "1 track", "Saved 2 days ago")));
+        await Assert.That((album.Byline, album.Stats, album.DateText)).IsEqualTo(("Band · 2020", "1 track", "Saved 2 days ago"));
     }
 
     [Test]
-    public void Covers_exclude_Exportify_stand_ins()
+    public async Task Covers_exclude_Exportify_stand_ins()
     {
         var items = LibraryBuilder.Build(Rows, null, NoExports);
 
-        Assert.That(items.Single(i => i.Name == "Theirs").CoverUrl, Is.EqualTo(UploadedCover));
-        Assert.That(items.Single(i => i.Name == "Empty").CoverUrl, Is.Null);
-        Assert.That(items.Single(i => i.Name == "Liked Songs").CoverUrl, Is.Null);
+        await Assert.That(items.Single(i => i.Name == "Theirs").CoverUrl).IsEqualTo(UploadedCover);
+        await Assert.That(items.Single(i => i.Name == "Empty").CoverUrl).IsNull();
+        await Assert.That(items.Single(i => i.Name == "Liked Songs").CoverUrl).IsNull();
     }
 
-    [TestCase(AlbumCover, ExpectedResult = true)]
-    [TestCase(Mosaic, ExpectedResult = false)]
-    [TestCase(UploadedCover, ExpectedResult = false)]
-    [TestCase(NoCover, ExpectedResult = false)]
-    [TestCase(null, ExpectedResult = false)]
-    public bool Cover_tells_whether_a_playlist_looks_like_an_album(string? imageUrl) => PlaylistCover.LooksLikeAlbum(imageUrl);
-
-    [TestCase(UploadedCover, ExpectedResult = true)]
-    [TestCase("http://localhost:5178/demo-cover/run.png", ExpectedResult = true, Description = "The mock's covers")]
-    [TestCase("http://i.scdn.co/image/ab67616d0000b273", ExpectedResult = false)]
-    [TestCase(NoCover, ExpectedResult = false)]
-    public bool Covers_are_shown_over_HTTPS_or_from_this_computer(string imageUrl) => PlaylistCover.RealCover(imageUrl) is not null;
+    [Test]
+    [Arguments(AlbumCover, true)]
+    [Arguments(Mosaic, false)]
+    [Arguments(UploadedCover, false)]
+    [Arguments(NoCover, false)]
+    [Arguments(null, false)]
+    public async Task Cover_tells_whether_a_playlist_looks_like_an_album(string? imageUrl, bool expected)
+    {
+        await Assert.That(PlaylistCover.LooksLikeAlbum(imageUrl)).IsEqualTo(expected);
+    }
 
     [Test]
-    public void Single_album_means_every_track_shares_album_and_release()
+    [Arguments(UploadedCover, true)]
+    [Arguments("http://localhost:5178/demo-cover/run.png", true)] // The mock's covers
+    [Arguments("http://i.scdn.co/image/ab67616d0000b273", false)]
+    [Arguments(NoCover, false)]
+    public async Task Covers_are_shown_over_HTTPS_or_from_this_computer(string imageUrl, bool expected)
     {
-        Assert.That(PlaylistCover.IsSingleAlbum(new([], [Track("A", "X"), Track("B", "X")])), Is.True);
-        Assert.That(PlaylistCover.IsSingleAlbum(new([], [Track("A", "X"), Track("B", "Y")])), Is.False);
-        Assert.That(PlaylistCover.IsSingleAlbum(new([], [Track("A", "X"), Track("B", "X", "2001")])), Is.False);
-        Assert.That(PlaylistCover.IsSingleAlbum(new([], [])), Is.False);
+        await Assert.That(PlaylistCover.RealCover(imageUrl) is not null).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task Single_album_means_every_track_shares_album_and_release()
+    {
+        await Assert.That(PlaylistCover.IsSingleAlbum(new([], [Track("A", "X"), Track("B", "X")]))).IsTrue();
+        await Assert.That(PlaylistCover.IsSingleAlbum(new([], [Track("A", "X"), Track("B", "Y")]))).IsFalse();
+        await Assert.That(PlaylistCover.IsSingleAlbum(new([], [Track("A", "X"), Track("B", "X", "2001")]))).IsFalse();
+        await Assert.That(PlaylistCover.IsSingleAlbum(new([], []))).IsFalse();
     }
 }
 
 public class OwnerNameTests
 {
-    [TestCase("jnm236", ExpectedResult = true)]
-    [TestCase("someone", ExpectedResult = true)]
-    [TestCase("1234567", ExpectedResult = true, Description = "Short numbers are ordinary names")]
-    [TestCase("abc7fjct5b53ypygv8hdtcpuwzc", ExpectedResult = true, Description = "27 characters")]
-    [TestCase("x31xprpmnul6fqtufeje253axvece", ExpectedResult = true, Description = "29 characters")]
-    [TestCase("7FJCT5B53YPYGV8HDTCPUWZC2", ExpectedResult = true, Description = "Generated IDs are lowercase")]
-    [TestCase("spotify", ExpectedResult = false)]
-    [TestCase("Spotify", ExpectedResult = false)]
-    [TestCase("12345678", ExpectedResult = false)]
-    [TestCase("1210987654", ExpectedResult = false)]
-    [TestCase("7fjct5b53ypygv8hdtcpuwzc2", ExpectedResult = false)]
-    [TestCase("21geiktnqpsxb7vtwgu5oj3kq", ExpectedResult = false)]
-    [TestCase("whtyar93ro8wciwptbhwn18mh", ExpectedResult = false)]
-    [TestCase("31xprpmnul6fqtufeje253axvece", ExpectedResult = false)]
-    [TestCase("", ExpectedResult = false)]
-    public bool Is_shown(string owner) => OwnerName.IsShown(owner);
+    [Test]
+    [Arguments("jnm236", true)]
+    [Arguments("someone", true)]
+    [Arguments("1234567", true)] // Short numbers are ordinary names
+    [Arguments("abc7fjct5b53ypygv8hdtcpuwzc", true)] // 27 characters
+    [Arguments("x31xprpmnul6fqtufeje253axvece", true)] // 29 characters
+    [Arguments("7FJCT5B53YPYGV8HDTCPUWZC2", true)] // Generated IDs are lowercase
+    [Arguments("spotify", false)]
+    [Arguments("Spotify", false)]
+    [Arguments("12345678", false)]
+    [Arguments("1210987654", false)]
+    [Arguments("7fjct5b53ypygv8hdtcpuwzc2", false)]
+    [Arguments("21geiktnqpsxb7vtwgu5oj3kq", false)]
+    [Arguments("whtyar93ro8wciwptbhwn18mh", false)]
+    [Arguments("31xprpmnul6fqtufeje253axvece", false)]
+    [Arguments("", false)]
+    public async Task Is_shown(string owner, bool expected)
+    {
+        await Assert.That(OwnerName.IsShown(owner)).IsEqualTo(expected);
+    }
 }
 
 public class SavedAlbumTests
 {
     [Test]
-    public void Groups_saved_albums_export_by_album_in_export_order()
+    public async Task Groups_saved_albums_export_by_album_in_export_order()
     {
         var savedLater = new DateTimeOffset(2025, 6, 1, 0, 0, 0, TimeSpan.Zero);
         var savedEarlier = new DateTimeOffset(2023, 5, 5, 0, 0, 0, TimeSpan.Zero);
@@ -211,18 +223,18 @@ public class SavedAlbumTests
             Track(3, "Greatest Hits", savedEarlier, "1990"), // Same name, a different saved album
         ]));
 
-        Assert.That(albums.Select(a => (a.Name, a.ReleaseDate, a.Tracks.Count)),
-            Is.EqualTo(new[] { ("Greatest Hits", "2001", 2), ("Greatest Hits", "1990", 1) }));
-        Assert.That(albums[1].ToExportedPlaylist().Tracks.Single().Number, Is.EqualTo(1));
-        Assert.That(albums.Select(a => a.Key).Distinct().Count(), Is.EqualTo(2));
+        await Assert.That(albums.Select(a => (a.Name, a.ReleaseDate, a.Tracks.Count))).IsEquivalentTo(new[] { ("Greatest Hits", "2001", 2), ("Greatest Hits", "1990", 1) }, CollectionOrdering.Matching);
+        await Assert.That(albums[1].ToExportedPlaylist().Tracks.Single().Number).IsEqualTo(1);
+        await Assert.That(albums.Select(a => a.Key).Distinct().Count()).IsEqualTo(2);
     }
 }
 
 public class AppSettingsTests
 {
-    [TestCase("PlaylistsByYou", LibraryFilter.CreatedPlaylists)]
-    [TestCase("PlaylistsByOthers", LibraryFilter.SavedPlaylists)]
-    public void Reads_the_tab_chosen_in_0_1_0_and_keeps_the_player(string stored, LibraryFilter expected)
+    [Test]
+    [Arguments("PlaylistsByYou", LibraryFilter.CreatedPlaylists)]
+    [Arguments("PlaylistsByOthers", LibraryFilter.SavedPlaylists)]
+    public async Task Reads_the_tab_chosen_in_0_1_0_and_keeps_the_player(string stored, LibraryFilter expected)
     {
         var path = Path.GetTempFileName();
         try
@@ -231,9 +243,9 @@ public class AppSettingsTests
 
             var loaded = AppSettings.Load(path);
 
-            Assert.That((loaded.Filter, loaded.Player?.FolderPath), Is.EqualTo((expected, @"D:\Player")));
+            await Assert.That((loaded.Filter, loaded.Player?.FolderPath)).IsEqualTo((expected, @"D:\Player"));
             loaded.Save(path);
-            Assert.That(File.ReadAllText(path), Does.Contain($"\"{stored}\""));
+            await Assert.That(File.ReadAllText(path)).Contains($"\"{stored}\"");
         }
         finally
         {
@@ -242,7 +254,7 @@ public class AppSettingsTests
     }
 
     [Test]
-    public void Round_trips_choices_and_export_summaries()
+    public async Task Round_trips_choices_and_export_summaries()
     {
         var path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName(), "settings.json");
         try
@@ -254,8 +266,8 @@ public class AppSettingsTests
 
             var loaded = AppSettings.Load(path);
 
-            Assert.That((loaded.LastSelectedKey, loaded.Filter), Is.EqualTo(("k", LibraryFilter.SavedAlbums)));
-            Assert.That(loaded.Exports, Is.EqualTo(new Dictionary<string, ExportSummary> { ["p"] = summary }));
+            await Assert.That((loaded.LastSelectedKey, loaded.Filter)).IsEqualTo(("k", LibraryFilter.SavedAlbums));
+            await Assert.That(loaded.Exports).IsEquivalentTo(new Dictionary<string, ExportSummary> { ["p"] = summary });
         }
         finally
         {
@@ -264,14 +276,14 @@ public class AppSettingsTests
     }
 
     [Test]
-    public void Missing_or_corrupt_file_gives_defaults()
+    public async Task Missing_or_corrupt_file_gives_defaults()
     {
         var path = Path.GetTempFileName();
         try
         {
             File.WriteAllText(path, "{ not json");
-            Assert.That(AppSettings.Load(path).Filter, Is.EqualTo(LibraryFilter.CreatedPlaylists));
-            Assert.That(AppSettings.Load(path + ".missing").LastSelectedKey, Is.Null);
+            await Assert.That(AppSettings.Load(path).Filter).IsEqualTo(LibraryFilter.CreatedPlaylists);
+            await Assert.That(AppSettings.Load(path + ".missing").LastSelectedKey).IsNull();
         }
         finally
         {
