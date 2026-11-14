@@ -1,17 +1,30 @@
 <Project>
-  <!-- Works out the version from the release tags (REL-1), for every build, local or CI, so it's never bumped by hand
-       after a release. A release (a GitHub Actions run for a tag) is the tag's version exactly. Any other build is a
-       prerelease of the next version: the tag on HEAD's, else the newest tag's plus one patch (or the same, if that
-       tag is a prerelease), or VersionPrefix if that's higher. With no tags, or no git, it's VersionPrefix.
-         Release      0.1.1+build.<run>.commit.<sha8>
-         main         0.1.1-ci.<run>+commit.<sha8>
-         Pull request 0.1.1-<run>.pr.<number>
-         Other branch 0.1.1-<run>.<branch>
-         Local        0.1.1-dev
-       FileVersion is <prefix>.<run> on GitHub Actions; AssemblyVersion is <prefix>.0. Setting Version or VersionSuffix
-       yourself turns this off. -->
+  <!-- This file sets the version of every build from the git tags, so that nobody has to bump the version by hand
+       after a release (REL-1). To use it, import it from Directory.Build.targets and set VersionPrefix in
+       Directory.Build.props. VersionPrefix is the lowest version that builds will get, so raise it when the next release
+       should be a minor or major version.
+
+       The SetVersionFromGitTags target runs before the SDK works out the assembly versions. It reads VersionPrefix,
+       the v* tags in the repository, and the GITHUB_ACTIONS, GITHUB_REF, GITHUB_REF_NAME, GITHUB_REF_TYPE,
+       GITHUB_RUN_NUMBER and GITHUB_SHA environment variables that GitHub Actions sets. It sets Version, VersionPrefix,
+       InformationalVersion and, in GitHub Actions, FileVersion. If you set Version or VersionSuffix yourself, the
+       target does nothing.
+
+       A release is a GitHub Actions run for a tag, and it gets exactly the tag's version. Every other build gets a
+       prerelease of the next version. If the commit is tagged, that is the tag's version. Otherwise it is the newest
+       tag's version with the patch part incremented, or the same version if that tag is a prerelease. If VersionPrefix
+       is higher, or there are no tags, or git isn't available, VersionPrefix is used instead.
+
+       For example, after the v0.1.0 release the versions look like this:
+         Release of v0.1.1  0.1.1+build.<run>.commit.<sha8>
+         main               0.1.1-ci.<run>+commit.<sha8>
+         Pull request       0.1.1-<run>.pr.<number>
+         Other branch       0.1.1-<run>.<branch>
+         Local build        0.1.1-dev
+       In GitHub Actions the file version is the version prefix followed by the run number, such as 0.1.1.42. -->
   <Target Name="SetVersionFromGitTags" BeforeTargets="GetAssemblyVersion" Condition="'$(Version)' == '$(VersionPrefix)'">
-    <!-- 2>nul: without git or a repository, the output is empty and VersionPrefix is used. -->
+    <!-- The 2>nul hides git's errors, so that without git or a repository the output is empty and VersionPrefix is
+         used. -->
     <Exec Command="git tag --list v* --points-at HEAD --sort=-v:refname 2&gt;nul" WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true" IgnoreExitCode="true" EchoOff="true" StandardOutputImportance="low">
       <Output TaskParameter="ConsoleOutput" PropertyName="_HeadTags" />
@@ -22,7 +35,8 @@
     </Exec>
 
     <PropertyGroup>
-      <!-- The same versions build.yml accepts as release tags. The tags are newest first, separated by semicolons. -->
+      <!-- This pattern matches the same versions that build.yml accepts as release tags. The lists of tags from git are
+           sorted newest first and separated by semicolons. -->
       <_VersionTagPattern>(?&lt;=^|;)v(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z.-]+)?(?=;|$)</_VersionTagPattern>
       <_HeadTag>$([System.Text.RegularExpressions.Regex]::Match('$(_HeadTags)', '$(_VersionTagPattern)'))</_HeadTag>
       <_LatestTag>$([System.Text.RegularExpressions.Regex]::Match('$(_Tags)', '$(_VersionTagPattern)'))</_LatestTag>
@@ -66,7 +80,7 @@
 
     <PropertyGroup>
       <FileVersion Condition="'$(GITHUB_ACTIONS)' == 'true'">$(VersionPrefix).$(GITHUB_RUN_NUMBER)</FileVersion>
-      <!-- The commit is in the versions above where it's wanted. -->
+      <!-- The versions above already include the commit where it's wanted, so the SDK shouldn't add it again. -->
       <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     </PropertyGroup>
   </Target>

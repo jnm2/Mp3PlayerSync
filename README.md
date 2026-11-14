@@ -65,10 +65,11 @@ Unit tests: `dotnet test tests\Mp3PlayerSync.Tests`. End-to-end tests run on a h
 `dotnet build Mp3PlayerSync.slnx`, then `pwsh tests\Invoke-EndToEnd.ps1`. The screenshots above are generated
 from a made-up library by `pwsh tests\Update-ReadmeScreenshots.ps1`.
 
-To release, push a tag like `v0.1.1` (or `v0.2.0-beta.1` for a prerelease): the Build workflow publishes the exes to a
-GitHub release with exactly that version. Nothing needs bumping afterwards: every other build works out its version from
-the newest tag, as a prerelease of the next patch (`0.1.2-ci.<run>` on main, `0.1.2-dev` locally). To make the next
-release a minor or major one, raise `VersionPrefix` in `Directory.Build.props` (say, to `0.2.0`).
+To release, push a tag such as `v0.1.1`, or `v0.2.0-beta.1` for a prerelease. The Build workflow then publishes the exes
+to a GitHub release with exactly that version. Nothing needs to be bumped afterwards, because every other build bases its
+version on the newest tag as a prerelease of the next patch version, such as `0.1.2-ci.<run>` on main and `0.1.2-dev`
+locally. To make the next release a minor or major version, raise `VersionPrefix` in `Directory.Build.props`, for
+example to `0.2.0`.
 
 ---
 
