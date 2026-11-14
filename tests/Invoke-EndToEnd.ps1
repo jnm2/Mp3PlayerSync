@@ -189,6 +189,9 @@ try {
             [TestDesktop]::GetWindowThreadProcessId($foreground, [ref]$owner) | Out-Null
             $ownerProcess = Get-Process -Id $owner -ErrorAction SilentlyContinue
             $foregroundChanges.Add("$(Get-Date -Format HH:mm:ss.fff) $($ownerProcess.ProcessName) ($owner)")
+            # A process the test run started since the last refresh, such as an app that takes the foreground as soon
+            # as it shows, isn't in the tree yet.
+            if ($null -eq $currentTree[$owner]) { Update-TestTree }
             $recordedStart = $currentTree[$owner]
             if ($hidden -and $null -ne $recordedStart -and $ownerProcess -and [Math]::Abs(($ownerProcess.StartTime - $recordedStart).TotalSeconds) -lt 1) {
                 $stolen.Add("$($ownerProcess.ProcessName) ($owner)")
