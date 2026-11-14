@@ -1010,22 +1010,29 @@ try {
     if (Test-Selected 'Run2b') {
         Prepare-State 'Big Album'
         Write-Host 'Run 2b: the token runs out while the app is open'
-        $process, $window = Start-App "$($url)?expireAfter=20"
+        $process, $window = Start-App "$($url)?expireWhenAsked"
         try {
             Choose-Player $window
             Wait-Until { (Get-Text $window 'PlaylistTitle') -eq 'Spotify album: Big Album' } 'the last opened album to reopen' 60 | Out-Null
             Wait-Contents $window 'Big Album (restored)' '*60 tracks, *'
-            # The token runs out 20 s after the page loaded; the fake API then rejects it, so only a renewed one works.
+            # The token runs out now, while the test watches; the fake API then rejects it, so only a renewed one works.
+            # The watch lasts until the renewal has asked Spotify for a new token, and a few seconds after.
+            $renewals = Get-ApiCalls '^/api/token$'
+            Invoke-RestMethod "$($url)expire" -Method Post | Out-Null
             $interrupted = @()
+            $renewed = $null
             $stopwatch = [Diagnostics.Stopwatch]::StartNew()
-            while ($stopwatch.Elapsed.TotalSeconds -lt 30) {
+            while (!$renewed -or ($stopwatch.Elapsed - $renewed).TotalSeconds -lt 5 * $script:waitScale) {
+                if (!$renewed -and $stopwatch.Elapsed.TotalSeconds -gt 60 * $script:waitScale) { break }
                 Watch-Page
                 if (Find-ById $window 'SignInTitle') { $interrupted += 'sign-in' }
                 if (Find-ById $window 'LoadingText') { $interrupted += 'loading' }
                 $title = Get-Text $window 'PlaylistTitle'
                 if ($title -ne 'Spotify album: Big Album') { $interrupted += "left the album ('$title')" }
+                if (!$renewed -and (Get-ApiCalls '^/api/token$') -gt $renewals) { $renewed = $stopwatch.Elapsed }
                 Start-Sleep -Milliseconds 200
             }
+            Check ($null -ne $renewed) "The token that ran out is renewed in the background$(if ($renewed) { " after $([int]$renewed.TotalMilliseconds) ms" })"
             Check (-not $interrupted) "The album stays on screen while the token is renewed $(($interrupted | Select-Object -Unique) -join ', ')"
             Click-Refresh $window '^/v1/tracks\?' 'the refresh'
             Wait-Contents $window 'Big Album (after renewal)' '*60 tracks, *'

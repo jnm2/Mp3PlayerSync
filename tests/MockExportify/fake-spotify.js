@@ -135,7 +135,7 @@
             localStorage.setItem('mock_expired_token', localStorage.getItem('access_token'));
         }
 
-        // Like Spotify, stop accepting a token once it has run out (see ?expireToken and ?expireAfter in index.html).
+        // Like Spotify, stop accepting a token once it has run out (see ?expireToken and ?expireWhenAsked in index.html).
         const authorization = new Headers(init?.headers).get('Authorization');
         if (authorization === 'Bearer ' + localStorage.getItem('mock_expired_token')) {
             return [401, { error: { status: 401, message: 'The access token expired' } }];
