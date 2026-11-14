@@ -38,6 +38,11 @@ lists its options. The user can also run and debug its tests from Visual Studio'
 their own desktop (TEST-3). Agents never do that, and never run them through `dotnet test`, which skips them: agents
 use only the launcher.
 
+The `Live` run (`--only Live`, TEST-4) is the weekly live check on the real exportify.net and Spotify, which
+`.github\workflows\live-check.yml` runs. It's explicit, so it never runs as part of the other runs. Without
+`SPOTIFY_TEST_USERNAME` and `SPOTIFY_TEST_PASSWORD`, it's a dry run that stops at Spotify's sign-in page and reports
+itself as inconclusive.
+
 Agents never pass `-Desktop Current` to `Invoke-EndToEnd.ps1` (or `Test-PublishedExe.ps1`), or `--desktop Current` to
 the C# launcher, on the user's PC: it runs the app on their own desktop, covering and taking focus from their windows.
 It's for CI, or for a person who runs it on purpose.

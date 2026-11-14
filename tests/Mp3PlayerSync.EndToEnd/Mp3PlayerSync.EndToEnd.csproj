@@ -29,6 +29,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Mp3PlayerSync.MockExportify\Mp3PlayerSync.MockExportify.csproj" />
+    <!-- The app's own reading of Exportify's exports, which the live check uses to check what the app got -->
+    <ProjectReference Include="..\..\src\Mp3PlayerSync.Core\Mp3PlayerSync.Core.csproj" />
     <!-- Built first, so the launcher finds the test host from the same configuration; not referenced as an assembly -->
     <ProjectReference Include="..\Mp3PlayerSync.E2EHost\Mp3PlayerSync.E2EHost.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" />
   </ItemGroup>

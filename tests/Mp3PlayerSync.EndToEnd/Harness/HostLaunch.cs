@@ -17,6 +17,12 @@ public sealed record HostLaunch(string DataDirectory, Uri? ExportifyUrl, Uri? Sp
     /// </summary>
     public string? TestDrives { get; init; }
 
+    /// <summary>
+    /// A file for the test host to write the songs the app looks for to, as the app read them from the export (see
+    /// TrackRecorder in the test host), or null for none.
+    /// </summary>
+    public string? RecordTracksTo { get; init; }
+
     /// <summary>The test host to run.</summary>
     public string AppPath { get; init; } = Locations.AppPath;
 
@@ -27,5 +33,6 @@ public sealed record HostLaunch(string DataDirectory, Uri? ExportifyUrl, Uri? Sp
         ["MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL"] = SpotifyAccountsUrl?.AbsoluteUri ?? "",
         ["MP3PLAYERSYNC_TEST_FAKE_AUDIO"] = FakeAudio,
         ["MP3PLAYERSYNC_TEST_DRIVES"] = TestDrives ?? "",
+        ["MP3PLAYERSYNC_TEST_RECORD_TRACKS"] = RecordTracksTo ?? "",
     };
 }
