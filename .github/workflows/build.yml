@@ -132,7 +132,7 @@ jobs:
               throw "Tag '$env:GITHUB_REF_NAME' isn't a version like v1.2.3 or v1.2.3-beta.1"
           }
           # Single-file, trimming and the rest come from the .csproj, and the version from the tags
-          # (Directory.Build.targets). All of the app's files are extracted at first launch (the Windows App SDK's
+          # (build\Version.targets). All of the app's files are extracted at first launch (the Windows App SDK's
           # IncludeAllContentForSelfExtract) for its DLL side-by-side redirection.
           dotnet publish src\Mp3PlayerSync\Mp3PlayerSync.csproj -c Release -r win-${{ matrix.arch }} -o publish `
               -p:PublishSingleFile=true -bl:logs\publish-${{ matrix.arch }}.binlog

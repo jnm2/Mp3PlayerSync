@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <!-- The lowest version builds get; the release tags decide the rest (Directory.Build.targets, REL-1). Raise it only
+    <!-- The lowest version builds get; the release tags decide the rest (build\Version.targets, REL-1). Raise it only
          to make the next release a minor or major one. -->
     <VersionPrefix>0.1.0</VersionPrefix>
   </PropertyGroup>
