@@ -111,11 +111,11 @@ public class PlayersTests
     {
         var (options, remembered) = Players.BuildOptions([], new PlayerChoice(FolderPath: @"F:\"), _ => true);
 
-        remembered.ShouldNotBeNull().ShouldSatisfyAllConditions(
-            r => r.Kind.ShouldBe(PlayerOptionKind.Folder),
-            r => r.Title.ShouldBe(@"F:\"),
-            r => r.Subtitle.ShouldBe("Recent folder"),
-            r => r.DisplayName.ShouldBe(@"Folder (F:\)"));
+        remembered.ShouldNotBeNull();
+        remembered.Kind.ShouldBe(PlayerOptionKind.Folder);
+        remembered.Title.ShouldBe(@"F:\");
+        remembered.Subtitle.ShouldBe("Recent folder");
+        remembered.DisplayName.ShouldBe(@"Folder (F:\)");
         options.Count.ShouldBe(2);
     }
 
@@ -134,15 +134,13 @@ public class PlayersTests
     public void Long_folder_subtitles_are_shortened_in_the_middle_with_the_full_path_as_a_tooltip()
     {
         var longFolder = Players.ForFolder(@"C:\Users\someone\OneDrive\Documents\Music\Players\mp3player", []);
-        longFolder.ShouldSatisfyAllConditions(
-            f => f.ShortSubtitle.ShouldStartWith(@"C:\…\", Case.Sensitive),
-            f => f.ShortSubtitle.ShouldEndWith(@"\mp3player", Case.Sensitive),
-            f => f.SubtitleToolTip.ShouldBe(f.FolderPath));
+        longFolder.ShortSubtitle.ShouldStartWith(@"C:\…\", Case.Sensitive);
+        longFolder.ShortSubtitle.ShouldEndWith(@"\mp3player", Case.Sensitive);
+        longFolder.SubtitleToolTip.ShouldBe(longFolder.FolderPath);
 
         var shortFolder = Players.ForFolder(@"D:\Music\Player", []);
-        shortFolder.ShouldSatisfyAllConditions(
-            s => s.ShortSubtitle.ShouldBe(@"D:\Music\Player"),
-            s => s.SubtitleToolTip.ShouldBeNull());
+        shortFolder.ShortSubtitle.ShouldBe(@"D:\Music\Player");
+        shortFolder.SubtitleToolTip.ShouldBeNull();
     }
 
     [Test]
@@ -150,10 +148,9 @@ public class PlayersTests
     {
         var option = Players.ForFolder(@"C:\Users\me\Desktop\mp3player", []);
 
-        option.ShouldSatisfyAllConditions(
-            o => o.Title.ShouldBe("mp3player"),
-            o => o.Subtitle.ShouldBe(@"C:\Users\me\Desktop\mp3player"),
-            o => o.DisplayName.ShouldBe(@"Folder (C:\Users\me\Desktop\mp3player)"));
+        option.Title.ShouldBe("mp3player");
+        option.Subtitle.ShouldBe(@"C:\Users\me\Desktop\mp3player");
+        option.DisplayName.ShouldBe(@"Folder (C:\Users\me\Desktop\mp3player)");
     }
 
     [Test]

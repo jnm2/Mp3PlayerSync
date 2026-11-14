@@ -129,9 +129,8 @@ public class LibraryBuilderTests
         var items = LibraryBuilder.Present(LibraryBuilder.Build(Rows, null, exports), LibraryFilter.CreatedPlaylists, Now);
 
         var mine = items.Single(i => i.Name == "Mine");
-        mine.ShouldSatisfyAllConditions(
-            m => m.Stats.ShouldBe("30 tracks"),
-            m => m.DateText.ShouldBeEmpty());
+        mine.Stats.ShouldBe("30 tracks");
+        mine.DateText.ShouldBeEmpty();
     }
 
     [Test]
@@ -140,10 +139,9 @@ public class LibraryBuilderTests
         var album = LibraryBuilder.Present(LibraryBuilder.Build(Rows, Albums, NoExports), LibraryFilter.SavedAlbums, Now)
             .Single(i => i.Name == "New album");
 
-        album.ShouldSatisfyAllConditions(
-            a => a.Byline.ShouldBe("Band · 2020"),
-            a => a.Stats.ShouldBe("1 track"),
-            a => a.DateText.ShouldBe("Saved 2 days ago"));
+        album.Byline.ShouldBe("Band · 2020");
+        album.Stats.ShouldBe("1 track");
+        album.DateText.ShouldBe("Saved 2 days ago");
     }
 
     [Test]
@@ -248,9 +246,8 @@ public class AppSettingsTests
 
             var loaded = AppSettings.Load(path);
 
-            loaded.ShouldSatisfyAllConditions(
-                l => l.Filter.ShouldBe(expected),
-                l => l.Player.ShouldNotBeNull().FolderPath.ShouldBe(@"D:\Player"));
+            loaded.Filter.ShouldBe(expected);
+            loaded.Player.ShouldNotBeNull().FolderPath.ShouldBe(@"D:\Player");
             loaded.Save(path);
             File.ReadAllText(path).ShouldContain($"\"{stored}\"", Case.Sensitive);
         }
@@ -273,9 +270,8 @@ public class AppSettingsTests
 
             var loaded = AppSettings.Load(path);
 
-            loaded.ShouldSatisfyAllConditions(
-                l => l.LastSelectedKey.ShouldBe("k"),
-                l => l.Filter.ShouldBe(LibraryFilter.SavedAlbums));
+            loaded.LastSelectedKey.ShouldBe("k");
+            loaded.Filter.ShouldBe(LibraryFilter.SavedAlbums);
             loaded.Exports.ShouldBe(new Dictionary<string, ExportSummary> { ["p"] = summary }, ignoreOrder: true);
         }
         finally

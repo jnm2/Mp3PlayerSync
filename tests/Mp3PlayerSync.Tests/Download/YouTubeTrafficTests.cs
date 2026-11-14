@@ -55,9 +55,8 @@ public class YouTubeTrafficTests
     private static TimeSpan WaitBefore(YouTubeTraffic traffic, int requests = 1)
     {
         var turn = traffic.TryTakeTurn(requests);
-        turn.ShouldSatisfyAllConditions(
-            t => t.Granted.ShouldBeFalse(),
-            t => t.NeedsCheck.ShouldBeFalse());
+        turn.Granted.ShouldBeFalse();
+        turn.NeedsCheck.ShouldBeFalse();
         return turn.Wait;
     }
 
@@ -101,10 +100,9 @@ public class YouTubeTrafficTests
             sent.Add(clock.GetUtcNow());
         }
 
-        sent.ShouldSatisfyAllConditions(
-            s => s.ShouldAllBe(at => RequestsWithin(s, at, TimeSpan.FromMinutes(1)) <= 40),
-            s => s.ShouldAllBe(at => RequestsWithin(s, at, TimeSpan.FromMinutes(10)) <= 250),
-            s => s.ShouldAllBe(at => RequestsWithin(s, at, TimeSpan.FromHours(1)) <= 1000));
+        sent.ShouldAllBe(at => RequestsWithin(sent, at, TimeSpan.FromMinutes(1)) <= 40);
+        sent.ShouldAllBe(at => RequestsWithin(sent, at, TimeSpan.FromMinutes(10)) <= 250);
+        sent.ShouldAllBe(at => RequestsWithin(sent, at, TimeSpan.FromHours(1)) <= 1000);
         (sent[^1] - sent[0]).ShouldBeGreaterThanOrEqualTo(TimeSpan.FromHours(1), customMessage: "1,200 requests take over an hour.");
     }
 

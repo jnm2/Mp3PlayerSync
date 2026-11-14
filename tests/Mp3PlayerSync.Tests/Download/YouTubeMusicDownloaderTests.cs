@@ -267,12 +267,11 @@ public class YouTubeMusicDownloaderTests
         resolution.State.ShouldBe(TrackResolutionState.Resolved);
         resolution.FromCache.ShouldBeFalse();
         var video = resolution.Video.ShouldNotBeNull();
-        video.ShouldSatisfyAllConditions(
-            v => v.VideoId.ShouldBe("BaxnrepwXck"),
-            v => v.Title.ShouldBe("Under Pressure"),
-            v => v.Album.ShouldBe("Hot Space"),
-            v => v.Duration.ShouldBe(TimeSpan.FromSeconds(248)),
-            v => v.Source.ShouldBe(ResolutionSource.Automatic));
+        video.VideoId.ShouldBe("BaxnrepwXck");
+        video.Title.ShouldBe("Under Pressure");
+        video.Album.ShouldBe("Hot Space");
+        video.Duration.ShouldBe(TimeSpan.FromSeconds(248));
+        video.Source.ShouldBe(ResolutionSource.Automatic);
         video.Artists.ShouldBe(new[] { "Queen", "David Bowie" });
         video.Url.ShouldBe("https://music.youtube.com/watch?v=BaxnrepwXck");
         source.Extractions.ShouldBe(new[] { "BaxnrepwXck" });
@@ -356,10 +355,9 @@ public class YouTubeMusicDownloaderTests
         {
             var remembered = (await reloaded.ResolveTracksAsync([track], null, CancellationToken.None)).ShouldHaveSingleItem();
 
-            remembered.ShouldSatisfyAllConditions(
-                r => r.State.ShouldBe(TrackResolutionState.NeedsReview),
-                r => r.FromCache.ShouldBeTrue(),
-                r => r.Reason.ShouldBe(resolution.Reason));
+            remembered.State.ShouldBe(TrackResolutionState.NeedsReview);
+            remembered.FromCache.ShouldBeTrue();
+            remembered.Reason.ShouldBe(resolution.Reason);
             remembered.Candidates.Select(c => (c.Video.Id, c.Video.Url, c.Video.Album, c.Video.Duration, c.Score, c.Format)).ShouldBe(resolution.Candidates.Select(c => (c.Video.Id, c.Video.Url, c.Video.Album, c.Video.Duration, c.Score, c.Format)));
             remembered.Candidates[0].Video.Artists.ShouldBe(new[] { "Tribute Band" });
             source.Searches.Count.ShouldBe(2, customMessage: "Not looked up again");
@@ -385,10 +383,9 @@ public class YouTubeMusicDownloaderTests
 
         var retried = await downloader.RetryAsync(track, CancellationToken.None);
 
-        retried.ShouldSatisfyAllConditions(
-            r => r.State.ShouldBe(TrackResolutionState.Resolved),
-            r => r.Video.ShouldNotBeNull().VideoId.ShouldBe("song0000001"),
-            r => r.FromCache.ShouldBeFalse());
+        retried.State.ShouldBe(TrackResolutionState.Resolved);
+        retried.Video.ShouldNotBeNull().VideoId.ShouldBe("song0000001");
+        retried.FromCache.ShouldBeFalse();
         downloader.GetCachedResolution(track).ShouldNotBeNull().Video.ShouldNotBeNull().VideoId.ShouldBe("song0000001");
     }
 
@@ -448,9 +445,9 @@ public class YouTubeMusicDownloaderTests
 
         using var reloaded = CreateDownloader(new FakeSource());
         var remembered = (await reloaded.ResolveTracksAsync([track], null, CancellationToken.None)).ShouldHaveSingleItem();
-        remembered.Video.ShouldNotBeNull().ShouldSatisfyAllConditions(
-            v => v.VideoId.ShouldBe("chosen00001"),
-            v => v.Source.ShouldBe(ResolutionSource.Manual));
+        var video = remembered.Video.ShouldNotBeNull();
+        video.VideoId.ShouldBe("chosen00001");
+        video.Source.ShouldBe(ResolutionSource.Manual);
     }
 
     [Test]
@@ -464,16 +461,14 @@ public class YouTubeMusicDownloaderTests
         using (var reloaded = CreateDownloader(new FakeSource()))
         {
             var skipped = (await reloaded.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).ShouldHaveSingleItem();
-            skipped.ShouldSatisfyAllConditions(
-                s => s.State.ShouldBe(TrackResolutionState.Skipped),
-                s => s.FromCache.ShouldBeTrue());
+            skipped.State.ShouldBe(TrackResolutionState.Skipped);
+            skipped.FromCache.ShouldBeTrue();
         }
 
         downloader.Forget(UnderPressure).ShouldBeTrue();
         var resolved = (await downloader.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).ShouldHaveSingleItem();
-        resolved.ShouldSatisfyAllConditions(
-            r => r.State.ShouldBe(TrackResolutionState.Resolved),
-            r => r.FromCache.ShouldBeFalse());
+        resolved.State.ShouldBe(TrackResolutionState.Resolved);
+        resolved.FromCache.ShouldBeFalse();
     }
 
     [Test]
@@ -546,10 +541,9 @@ public class YouTubeMusicDownloaderTests
         source.ExtractError = null;
         using var afterward = CreateDownloader(source);
         var kept = afterward.GetCachedResolution(track).ShouldNotBeNull();
-        kept.ShouldSatisfyAllConditions(
-            k => k.State.ShouldBe(TrackResolutionState.Resolved),
-            k => k.Video.ShouldNotBeNull().VideoId.ShouldBe("chosen00001"),
-            k => k.Video.ShouldNotBeNull().Source.ShouldBe(ResolutionSource.Manual));
+        kept.State.ShouldBe(TrackResolutionState.Resolved);
+        kept.Video.ShouldNotBeNull().VideoId.ShouldBe("chosen00001");
+        kept.Video.Source.ShouldBe(ResolutionSource.Manual);
         (await afterward.DownloadTrackAsync(Request(kept, "track"), null, CancellationToken.None)).Succeeded.ShouldBeTrue(customMessage: "Downloads once YouTube is reachable again");
     }
 
@@ -597,10 +591,9 @@ public class YouTubeMusicDownloaderTests
         {
             var resolution = (await downloader.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).ShouldHaveSingleItem();
 
-            resolution.ShouldSatisfyAllConditions(
-                r => r.State.ShouldBe(TrackResolutionState.LookupFailed),
-                r => r.IsThrottled.ShouldBeTrue(),
-                r => r.Reason.ShouldBe(YouTubeMusicDownloader.YouTubeBusyMessage));
+            resolution.State.ShouldBe(TrackResolutionState.LookupFailed);
+            resolution.IsThrottled.ShouldBeTrue();
+            resolution.Reason.ShouldBe(YouTubeMusicDownloader.YouTubeBusyMessage);
             resolution.Candidates.ShouldBeEmpty();
             downloader.GetCachedResolution(UnderPressure).ShouldNotBeNull().IsThrottled.ShouldBeTrue(customMessage: "Remembered briefly so it isn't retried right away");
         }
@@ -623,10 +616,9 @@ public class YouTubeMusicDownloaderTests
 
         var result = await reloaded.DownloadTrackAsync(Request(reloaded.GetCachedResolution(UnderPressure)!, "track"), null, CancellationToken.None);
 
-        result.ShouldSatisfyAllConditions(
-            r => r.IsThrottled.ShouldBeTrue(),
-            r => r.NeedsReview.ShouldBeFalse(),
-            r => r.FailureReason.ShouldBe(YouTubeMusicDownloader.YouTubeBusyMessage));
+        result.IsThrottled.ShouldBeTrue();
+        result.NeedsReview.ShouldBeFalse();
+        result.FailureReason.ShouldBe(YouTubeMusicDownloader.YouTubeBusyMessage);
         reloaded.GetCachedResolution(UnderPressure).ShouldNotBeNull().Video.ShouldNotBeNull().VideoId.ShouldBe("BaxnrepwXck");
     }
 
@@ -638,10 +630,9 @@ public class YouTubeMusicDownloaderTests
 
         var result = await downloader.ChooseVideoAsync(Track("Song", "Artist", 200, uri: "spotify:track:song"), "chosen00001", CancellationToken.None);
 
-        result.ShouldSatisfyAllConditions(
-            r => r.Succeeded.ShouldBeFalse(),
-            r => r.IsThrottled.ShouldBeTrue(),
-            r => r.Error.ShouldBe(YouTubeMusicDownloader.YouTubeBusyMessage));
+        result.Succeeded.ShouldBeFalse();
+        result.IsThrottled.ShouldBeTrue();
+        result.Error.ShouldBe(YouTubeMusicDownloader.YouTubeBusyMessage);
     }
 
     [Test]
@@ -795,10 +786,9 @@ public class YouTubeMusicDownloaderTests
 
         var choice = await downloader.ChooseVideoAsync(track, "BaxnrepwXck", CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
 
-        choice.ShouldSatisfyAllConditions(
-            c => c.Resolution.ShouldBeNull(),
-            c => c.Error.ShouldBe("YouTube is busy; continuing in 60 min"),
-            c => c.IsThrottled.ShouldBeTrue());
+        choice.Resolution.ShouldBeNull();
+        choice.Error.ShouldBe("YouTube is busy; continuing in 60 min");
+        choice.IsThrottled.ShouldBeTrue();
     }
 
     [Test]

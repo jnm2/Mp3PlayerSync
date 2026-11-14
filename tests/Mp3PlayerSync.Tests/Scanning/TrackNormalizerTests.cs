@@ -78,9 +78,9 @@ public class TrackNormalizerTests
         TrackNormalizer.ExplicitMarker(text).ShouldBe(expected);
         if (expected is not null)
         {
-            TrackNormalizer.TitleKey(text).ShouldSatisfyAllConditions(
-                key => key.ShouldNotContain("explicit", Case.Sensitive),
-                key => key.ShouldNotContain("clean", Case.Sensitive));
+            var key = TrackNormalizer.TitleKey(text);
+            key.ShouldNotContain("explicit", Case.Sensitive);
+            key.ShouldNotContain("clean", Case.Sensitive);
         }
     }
 

@@ -278,10 +278,10 @@ public class PlayerLibraryTests
 
         AudioTagReader.Read(new FileInfo(path)).Tags.Title.ShouldBe("Song");
 
-        new FileInfo(path).ShouldSatisfyAllConditions(
-            f => f.LastAccessTimeUtc.ShouldBe(oldTime),
-            f => f.LastWriteTimeUtc.ShouldBe(oldTime),
-            f => f.Attributes.ShouldBe(attributes));
+        var file = new FileInfo(path);
+        file.LastAccessTimeUtc.ShouldBe(oldTime);
+        file.LastWriteTimeUtc.ShouldBe(oldTime);
+        file.Attributes.ShouldBe(attributes);
     }
 
     [Test]

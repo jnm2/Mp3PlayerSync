@@ -27,11 +27,10 @@ public class BridgeMessageTests
     {
         var message = BridgeMessage.Parse("""{"type":"state","signedIn":true,"tokenExpired":false,"signingIn":false,"playlistsReady":true,"url":"https://exportify.net/","error":""}""");
 
-        message.ShouldSatisfyAllConditions(
-            m => m.Type.ShouldBe(BridgeMessage.StateType),
-            m => m.SignedIn.ShouldBe(true),
-            m => m.TokenExpired.ShouldBe(false),
-            m => m.PlaylistsReady.ShouldBe(true));
+        message.Type.ShouldBe(BridgeMessage.StateType);
+        message.SignedIn.ShouldBe(true);
+        message.TokenExpired.ShouldBe(false);
+        message.PlaylistsReady.ShouldBe(true);
     }
 
     [Test]

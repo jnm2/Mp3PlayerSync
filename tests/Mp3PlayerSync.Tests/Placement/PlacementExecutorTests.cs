@@ -53,9 +53,8 @@ public class PlacementExecutorTests
             r => r.Failed.ShouldBeEmpty(),
             r => r.Canceled.ShouldBeFalse(),
             r => r.Moved.ShouldHaveSingleItem().ActualRelativePath.ShouldBe(@"Queen\Hot Space (1982)\01. Staying Power.m4a"),
-            r => r.Added.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
-                a => a.ActualRelativePath.ShouldBe(@"Queen\Hot Space (1982)\11. Under Pressure.m4a"),
-                a => a.TrackId.ShouldBe("u")),
+            r => r.Added.ShouldHaveSingleItem().ActualRelativePath.ShouldBe(@"Queen\Hot Space (1982)\11. Under Pressure.m4a"),
+            r => r.Added.ShouldHaveSingleItem().TrackId.ShouldBe("u"),
             _ => ReadPlayerFile(@"Queen\Hot Space (1982)\01. Staying Power.m4a").ShouldBe("existing"),
             _ => ReadPlayerFile(@"Queen\Hot Space (1982)\11. Under Pressure.m4a").ShouldBe("under pressure"),
             _ => File.Exists(Path.Combine(root, "Queen - Staying Power.m4a")).ShouldBeFalse(),
