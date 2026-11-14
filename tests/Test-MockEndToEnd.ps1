@@ -452,6 +452,84 @@ function Check-Tones([string[]] $tones, [string[]] $expected, [string] $descript
     else { Check ($found -eq ($expected -join ', ')) "$description`: $found" }
 }
 
+# Where the app drew ink in a rectangle of a Render-Window picture (in screen pixels, like UI Automation's): a [bool[,]].
+# Ink is any pixel at least half as far from the background (the commonest color) as the strongest ink there.
+function Read-Ink($capture, [double] $left, [double] $top, [double] $right, [double] $bottom) {
+    $rect = [System.Drawing.Rectangle]::FromLTRB([int]($left - $capture.Left), [int]($top - $capture.Top), [int]($right - $capture.Left), [int]($bottom - $capture.Top))
+    $rect.Intersect([System.Drawing.Rectangle]::new(0, 0, $capture.Bitmap.Width, $capture.Bitmap.Height))
+    $data = $capture.Bitmap.LockBits($rect, [System.Drawing.Imaging.ImageLockMode]::ReadOnly, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    try {
+        $bytes = [byte[]]::new($data.Stride * $rect.Height)
+        [Runtime.InteropServices.Marshal]::Copy($data.Scan0, $bytes, 0, $bytes.Length)
+    } finally { $capture.Bitmap.UnlockBits($data) }
+    $pixel = { param($x, $y) $i = $y * $data.Stride + $x * 4; ([int]$bytes[$i + 2] -shl 16) -bor ([int]$bytes[$i + 1] -shl 8) -bor $bytes[$i] }
+    $counts = @{}
+    for ($y = 0; $y -lt $rect.Height; $y++) { for ($x = 0; $x -lt $rect.Width; $x++) { $counts[(& $pixel $x $y)]++ } }
+    $background = ($counts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1).Key
+    $distance = [int[,]]::new($rect.Width, $rect.Height); $strongest = 0
+    for ($y = 0; $y -lt $rect.Height; $y++) {
+        for ($x = 0; $x -lt $rect.Width; $x++) {
+            $c = & $pixel $x $y
+            $d = [Math]::Max([Math]::Abs((($c -shr 16) -band 255) - (($background -shr 16) -band 255)),
+                [Math]::Max([Math]::Abs((($c -shr 8) -band 255) - (($background -shr 8) -band 255)), [Math]::Abs(($c -band 255) - ($background -band 255))))
+            $distance[$x, $y] = $d; $strongest = [Math]::Max($strongest, $d)
+        }
+    }
+    $ink = [bool[,]]::new($rect.Width, $rect.Height)
+    for ($y = 0; $y -lt $rect.Height; $y++) { for ($x = 0; $x -lt $rect.Width; $x++) { $ink[$x, $y] = $strongest -gt 0 -and $distance[$x, $y] * 2 -ge $strongest } }
+    , $ink
+}
+
+# The first and last columns of each run of inked columns, left to right.
+function Ink-Runs($ink) {
+    $runs = [System.Collections.Generic.List[int[]]]::new(); $start = -1
+    for ($x = 0; $x -le $ink.GetLength(0); $x++) {
+        $any = $false
+        if ($x -lt $ink.GetLength(0)) { for ($y = 0; $y -lt $ink.GetLength(1) -and !$any; $y++) { $any = $ink[$x, $y] } }
+        if ($any -and $start -lt 0) { $start = $x } elseif (!$any -and $start -ge 0) { $runs.Add(@($start, ($x - 1))); $start = -1 }
+    }
+    , $runs
+}
+
+# The top and bottom inked rows between two columns.
+function Ink-Rows($ink, [int[]] $columns) {
+    $top = -1; $bottom = -1
+    for ($y = 0; $y -lt $ink.GetLength(1); $y++) { for ($x = $columns[0]; $x -le $columns[1]; $x++) { if ($ink[$x, $y]) { if ($top -lt 0) { $top = $y }; $bottom = $y; break } } }
+    @($top, $bottom)
+}
+
+# A heading beside a back arrow, measured from the pixels the app drew (so it holds while the PC is locked): the arrow's
+# ink is centered on the capitals' (the heading starts with a capital), and its descenders are drawn in full. The text's
+# layout box ends at its baseline (HeadingTextStyle), so the descenders are looked for just below it.
+function Check-Heading($window, [string] $arrowId, [string] $textId, [string] $what) {
+    $centered = "[ALIGN-1] $what`: the back arrow is centered on the capitals"
+    $descenders = "[ALIGN-2] $what`: descenders are drawn in full"
+    $capture = Render-Window $window
+    if ($capture -is [string]) { Inconclusive "$centered ($capture)"; Inconclusive "$descenders ($capture)"; return }
+    try {
+        $arrow = (Find-ById $window $arrowId).Current.BoundingRectangle
+        $text = (Find-ById $window $textId).Current.BoundingRectangle
+        $below = 8
+
+        $ink = Read-Ink $capture $arrow.Left ([Math]::Min($arrow.Top, $text.Top)) $text.Right ([Math]::Max($arrow.Bottom, $text.Bottom) + $below)
+        $runs = Ink-Runs $ink
+        if ($runs.Count -lt 2) { Check $false "$centered (found $($runs.Count) shapes, not an arrow and a letter)" }
+        else {
+            $arrowRows = Ink-Rows $ink $runs[0]; $capitalRows = Ink-Rows $ink $runs[1]
+            $offset = ($arrowRows[0] + $arrowRows[1]) / 2 - ($capitalRows[0] + $capitalRows[1]) / 2
+            Check ([Math]::Abs($offset) -le 1) "$centered (off by $offset px; arrow rows $($arrowRows -join '-'), capital rows $($capitalRows -join '-'))"
+        }
+
+        $ink = Read-Ink $capture $text.Left $text.Top $text.Right ($text.Bottom + $below)
+        $runs = Ink-Runs $ink
+        if (!$runs.Count) { Check $false "$descenders (no text drawn)"; return }
+        $baseline = (Ink-Rows $ink $runs[0])[1]
+        $lowest = (Ink-Rows $ink @($runs[0][0], $runs[-1][1]))[1]
+        $height = $ink.GetLength(1)
+        Check ($lowest - $baseline -ge 3 -and $lowest -lt $height - 1) "$descenders (baseline row $baseline, lowest ink row $lowest, of $height looked at)"
+    } finally { $capture.Bitmap.Dispose() }
+}
+
 # The player page comes first on every start; the folder chosen last time is pre-selected, so Enter continues.
 function Choose-Player($window) {
     $grid = Wait-Until { Find-ById $window 'PlayerGridView' } 'the MP3 player page'
@@ -663,6 +741,7 @@ try {
             Check-NoBrowserText $window 'library page'
 
             Save-Screenshot $window 'library'
+            Check-Heading $window 'ChangePlayerButton' 'SelectedPlayerTitle' 'Player heading'
             $libraryLayout = Heading-Layout $window 'ChangePlayerButton' 'LibraryTitle'
             Check-Spacing $window 'Playlists page' @('ChangePlayerButton', 'SelectedPlayerTitle', 'LibraryTitle', 'FilterBar', 'RefreshLibraryButton', 'SignOutButton', 'LibrarySummaryText') @(, @('RefreshLibraryButton', 'SignOutButton'))
 
@@ -713,6 +792,7 @@ try {
             Check (-not $repeats -and -not $hero) "[CONTENTS-2] No hero art or repeated name under the banner (banner bottom $([int]$bannerBottom), list top $([int]$listTop)) $($found -join '; ')"
             Check-NoBrowserText $window 'contents page'
             Save-Screenshot $window 'playlist'
+            Check-Heading $window 'BackButton' 'PlaylistTitle' 'Playlist heading'
             Check-SameHeadingLayout $libraryLayout (Heading-Layout $window 'BackButton' 'ContentsBannerTitle')
 
             # The header's columns line up with the rows' at every width, and nothing is cut off.
