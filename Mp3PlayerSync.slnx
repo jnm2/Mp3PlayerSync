@@ -5,6 +5,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Mp3PlayerSync.E2EHost/Mp3PlayerSync.E2EHost.csproj" />
+    <Project Path="tests/Mp3PlayerSync.EndToEnd/Mp3PlayerSync.EndToEnd.csproj" />
     <Project Path="tests/Mp3PlayerSync.MockExportify/Mp3PlayerSync.MockExportify.csproj" />
     <Project Path="tests/Mp3PlayerSync.Tests/Mp3PlayerSync.Tests.csproj" />
   </Folder>

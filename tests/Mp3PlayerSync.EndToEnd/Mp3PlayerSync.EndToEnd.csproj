@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- One exe in two roles (see Program.cs): the launcher on the user's desktop, and the tests themselves, on
+         Microsoft.Testing.Platform, on the desktop the launcher made for them -->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Run only through the launcher, never by dotnet test on the solution: the app must never appear on the user's
+         desktop (TEST-1). So it isn't a test project or test application to MSBuild; Program.cs is the entry point,
+         and runs the tests with the platform's extensions as a test application would. -->
+    <IsTestProject>false</IsTestProject>
+    <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
+    <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
+    <GenerateTestingPlatformEntryPoint>false</GenerateTestingPlatformEntryPoint>
+    <GenerateSelfRegisteredExtensions>true</GenerateSelfRegisteredExtensions>
+    <GenerateTestingPlatformConfigurationFile>true</GenerateTestingPlatformConfigurationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="FlaUI.UIA3" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.371">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Shouldly" Version="4.3.0" />
+    <PackageReference Include="System.Management" Version="11.0.0" />
+    <PackageReference Include="TUnit" Version="1.84.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mp3PlayerSync.MockExportify\Mp3PlayerSync.MockExportify.csproj" />
+    <!-- Built first, so the launcher finds the test host from the same configuration; not referenced as an assembly -->
+    <ProjectReference Include="..\Mp3PlayerSync.E2EHost\Mp3PlayerSync.E2EHost.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- What every song is "downloaded" as (see FakeTrackFinder in the test host) -->
+    <None Include="..\Mp3PlayerSync.Tests\Tagging\Assets\silence.m4a" Link="Assets\silence.m4a" CopyToOutputDirectory="PreserveNewest" />
+    <AssemblyMetadata Include="Configuration" Value="$(Configuration)" />
+  </ItemGroup>
+
+</Project>
