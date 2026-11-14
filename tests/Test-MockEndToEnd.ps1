@@ -60,7 +60,7 @@ public static class E2EWin32 {
     [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc callback, IntPtr parameter);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
-    public const uint BM_CLICK = 0xF5;
+    public const uint BM_CLICK = 0xF5, WM_CLOSE = 0x10;
     public static IntPtr ProcessWindow(uint processId, string className) {
         var found = IntPtr.Zero;
         EnumWindows((hwnd, _) => {
@@ -397,16 +397,43 @@ function Start-App([string] $url) {
         Write-Host "  The app also has a top-level '$($other.Current.Name)' $($other.Current.ClassName) at $([int]$r.Left),$([int]$r.Top) $([int]$r.Width)x$([int]$r.Height)"
     }
     $script:currentWindow = $window
+    # For Stop-App
+    $script:appWindows[$process.Id] = [IntPtr]$window.Current.NativeWindowHandle
+    $script:appDataDirs[$process.Id] = $env:MP3PLAYERSYNC_DATA_DIR
     return $process, $window
 }
 
+# Closes the app, and waits until it's gone, with its WebView2 processes: the next launch on the same data folder would
+# otherwise hand over to the closing copy (APP-1), or meet its WebView2 profile still in use.
+$script:appWindows = @{}
+$script:appDataDirs = @{}
 function Stop-App($process) {
     $script:currentWindow = $null
+    $seconds = 5 * $script:waitScale
     if (!$process.HasExited) {
-        $process.CloseMainWindow() | Out-Null
-        # It may still exit by itself between the wait and the kill.
-        if (!$process.WaitForExit(5000)) { try { $process.Kill() } catch [System.InvalidOperationException] { } }
+        # To the window Start-App found: CloseMainWindow uses Process.MainWindowHandle, which can be a helper window.
+        $hwnd = $script:appWindows[$process.Id]
+        if ($hwnd) { [E2EWin32]::PostMessage($hwnd, [E2EWin32]::WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null }
+        else { $process.CloseMainWindow() | Out-Null }
+        if (!$process.WaitForExit([int]($seconds * 1000))) {
+            Write-Host "  The app didn't close within $seconds s; ending it"
+            # It may still exit by itself between the wait and the kill.
+            try { $process.Kill() } catch [System.InvalidOperationException] { }
+            $process.WaitForExit(10000) | Out-Null # Kill only starts it
+        }
     }
+    $dataDir = $script:appDataDirs[$process.Id]
+    if (!$dataDir) { return }
+    $webViewData = (Join-Path $dataDir 'WebView2') + '\'
+    $deadline = [DateTime]::UtcNow.AddSeconds($seconds)
+    do {
+        $left = @(Get-CimInstance Win32_Process -Filter "Name = 'msedgewebview2.exe'" -Property ProcessId, CommandLine |
+            Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($webViewData, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
+        if (!$left) { return }
+        Start-Sleep -Milliseconds 200
+    } while ([DateTime]::UtcNow -lt $deadline)
+    Write-Host "  The app's WebView2 processes were still running $seconds s after it closed; ending them"
+    $left | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 }
 
 # Waits for the library while watching whether the sign-in screen was ever shown.
