@@ -163,30 +163,35 @@ try {
     $stolen = [System.Collections.Generic.List[string]]::new()
     $last = [IntPtr]::Zero
     $nextTreeRefresh = Get-Date
+    # The test run's processes as they are now: the script and everything descended from it, with their start times.
+    function Update-TestTree {
+        $all = Get-CimInstance Win32_Process -Property ProcessId, ParentProcessId, CreationDate
+        $tree = @{ [uint32]$testProcess.Id = $rootStart }
+        do {
+            $added = 0
+            foreach ($process in $all) {
+                $parentStart = $tree[[uint32]$process.ParentProcessId]
+                if ($null -ne $parentStart -and !$tree.ContainsKey([uint32]$process.ProcessId) -and $process.CreationDate -ge $parentStart) {
+                    $tree[[uint32]$process.ProcessId] = $process.CreationDate; $added++
+                }
+            }
+        } while ($added)
+        foreach ($id in $tree.Keys) { $testProcessStarts[$id] = $tree[$id] } # Kept for the cleanup afterwards
+        $script:currentTree = $tree
+        $script:nextTreeRefresh = (Get-Date).AddSeconds(2)
+    }
     $deadline = (Get-Date).AddMinutes($TimeoutMinutes)
     while (!$testProcess.HasExited -and (Get-Date) -lt $deadline) {
-        if ((Get-Date) -ge $nextTreeRefresh) {
-            $all = Get-CimInstance Win32_Process -Property ProcessId, ParentProcessId, CreationDate
-            $tree = @{ [uint32]$testProcess.Id = $rootStart }
-            do {
-                $added = 0
-                foreach ($process in $all) {
-                    $parentStart = $tree[[uint32]$process.ParentProcessId]
-                    if ($null -ne $parentStart -and !$tree.ContainsKey([uint32]$process.ProcessId) -and $process.CreationDate -ge $parentStart) {
-                        $tree[[uint32]$process.ProcessId] = $process.CreationDate; $added++
-                    }
-                }
-            } while ($added)
-            foreach ($id in $tree.Keys) { $testProcessStarts[$id] = $tree[$id] } # Kept for the cleanup afterwards
-            $currentTree = $tree
-            $nextTreeRefresh = (Get-Date).AddSeconds(2)
-        }
+        if ((Get-Date) -ge $nextTreeRefresh) { Update-TestTree }
         $foreground = [TestDesktop]::GetForegroundWindow()
         if ($foreground -ne $last) {
             $owner = [uint32]0
             [TestDesktop]::GetWindowThreadProcessId($foreground, [ref]$owner) | Out-Null
             $ownerProcess = Get-Process -Id $owner -ErrorAction SilentlyContinue
             $foregroundChanges.Add("$(Get-Date -Format HH:mm:ss.fff) $($ownerProcess.ProcessName) ($owner)")
+            # A process the test run started since the last refresh, such as an app that takes the foreground as soon
+            # as it shows, isn't in the tree yet.
+            if ($null -eq $currentTree[$owner]) { Update-TestTree }
             $recordedStart = $currentTree[$owner]
             if ($hidden -and $null -ne $recordedStart -and $ownerProcess -and [Math]::Abs(($ownerProcess.StartTime - $recordedStart).TotalSeconds) -lt 1) {
                 $stolen.Add("$($ownerProcess.ProcessName) ($owner)")
@@ -201,6 +206,11 @@ try {
     $logText
     Write-Host "Foreground windows on the user's desktop during the run:"
     $foregroundChanges | ForEach-Object { Write-Host "  $_" }
+    # The check for TEST-1. The script can't make it: off the input desktop, GetForegroundWindow is always NULL.
+    if ($hidden) {
+        if ($stolen.Count) { Write-Host "  FAIL  The app never took the foreground: $($stolen -join ', ')" -ForegroundColor Red }
+        else { Write-Host '  PASS  The app never took the foreground' -ForegroundColor Green }
+    }
 
     $processExitCode = [uint32]0
     $exited = $testProcess.HasExited -and [TestDesktop]::GetExitCodeProcess($processHandle, [ref]$processExitCode)

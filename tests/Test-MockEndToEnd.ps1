@@ -27,9 +27,8 @@ param(
     [string] $AppPath = (Get-ChildItem "$PSScriptRoot\Mp3PlayerSync.E2EHost\bin\Debug" -Recurse -Filter Mp3PlayerSync.E2EHost.exe | Select-Object -First 1).FullName,
     [string] $ScreenshotFolder,
     [ValidateSet('Run1', 'Run2', 'Run2b', 'Run2c', 'Run3', 'Run4', 'Run5')] [string[]] $Only,
-    # Where Invoke-EndToEnd.ps1 runs this. On the current desktop (CI, or someone asking for it) Windows can give a
-    # newly started app the foreground, and there's nobody's work to protect, so the foreground check only applies to
-    # the hidden desktop.
+    # Where Invoke-EndToEnd.ps1 runs this. It watches the user's foreground window itself (TEST-1): from here, on a
+    # hidden desktop, GetForegroundWindow always returns NULL.
     [ValidateSet('Hidden', 'Current')] [string] $Desktop = 'Hidden'
 )
 
@@ -40,7 +39,6 @@ using System; using System.Runtime.InteropServices;
 public static class E2EWin32 {
     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
-    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, uint flags);
     public const uint SWP_NOMOVE = 0x2, SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10;
@@ -88,17 +86,12 @@ function Check([bool] $condition, [string] $description) {
     else { Write-Host "  FAIL  $description" -ForegroundColor Red; $failures.Add($description) }
 }
 
-# The app runs off-screen without activation; it must never take the foreground from whatever the user is doing.
 # Only the app processes this run started, while they run: Windows reuses the IDs of those that have exited.
-# Nor may it ever show Exportify's own page: the embedded page is only shown while it's Spotify's sign-in.
+# The app may never show Exportify's own page: the embedded page is only shown while it's Spotify's sign-in.
 $script:appProcesses = [System.Collections.Generic.List[System.Diagnostics.Process]]::new()
-$script:tookForeground = $false
 $script:currentWindow = $null
 $script:sawExportifyPage = $false
-function Watch-Foreground {
-    $foregroundPid = [uint32]0
-    [E2EWin32]::GetWindowThreadProcessId([E2EWin32]::GetForegroundWindow(), [ref]$foregroundPid) | Out-Null
-    if ($script:appProcesses | Where-Object { $_.Id -eq $foregroundPid -and !$_.HasExited }) { $script:tookForeground = $true }
+function Watch-Page {
     try {
         if ($script:currentWindow -and (Find-ById $script:currentWindow 'SignInTitle') -and
             (Find-Named $script:currentWindow $ControlType::Pane 'Spotify sign-in') -and
@@ -124,7 +117,7 @@ function Wait-Until([scriptblock] $probe, [string] $what, [double] $timeoutSecon
     $timeoutSeconds *= $script:waitScale
     $deadline = [DateTime]::UtcNow.AddSeconds($timeoutSeconds)
     do {
-        Watch-Foreground
+        Watch-Page
         $result = & $probe
         if ($result) { return $result }
         Start-Sleep -Milliseconds 200
@@ -254,9 +247,17 @@ function Truncated-Cells($window, [double] $fromLeft = 0) {
 # SPACE-1: no two of these elements touch or overlap, and each related pair is at least 8px apart. The rectangles are
 # UI Automation's: a button's background, and a text's full line box, descenders included.
 function Check-Spacing($window, [string] $where, [string[]] $ids, [string[][]] $related = @()) {
+    # What stands for an element that isn't in UI Automation itself: the SelectorBar's items sit in its scroll presenter.
+    $standIns = @{ FilterBar = { $item = Find-ById $window 'AllFilterItem'; if ($item) { [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($item) } } }
     $rects = @{}
-    foreach ($id in $ids) { $e = Find-ById $window $id; if ($e) { $r = $e.Current.BoundingRectangle; if (!$r.IsEmpty -and $r.Width -gt 0) { $rects[$id] = $r } } }
     $problems = [System.Collections.Generic.List[string]]::new()
+    foreach ($id in $ids) {
+        $e = Find-ById $window $id
+        if (!$e -and $standIns[$id]) { $e = & $standIns[$id] }
+        # A renamed or missing element would otherwise just drop out of the check. One that's collapsed has no size.
+        if (!$e) { $problems.Add("$id is missing"); continue }
+        $r = $e.Current.BoundingRectangle; if (!$r.IsEmpty -and $r.Width -gt 0) { $rects[$id] = $r }
+    }
     $names = @($rects.Keys)
     for ($i = 0; $i -lt $names.Count; $i++) {
         for ($j = $i + 1; $j -lt $names.Count; $j++) {
@@ -452,7 +453,6 @@ function Prepare-State([string] $lastItem) {
     $script:lastOpened = $lastItem
 }
 
-$foregroundAtStart = [E2EWin32]::GetForegroundWindow()
 # Everything this run uses is its own, so runs can go side by side: its data folder (and so the app's settings,
 # WebView2 profile, caches, staging and single-instance key, and the test's player and drive folders), and the mock's port.
 $env:MP3PLAYERSYNC_DATA_DIR = Join-Path ([IO.Path]::GetTempPath()) "Mp3PlayerSyncE2E-$PID-$([Guid]::NewGuid().ToString('N').Substring(0, 8))"
@@ -505,12 +505,14 @@ try {
         $process, $window = Start-App "$($url)?autoSignIn"
         try {
             Choose-Player $window
-            $sawLibraryEarly = $false
+            # A [ref], like Wait-Library's: Wait-Until runs the probe in a scope of its own, where assigning a variable
+            # would only make a new one.
+            $sawLibraryEarly = [ref]$false
             Wait-Until {
-                if (Find-ById $window 'LibraryGridView') { $sawLibraryEarly = $true }
+                if (Find-ById $window 'LibraryGridView') { $sawLibraryEarly.Value = $true }
                 Find-ById $window 'SignInTitle'
             } 'the sign-in screen' 60 | Out-Null
-            Check (!$sawLibraryEarly) 'No library page before signing in'
+            Check (!$sawLibraryEarly.Value) 'No library page before signing in'
             Save-Screenshot $window 'signin'
             $signInText = "$(Get-Text $window 'SignInTitle') $(Get-Text $window 'SignInText')"
             Check ($signInText -notmatch 'browser|exportify') "Sign-in text mentions neither browser nor Exportify: '$signInText'"
@@ -828,7 +830,8 @@ try {
             Open-LibraryItem $window 'Big Album'
             Wait-Contents $window 'Big Album' 'Prolific Band · 2010 — 60 tracks, 3:29:30'
             Check ($null -eq (Find-ById $window 'AlbumHeader') -and $null -ne (Find-ById $window 'ArtistsHeader')) 'Album pages leave out the Album column'
-            Click $window 'RefreshPlaylistButton'
+            # The summary already matches, so wait until the refresh has asked Spotify (the Saved Albums export's lookup).
+            Click-Refresh $window '^/v1/tracks\?' 'the album refresh'
             Wait-Contents $window 'Big Album (refreshed)' '*60 tracks, *'
             Click $window 'BackButton'
 
@@ -891,12 +894,13 @@ try {
 
             Choose-Player $window
             $sawSignIn = $false
+            $signInShown = [ref]$false
             Wait-Until {
-                if (Find-ById $window 'SignInTitle') { $sawSignIn = $true }
+                if (Find-ById $window 'SignInTitle') { $signInShown.Value = $true }
                 (Get-Text $window 'PlaylistTitle') -eq 'Spotify playlist: Road Trip, Vol. 2'
             } 'the last opened playlist to reopen' 60 | Out-Null
             Wait-Contents $window 'Road Trip, Vol. 2 (restored)' '250 tracks, *'
-            Check (!$sawSignIn) 'Sign-in screen is never shown when already signed in'
+            Check (!$signInShown.Value) 'Sign-in screen is never shown when already signed in'
             Click $window 'BackButton'
             Wait-Library $window '64 playlists and albums' ([ref]$sawSignIn)
             Check $true 'Selector choice (All) was remembered'
@@ -955,7 +959,7 @@ try {
             $interrupted = @()
             $stopwatch = [Diagnostics.Stopwatch]::StartNew()
             while ($stopwatch.Elapsed.TotalSeconds -lt 30) {
-                Watch-Foreground
+                Watch-Page
                 if (Find-ById $window 'SignInTitle') { $interrupted += 'sign-in' }
                 if (Find-ById $window 'LoadingText') { $interrupted += 'loading' }
                 $title = Get-Text $window 'PlaylistTitle'
@@ -976,14 +980,14 @@ try {
         $process, $window = Start-App "$($url)?expireOnExport"
         try {
             Choose-Player $window
-            $sawSignIn = $false
+            $signInShown = [ref]$false
             try {
                 Wait-Until {
-                    if (Find-ById $window 'SignInTitle') { $sawSignIn = $true }
+                    if (Find-ById $window 'SignInTitle') { $signInShown.Value = $true }
                     (Get-Text $window 'PlaylistTitle') -eq 'Spotify album: Big Album' -and (Get-Text $window 'SummaryText') -like '*60 tracks*'
                 } 'the album after renewing the token mid-export' 90 | Out-Null
             } catch { Write-Host "  Showing: $((Get-AllText $window) -replace "`n", ' | ')"; throw }
-            Check (!$sawSignIn) 'A token rejected mid-export is renewed without showing the sign-in screen'
+            Check (!$signInShown.Value) 'A token rejected mid-export is renewed without showing the sign-in screen'
             Check ((Get-AllText $window) -notlike '*Could not load*') 'The interrupted export is retried after renewing'
         } finally { Stop-App $process }
         $lastOpened = 'Big Album'
@@ -995,12 +999,12 @@ try {
         $process, $window = Start-App "$($url)?expireToken"
         try {
             Choose-Player $window
-            $sawSignIn = $false
+            $signInShown = [ref]$false
             Wait-Until {
-                if (Find-ById $window 'SignInTitle') { $sawSignIn = $true }
+                if (Find-ById $window 'SignInTitle') { $signInShown.Value = $true }
                 (Get-Text $window 'PlaylistTitle') -eq 'Spotify album: Big Album' -and (Get-Text $window 'SummaryText') -like '*60 tracks*'
             } 'the saved album after renewing the session' 90 | Out-Null
-            Check (!$sawSignIn) 'Expired token is renewed without showing the sign-in screen'
+            Check (!$signInShown.Value) 'Expired token is renewed without showing the sign-in screen'
             Check $true 'The last opened saved album reopened'
 
             Write-Host 'Run 4: sign out'
@@ -1097,9 +1101,7 @@ try {
     }
     $newDownloads = Get-ChildItem $downloads -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt $startTime }
     Check (@($newDownloads).Count -eq 0) "Nothing was written to $downloads"
-    if ($Desktop -eq 'Hidden') { Check (!$script:tookForeground) 'The app never took the foreground' }
     Check (!$script:sawExportifyPage) "Exportify's own page was never shown"
-    Write-Host "  Foreground window at start $foregroundAtStart, at end $([E2EWin32]::GetForegroundWindow())"
 }
 catch {
     $failures.Add($_.ToString())
