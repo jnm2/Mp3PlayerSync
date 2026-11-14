@@ -23,9 +23,9 @@ public class YouTubeMusicLiveTests
         Console.Out.WriteLine("Audio formats: " + string.Join(", ", check.AudioFormats));
         foreach (var message in check.Messages) Console.Out.WriteLine(message);
 
-        await Assert.That(check.DenoVersion).IsNotNull().Because("Deno couldn't be downloaded");
-        await Assert.That(check.HasJavaScriptRuntimeWarning).IsFalse().Because("yt-dlp didn't find its JavaScript runtime");
-        await Assert.That(check.BestAac?.FormatId).IsEqualTo("140").Or.IsEqualTo("141").Because("No good AAC format; YouTube may have changed");
+        check.DenoVersion.ShouldNotBeNull(customMessage: "Deno couldn't be downloaded");
+        check.HasJavaScriptRuntimeWarning.ShouldBeFalse(customMessage: "yt-dlp didn't find its JavaScript runtime");
+        check.BestAac.ShouldNotBeNull().FormatId.ShouldBeOneOf(new[] { "140", "141" }, "No good AAC format; YouTube may have changed");
     }
 
     [Test]
@@ -38,8 +38,8 @@ public class YouTubeMusicLiveTests
         var track = new ExportedTrack(1, "spotify:track:2grjqo0Frpf2okIBiifQKs", "September", ["Earth, Wind & Fire"], "The Best Of Earth, Wind & Fire, Vol. 1",
             TimeSpan.FromMilliseconds(215093), "1978-11-23", null, "", false, "USSM17800845", "");
 
-        var resolution = (await downloader.ResolveTracksAsync([track], null, CancellationToken.None)).Single();
-        await Assert.That(resolution.State).IsEqualTo(TrackResolutionState.Resolved).Because(resolution.Reason ?? "");
+        var resolution = (await downloader.ResolveTracksAsync([track], null, CancellationToken.None)).ShouldHaveSingleItem();
+        resolution.State.ShouldBe(TrackResolutionState.Resolved, customMessage: resolution.Reason);
         Console.Out.WriteLine(resolution.Video);
 
         var request = new TrackDownloadRequest(resolution, Path.Join(root, Path.GetRandomFileName() + ".m4a"));
@@ -48,11 +48,11 @@ public class YouTubeMusicLiveTests
         {
             var result = await downloader.DownloadTrackAsync(request, null, CancellationToken.None);
 
-            await Assert.That(result.FailureReason).IsNull();
+            result.FailureReason.ShouldBeNull();
             Console.Out.WriteLine($"{result.Format} {result.Audio}");
-            await Assert.That(result.Audio!.IsAac).IsTrue();
-            await Assert.That(result.Audio.Duration.TotalSeconds).IsEqualTo(215).Within(5);
-            await Assert.That(M4aRemuxer.ReadAudioInfo(request.DestinationPath)).IsEqualTo(result.Audio);
+            result.Audio.ShouldNotBeNull().IsAac.ShouldBeTrue();
+            result.Audio.Duration.TotalSeconds.ShouldBe(215, 5);
+            M4aRemuxer.ReadAudioInfo(request.DestinationPath).ShouldBe(result.Audio);
         }
         finally
         {

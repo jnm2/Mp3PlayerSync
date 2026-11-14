@@ -13,11 +13,11 @@ public class YouTubeUrlsTests
     [Arguments("https://www.youtube.com/shorts/BaxnrepwXck")]
     [Arguments("youtube.com/watch?v=BaxnrepwXck")]
     [Arguments("  BaxnrepwXck ")]
-    public async Task Gets_video_id(string input)
+    public void Gets_video_id(string input)
     {
         var found = YouTubeUrls.TryGetVideoId(input, out var videoId, out var error);
-        await Assert.That(found).IsTrue().Because(error ?? "");
-        await Assert.That(videoId).IsEqualTo("BaxnrepwXck");
+        found.ShouldBeTrue(customMessage: error);
+        videoId.ShouldBe("BaxnrepwXck");
     }
 
     [Test]
@@ -27,9 +27,9 @@ public class YouTubeUrlsTests
     [Arguments("https://open.spotify.com/track/2grjqo0Frpf2okIBiifQKs", "isn't a YouTube")]
     [Arguments("https://www.youtube.com/watch?v=tooshort", "isn't to a YouTube video")]
     [Arguments("not a link", "isn't a YouTube")]
-    public async Task Rejects_other_links(string input, string expectedError)
+    public void Rejects_other_links(string input, string expectedError)
     {
-        await Assert.That(YouTubeUrls.TryGetVideoId(input, out _, out var error)).IsFalse();
-        await Assert.That(error).Contains(expectedError);
+        YouTubeUrls.TryGetVideoId(input, out _, out var error).ShouldBeFalse();
+        error.ShouldNotBeNull().ShouldContain(expectedError, Case.Sensitive);
     }
 }

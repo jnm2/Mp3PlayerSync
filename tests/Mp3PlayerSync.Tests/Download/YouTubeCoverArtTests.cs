@@ -35,27 +35,27 @@ public class YouTubeCoverArtTests
         YouTubeVideoInfo.Parse($$"""{"id": "QAo_Ycocl1E", "title": "Africa", "thumbnails": {{thumbnailsJson}}}""").Thumbnails;
 
     [Test]
-    public async Task A_song_gets_its_square_album_art_at_500_pixels()
+    public void A_song_gets_its_square_album_art_at_500_pixels()
     {
-        await Assert.That(YouTubeCoverArt.SelectUrl(Parse(SongThumbnails))).IsEqualTo(AlbumArt + "=w500-h500-l90-rj");
+        YouTubeCoverArt.SelectUrl(Parse(SongThumbnails)).ShouldBe(AlbumArt + "=w500-h500-l90-rj");
     }
 
     [Test]
-    public async Task Square_art_is_recognized_by_its_url_when_its_size_is_not_given()
+    public void Square_art_is_recognized_by_its_url_when_its_size_is_not_given()
     {
         var thumbnails = Parse("""[{"url": "https://lh3.googleusercontent.com/abc=w120-h120-l90-rj"}, {"url": "https://lh3.googleusercontent.com/banner=w1060-h175-p"}]""");
 
-        await Assert.That(YouTubeCoverArt.SelectUrl(thumbnails)).IsEqualTo("https://lh3.googleusercontent.com/abc=w500-h500-l90-rj");
+        YouTubeCoverArt.SelectUrl(thumbnails).ShouldBe("https://lh3.googleusercontent.com/abc=w500-h500-l90-rj");
     }
 
     [Test]
-    public async Task A_music_video_gets_the_smallest_16_9_jpeg_that_is_tall_enough_to_crop()
+    public void A_music_video_gets_the_smallest_16_9_jpeg_that_is_tall_enough_to_crop()
     {
-        await Assert.That(YouTubeCoverArt.SelectUrl(Parse(VideoThumbnails))).IsEqualTo("https://i.ytimg.com/vi/vid00000001/hq720.jpg");
+        YouTubeCoverArt.SelectUrl(Parse(VideoThumbnails)).ShouldBe("https://i.ytimg.com/vi/vid00000001/hq720.jpg");
     }
 
     [Test]
-    public async Task A_video_with_only_small_frames_gets_the_largest()
+    public void A_video_with_only_small_frames_gets_the_largest()
     {
         var thumbnails = Parse("""
             [
@@ -64,11 +64,11 @@ public class YouTubeCoverArtTests
             ]
             """);
 
-        await Assert.That(YouTubeCoverArt.SelectUrl(thumbnails)).IsEqualTo("https://i.ytimg.com/vi/vid00000001/hqdefault.jpg?sqp=b");
+        YouTubeCoverArt.SelectUrl(thumbnails).ShouldBe("https://i.ytimg.com/vi/vid00000001/hqdefault.jpg?sqp=b");
     }
 
     [Test]
-    public async Task Thumbnails_of_unknown_size_or_shape_are_not_used()
+    public void Thumbnails_of_unknown_size_or_shape_are_not_used()
     {
         var thumbnails = Parse("""
             [
@@ -78,8 +78,8 @@ public class YouTubeCoverArtTests
             ]
             """);
 
-        await Assert.That(YouTubeCoverArt.SelectUrl(thumbnails)).IsNull();
-        await Assert.That(YouTubeCoverArt.SelectUrl(Parse("[]"))).IsNull();
-        await Assert.That(YouTubeVideoInfo.Parse("""{"id": "QAo_Ycocl1E"}""").Thumbnails).IsEmpty();
+        YouTubeCoverArt.SelectUrl(thumbnails).ShouldBeNull();
+        YouTubeCoverArt.SelectUrl(Parse("[]")).ShouldBeNull();
+        YouTubeVideoInfo.Parse("""{"id": "QAo_Ycocl1E"}""").Thumbnails.ShouldBeEmpty();
     }
 }

@@ -18,7 +18,7 @@ public class M4aRemuxerTests
     public void TearDown() => Directory.Delete(directory, recursive: true);
 
     [Test]
-    public async Task Rewrites_fragmented_file_as_progressive_with_sample_data_in_order()
+    public void Rewrites_fragmented_file_as_progressive_with_sample_data_in_order()
     {
         int[][] fragments = [[371, 422, 396], [399, 395], [416, 416, 416, 10]];
         var input = Path.Join(directory, "dash.m4a");
@@ -29,41 +29,38 @@ public class M4aRemuxerTests
 
         var file = File.ReadAllBytes(output);
         var topLevel = Mp4Box.ParseChildren(file);
-        await Assert.That(topLevel.Select(b => b.Type)).IsEquivalentTo(new[] { "ftyp", "moov", "mdat" }, CollectionOrdering.Matching);
+        topLevel.Select(b => b.Type).ShouldBe(new[] { "ftyp", "moov", "mdat" });
 
         var moov = topLevel[1];
-        await Assert.That(moov.Child("mvex")).IsNull();
+        moov.Child("mvex").ShouldBeNull();
 
         var stbl = moov.RequiredChild("trak").RequiredChild("mdia").RequiredChild("minf").RequiredChild("stbl");
-        await Assert.That(stbl.Children!.Select(b => b.Type)).IsEquivalentTo(new[] { "stsd", "stts", "stsc", "stsz", "stco" }, CollectionOrdering.Matching);
+        stbl.Children.ShouldNotBeNull().Select(b => b.Type).ShouldBe(new[] { "stsd", "stts", "stsc", "stsz", "stco" });
 
         var sampleSizes = ReadTable(stbl.RequiredChild("stsz").Payload!, start: 12, count: 9, entrySize: 4);
-        await Assert.That(sampleSizes).IsEquivalentTo(fragments.SelectMany(f => f).Select(s => (long)s), CollectionOrdering.Matching);
+        sampleSizes.ShouldBe(fragments.SelectMany(f => f).Select(s => (long)s));
 
         // One chunk per fragment, each pointing at that fragment's samples.
         var chunkOffsets = ReadTable(stbl.RequiredChild("stco").Payload!, start: 8, count: 3, entrySize: 4);
-        for (var fragment = 0; fragment < fragments.Length; fragment++)
-        {
-            var expected = fragments[fragment].SelectMany((size, sample) => Mp4TestFiles.SampleData(fragment, sample, size)).ToArray();
-            await Assert.That(file.AsSpan((int)chunkOffsets[fragment], expected.Length).ToArray()).IsEquivalentTo(expected, CollectionOrdering.Matching).Because($"Fragment {fragment}");
-        }
+        var expected = fragments.Select((sizes, fragment) => sizes.SelectMany((size, sample) => Mp4TestFiles.SampleData(fragment, sample, size)).ToArray()).ToList();
+        chunkOffsets.Select((offset, fragment) => file.AsSpan((int)offset, expected[fragment].Length).ToArray()).ShouldBe(expected);
 
         var stts = stbl.RequiredChild("stts").Payload!;
-        await Assert.That(ReadTable(stts, start: 4, count: 3, entrySize: 4)).IsEquivalentTo(new long[] { 1, 9, Mp4TestFiles.SampleDuration }, CollectionOrdering.Matching);
+        ReadTable(stts, start: 4, count: 3, entrySize: 4).ShouldBe(new long[] { 1, 9, Mp4TestFiles.SampleDuration });
 
-        await Assert.That(info.IsAac).IsTrue();
-        await Assert.That(info.Codec).IsEqualTo("mp4a.40.2");
-        await Assert.That(info.Channels).IsEqualTo(2);
-        await Assert.That(info.SampleRate).IsEqualTo(44100);
+        info.IsAac.ShouldBeTrue();
+        info.Codec.ShouldBe("mp4a.40.2");
+        info.Channels.ShouldBe(2);
+        info.SampleRate.ShouldBe(44100);
 
         // The edit list's zero segment duration is filled in, excluding the 1600 priming samples.
         var expectedDurationMs = (9 * 1024 - 1600) * 1000L / 44100;
-        await Assert.That(info.Duration.TotalMilliseconds).IsEqualTo(expectedDurationMs).Within(1);
-        await Assert.That(M4aRemuxer.ReadAudioInfo(output)).IsEqualTo(info);
+        info.Duration.TotalMilliseconds.ShouldBe(expectedDurationMs, 1);
+        M4aRemuxer.ReadAudioInfo(output).ShouldBe(info);
     }
 
     [Test]
-    public async Task Progressive_file_is_copied_as_is()
+    public void Progressive_file_is_copied_as_is()
     {
         var dash = Path.Join(directory, "dash.m4a");
         var progressive = Path.Join(directory, "progressive.m4a");
@@ -73,28 +70,28 @@ public class M4aRemuxerTests
 
         M4aRemuxer.RemuxToProgressive(progressive, copy);
 
-        await Assert.That(File.ReadAllBytes(copy)).IsEquivalentTo(File.ReadAllBytes(progressive), CollectionOrdering.Matching);
+        File.ReadAllBytes(copy).ShouldBe(File.ReadAllBytes(progressive));
     }
 
     [Test]
-    public async Task Opus_audio_is_not_reported_as_aac()
+    public void Opus_audio_is_not_reported_as_aac()
     {
         var path = Path.Join(directory, "opus.mp4");
         File.WriteAllBytes(path, Mp4TestFiles.CreateFragmented([[100]], sampleEntryType: "Opus"));
 
         var info = M4aRemuxer.ReadAudioInfo(path);
 
-        await Assert.That(info.IsAac).IsFalse();
-        await Assert.That(info.Codec).IsEqualTo("Opus");
+        info.IsAac.ShouldBeFalse();
+        info.Codec.ShouldBe("Opus");
     }
 
     [Test]
-    public async Task Non_mp4_file_is_rejected()
+    public void Non_mp4_file_is_rejected()
     {
         var path = Path.Join(directory, "not.m4a");
         File.WriteAllText(path, "<html>Not an MP4 file</html>");
 
-        await Assert.That(() => M4aRemuxer.ReadAudioInfo(path)).ThrowsExactly<InvalidDataException>();
+        Should.Throw<InvalidDataException>(() => M4aRemuxer.ReadAudioInfo(path));
     }
 
     private static long[] ReadTable(byte[] payload, int start, int count, int entrySize)

@@ -46,23 +46,23 @@ public class ToolResolverTests
 
         using var lease1 = await resolver.LeaseToolAsync(CancellationToken.None);
 
-        await Assert.That(lease1.FilePath).IsEqualTo(Path.Join(directory, "v1.0", "tool.exe"));
-        await Assert.That(File.ReadAllText(lease1.FilePath)).IsEqualTo("tool 1.0");
-        await Assert.That(File.Exists(Path.Join(directory, "v1.0", "_internal", "lib.dll"))).IsTrue();
-        await Assert.That(Directory.GetFileSystemEntries(directory).Select(Path.GetFileName)).IsEquivalentTo(new string?[] { "v1.0" }, CollectionOrdering.Matching).Because("No temporary files are left behind");
+        lease1.FilePath.ShouldBe(Path.Join(directory, "v1.0", "tool.exe"));
+        File.ReadAllText(lease1.FilePath).ShouldBe("tool 1.0");
+        File.Exists(Path.Join(directory, "v1.0", "_internal", "lib.dll")).ShouldBeTrue();
+        Directory.GetFileSystemEntries(directory).Select(Path.GetFileName).ShouldBe(new string?[] { "v1.0" }, customMessage: "No temporary files are left behind");
 
         latest = "2.0";
         await resolver.CheckForUpdatesAsync(CancellationToken.None);
         using (var lease2 = await resolver.LeaseToolAsync(CancellationToken.None))
-            await Assert.That(lease2.FilePath).IsEqualTo(Path.Join(directory, "v2.0", "tool.exe"));
+            lease2.FilePath.ShouldBe(Path.Join(directory, "v2.0", "tool.exe"));
 
         resolver.PurgeOldVersions();
-        await Assert.That(File.Exists(lease1.FilePath)).IsTrue().Because("A version in use is not deleted");
+        File.Exists(lease1.FilePath).ShouldBeTrue(customMessage: "A version in use is not deleted");
 
         lease1.Dispose();
         resolver.PurgeOldVersions();
-        await Assert.That(Directory.Exists(Path.Join(directory, "v1.0"))).IsFalse();
-        await Assert.That(downloads).IsEqualTo(2);
+        Directory.Exists(Path.Join(directory, "v1.0")).ShouldBeFalse();
+        downloads.ShouldBe(2);
     }
 
     [Test]
@@ -74,6 +74,6 @@ public class ToolResolverTests
         using var second = new ToolResolver(directory, "tool.exe", _ => throw new HttpRequestException("Offline"));
         using var lease = await second.LeaseToolAsync(CancellationToken.None);
 
-        await Assert.That(lease.Version).IsEqualTo("1.0");
+        lease.Version.ShouldBe("1.0");
     }
 }
