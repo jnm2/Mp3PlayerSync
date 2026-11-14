@@ -109,7 +109,11 @@ function Send-Response($context) {
 $failed = 0
 try {
     while ($listener.IsListening) {
-        $context = $listener.GetContext()
+        # Waiting in short steps rather than in GetContext lets Stop-Job end the mock at once: it can't interrupt
+        # GetContext, so it used to give up after 2 minutes.
+        $next = $listener.GetContextAsync()
+        while (!$next.Wait(250)) { }
+        $context = $next.Result
         # A client that goes away mid-request, as the app's page does when it closes or navigates, makes reading or
         # writing throw. That's only this request's problem: the mock goes on serving the others, and says so for
         # the test to show (see Test-MockEndToEnd.ps1).
