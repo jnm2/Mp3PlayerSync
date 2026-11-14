@@ -53,7 +53,7 @@ public class TrackTagWriterTests
     [Arguments("silence.m4a")]
     [Arguments("silence-fragmented.m4a")]
     [Arguments("silence.mp3")]
-    public async Task Writes_every_mapped_field(string asset)
+    public void Writes_every_mapped_field(string asset)
     {
         var path = CopyAsset(asset);
 
@@ -61,47 +61,45 @@ public class TrackTagWriterTests
 
         using var file = TagLib.File.Create(path);
         var tag = file.Tag;
-        using (Assert.Multiple())
-        {
-            await Assert.That(tag.Title).IsEqualTo("Under Pressure");
-            await Assert.That(tag.Performers).IsEquivalentTo(new[] { "Queen, David Bowie" }, CollectionOrdering.Matching);
-            await Assert.That(tag.Album).IsEqualTo("Hot Space");
-            await Assert.That(tag.AlbumArtists).IsEquivalentTo(new[] { "Queen" }, CollectionOrdering.Matching);
-            await Assert.That(tag.Year).IsEqualTo(1982);
-            await Assert.That(tag.Track).IsEqualTo(11);
-            await Assert.That(tag.Disc).IsEqualTo(1);
-            await Assert.That(tag.Genres).IsEquivalentTo(new[] { "classic rock", "glam rock" }, CollectionOrdering.Matching);
-            await Assert.That(tag.ISRC).IsEqualTo("GBUM71029604");
-            await Assert.That(tag.Publisher).IsEqualTo("EMI");
-            await Assert.That(tag.Copyright).IsEqualTo("© 1982 Queen Productions Ltd");
-            await Assert.That(tag.BeatsPerMinute).IsEqualTo(114);
-            await Assert.That(tag.InitialKey).IsEqualTo("D");
-            await Assert.That(tag.Pictures).Count().IsEqualTo(1);
-            await Assert.That(tag.Pictures[0].Type).IsEqualTo(PictureType.FrontCover);
-            await Assert.That(tag.Pictures[0].MimeType).IsEqualTo("image/jpeg");
-            await Assert.That(tag.Pictures[0].Data.Data).IsEquivalentTo(JpegBytes, CollectionOrdering.Matching);
-        }
+        tag.ShouldSatisfyAllConditions(
+            t => t.Title.ShouldBe("Under Pressure"),
+            t => t.Performers.ShouldBe(new[] { "Queen, David Bowie" }),
+            t => t.Album.ShouldBe("Hot Space"),
+            t => t.AlbumArtists.ShouldBe(new[] { "Queen" }),
+            t => t.Year.ShouldBe(1982u),
+            t => t.Track.ShouldBe(11u),
+            t => t.Disc.ShouldBe(1u),
+            t => t.Genres.ShouldBe(new[] { "classic rock", "glam rock" }),
+            t => t.ISRC.ShouldBe("GBUM71029604"),
+            t => t.Publisher.ShouldBe("EMI"),
+            t => t.Copyright.ShouldBe("© 1982 Queen Productions Ltd"),
+            t => t.BeatsPerMinute.ShouldBe(114u),
+            t => t.InitialKey.ShouldBe("D"),
+            t => t.Pictures.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+                p => p.Type.ShouldBe(PictureType.FrontCover),
+                p => p.MimeType.ShouldBe("image/jpeg"),
+                p => p.Data.Data.ShouldBe(JpegBytes)));
 
         if (file is TagLib.Mpeg4.File)
         {
-            var apple = (TagLib.Mpeg4.AppleTag)file.GetTag(TagTypes.Apple);
-            await Assert.That(apple.GetText(new ReadOnlyByteVector(0xA9, (byte)'d', (byte)'a', (byte)'y'))).IsEquivalentTo(new[] { "1982-05-21" }, CollectionOrdering.Matching);
-            await Assert.That(apple.DataBoxes(RatingBox).Single().Data.Data).IsEquivalentTo(new byte[] { 1 }, CollectionOrdering.Matching);
+            var apple = file.GetTag(TagTypes.Apple).ShouldBeOfType<TagLib.Mpeg4.AppleTag>();
+            apple.GetText(new ReadOnlyByteVector(0xA9, (byte)'d', (byte)'a', (byte)'y')).ShouldBe(new[] { "1982-05-21" });
+            apple.DataBoxes(RatingBox).ShouldHaveSingleItem().Data.Data.ShouldBe(new byte[] { 1 });
         }
         else
         {
-            var id3 = (TagLib.Id3v2.Tag)file.GetTag(TagTypes.Id3v2);
-            await Assert.That(id3.Version).IsEqualTo(4);
-            await Assert.That(id3.GetFrames<TagLib.Id3v2.TextInformationFrame>("TDRC").Single().Text).IsEquivalentTo(new[] { "1982-05-21" }, CollectionOrdering.Matching);
+            var id3 = file.GetTag(TagTypes.Id3v2).ShouldBeOfType<TagLib.Id3v2.Tag>();
+            id3.Version.ShouldBe((byte)4);
+            id3.GetFrames<TagLib.Id3v2.TextInformationFrame>("TDRC").ShouldHaveSingleItem().Text.ShouldBe(new[] { "1982-05-21" });
         }
 
-        await Assert.That(file.Properties.Codecs).IsNotEmpty().Because("The audio stream must still be readable.");
+        file.Properties.Codecs.ShouldNotBeEmpty(customMessage: "The audio stream must still be readable.");
     }
 
     [Test]
     [Arguments("silence.m4a")]
     [Arguments("silence.mp3")]
-    public async Task Missing_fields_are_removed_and_existing_art_is_kept(string asset)
+    public void Missing_fields_are_removed_and_existing_art_is_kept(string asset)
     {
         var path = CopyAsset(asset);
         TrackTagWriter.Write(path, Full, new AlbumArt(JpegBytes, "image/jpeg"));
@@ -110,35 +108,33 @@ public class TrackTagWriterTests
 
         using var file = TagLib.File.Create(path);
         var tag = file.Tag;
-        using (Assert.Multiple())
-        {
-            await Assert.That(tag.Title).IsEqualTo("Untitled");
-            await Assert.That(tag.Performers).IsEquivalentTo(new[] { "Solo" }, CollectionOrdering.Matching);
-            await Assert.That(tag.Album).IsNull();
-            await Assert.That(tag.AlbumArtists).IsEmpty();
-            await Assert.That(tag.Year).IsZero();
-            await Assert.That(tag.Track).IsZero();
-            await Assert.That(tag.Disc).IsZero();
-            await Assert.That(tag.Genres).IsEmpty();
-            await Assert.That(tag.ISRC).IsNull();
-            await Assert.That(tag.Publisher).IsNull();
-            await Assert.That(tag.Copyright).IsNull();
-            await Assert.That(tag.BeatsPerMinute).IsZero();
-            await Assert.That(tag.InitialKey).IsNull();
-            await Assert.That(tag.Pictures).Count().IsEqualTo(1);
-        }
+        tag.ShouldSatisfyAllConditions(
+            t => t.Title.ShouldBe("Untitled"),
+            t => t.Performers.ShouldBe(new[] { "Solo" }),
+            t => t.Album.ShouldBeNull(),
+            t => t.AlbumArtists.ShouldBeEmpty(),
+            t => t.Year.ShouldBe(0u),
+            t => t.Track.ShouldBe(0u),
+            t => t.Disc.ShouldBe(0u),
+            t => t.Genres.ShouldBeEmpty(),
+            t => t.ISRC.ShouldBeNull(),
+            t => t.Publisher.ShouldBeNull(),
+            t => t.Copyright.ShouldBeNull(),
+            t => t.BeatsPerMinute.ShouldBe(0u),
+            t => t.InitialKey.ShouldBeNull(),
+            t => t.Pictures.ShouldHaveSingleItem());
 
         if (file is TagLib.Mpeg4.File)
-            await Assert.That(((TagLib.Mpeg4.AppleTag)file.GetTag(TagTypes.Apple)).DataBoxes(RatingBox)).IsEmpty();
+            file.GetTag(TagTypes.Apple).ShouldBeOfType<TagLib.Mpeg4.AppleTag>().DataBoxes(RatingBox).ShouldBeEmpty();
     }
 
     [Test]
-    public async Task Unsupported_file_type_is_rejected()
+    public void Unsupported_file_type_is_rejected()
     {
         var path = Path.Combine(directory, "notes.txt");
         System.IO.File.WriteAllText(path, "hello");
 
-        await Assert.That(() => TrackTagWriter.Write(path, Full, null)).Throws<Exception>();
+        Should.Throw<Exception>(() => TrackTagWriter.Write(path, Full, null));
     }
 
     [Test]
@@ -149,10 +145,10 @@ public class TrackTagWriterTests
 
         var result = await new TrackTagWriter(fetcher).WriteAsync(path, Full);
 
-        await Assert.That(result.CoverArtEmbedded).IsTrue();
-        await Assert.That(fetcher.RequestedUrls).IsEquivalentTo(new[] { "https://i.scdn.co/image/abc" }, CollectionOrdering.Matching);
+        result.CoverArtEmbedded.ShouldBeTrue();
+        fetcher.RequestedUrls.ShouldBe(new[] { "https://i.scdn.co/image/abc" });
         using var file = TagLib.File.Create(path);
-        await Assert.That(file.Tag.Pictures).Count().IsEqualTo(1);
+        file.Tag.Pictures.ShouldHaveSingleItem();
     }
 
     [Test]
@@ -162,10 +158,10 @@ public class TrackTagWriterTests
 
         var result = await new TrackTagWriter(new FakeArtFetcher(null)).WriteAsync(path, Full);
 
-        await Assert.That(result.CoverArtEmbedded).IsFalse();
+        result.CoverArtEmbedded.ShouldBeFalse();
         using var file = TagLib.File.Create(path);
-        await Assert.That(file.Tag.Title).IsEqualTo("Under Pressure");
-        await Assert.That(file.Tag.Pictures).IsEmpty();
+        file.Tag.Title.ShouldBe("Under Pressure");
+        file.Tag.Pictures.ShouldBeEmpty();
     }
 
     [Test]
@@ -176,8 +172,8 @@ public class TrackTagWriterTests
 
         var result = await new TrackTagWriter(fetcher).WriteAsync(path, Full with { AlbumImageUrl = "" });
 
-        await Assert.That(result.CoverArtEmbedded).IsFalse();
-        await Assert.That(fetcher.RequestedUrls).IsEmpty();
+        result.CoverArtEmbedded.ShouldBeFalse();
+        fetcher.RequestedUrls.ShouldBeEmpty();
     }
 
     private sealed class FakeArtFetcher(AlbumArt? art) : IAlbumArtFetcher

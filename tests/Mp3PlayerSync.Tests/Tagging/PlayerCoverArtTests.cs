@@ -15,26 +15,26 @@ public class PlayerCoverArtTests
     [Arguments(544, 544, 500, 500, 0, 0, 500)]
     [Arguments(300, 300, 300, 300, 0, 0, 300)]
     [Arguments(336, 188, 336, 188, 74, 0, 188)]
-    public async Task Crops_the_center_square_and_only_ever_scales_down(int width, int height, int scaledWidth, int scaledHeight, int x, int y, int size)
+    public void Crops_the_center_square_and_only_ever_scales_down(int width, int height, int scaledWidth, int scaledHeight, int x, int y, int size)
     {
-        await Assert.That(PlayerCoverArt.PlanCrop(width, height)).IsEqualTo(new CoverArtCrop(scaledWidth, scaledHeight, x, y, size));
+        PlayerCoverArt.PlanCrop(width, height).ShouldBe(new CoverArtCrop(scaledWidth, scaledHeight, x, y, size));
     }
 
     [Test]
-    public async Task Reads_whether_a_jpeg_is_baseline_and_its_size()
+    public void Reads_whether_a_jpeg_is_baseline_and_its_size()
     {
-        await Assert.That(PlayerCoverArt.ReadJpegFrame(Jpeg(0xC0, 500, 400))).IsEqualTo(new JpegFrame(true, 500, 400));
-        await Assert.That(PlayerCoverArt.ReadJpegFrame(Jpeg(0xC2, 500, 500))).IsEqualTo(new JpegFrame(false, 500, 500));
-        await Assert.That(PlayerCoverArt.ReadJpegFrame([0x89, 0x50, 0x4E, 0x47])).IsNull();
+        PlayerCoverArt.ReadJpegFrame(Jpeg(0xC0, 500, 400)).ShouldBe(new JpegFrame(true, 500, 400));
+        PlayerCoverArt.ReadJpegFrame(Jpeg(0xC2, 500, 500)).ShouldBe(new JpegFrame(false, 500, 500));
+        PlayerCoverArt.ReadJpegFrame([0x89, 0x50, 0x4E, 0x47]).ShouldBeNull();
     }
 
     [Test]
-    public async Task Only_square_baseline_jpegs_of_at_most_500_pixels_are_ready()
+    public void Only_square_baseline_jpegs_of_at_most_500_pixels_are_ready()
     {
-        await Assert.That(PlayerCoverArt.IsReady(Jpeg(0xC0, 500, 500))).IsTrue();
-        await Assert.That(PlayerCoverArt.IsReady(Jpeg(0xC2, 500, 500))).IsFalse().Because("Progressive");
-        await Assert.That(PlayerCoverArt.IsReady(Jpeg(0xC0, 640, 640))).IsFalse().Because("Too big");
-        await Assert.That(PlayerCoverArt.IsReady(Jpeg(0xC0, 1280, 720))).IsFalse().Because("Not square");
+        PlayerCoverArt.IsReady(Jpeg(0xC0, 500, 500)).ShouldBeTrue();
+        PlayerCoverArt.IsReady(Jpeg(0xC2, 500, 500)).ShouldBeFalse(customMessage: "Progressive");
+        PlayerCoverArt.IsReady(Jpeg(0xC0, 640, 640)).ShouldBeFalse(customMessage: "Too big");
+        PlayerCoverArt.IsReady(Jpeg(0xC0, 1280, 720)).ShouldBeFalse(customMessage: "Not square");
     }
 
     [Test]
@@ -45,10 +45,10 @@ public class PlayerCoverArtTests
 
         var art = await new WindowsAlbumArtConverter().ConvertAsync(png, CancellationToken.None);
 
-        await Assert.That(art?.MimeType).IsEqualTo("image/jpeg");
-        await Assert.That(PlayerCoverArt.ReadJpegFrame(art!.Data)).IsEqualTo(new JpegFrame(IsBaseline: true, 500, 500));
+        art.ShouldNotBeNull().MimeType.ShouldBe("image/jpeg");
+        PlayerCoverArt.ReadJpegFrame(art.Data).ShouldBe(new JpegFrame(IsBaseline: true, 500, 500));
         var (left, right) = await EdgePixelsAsync(art.Data);
-        await Assert.That(new[] { left, right }).All(p => p.G > 200 && p.R < 50 && p.B < 50).Because("Only the green center is left");
+        new[] { left, right }.ShouldAllBe(p => p.G > 200 && p.R < 50 && p.B < 50, customMessage: "Only the green center is left");
     }
 
     [Test]
@@ -58,13 +58,13 @@ public class PlayerCoverArtTests
 
         var art = await new WindowsAlbumArtConverter().ConvertAsync(png, CancellationToken.None);
 
-        await Assert.That(PlayerCoverArt.ReadJpegFrame(art!.Data)).IsEqualTo(new JpegFrame(IsBaseline: true, 300, 300));
+        PlayerCoverArt.ReadJpegFrame(art.ShouldNotBeNull().Data).ShouldBe(new JpegFrame(IsBaseline: true, 300, 300));
     }
 
     [Test]
     public async Task Data_that_is_not_an_image_converts_to_nothing()
     {
-        await Assert.That(await new WindowsAlbumArtConverter().ConvertAsync([0xFF, 0xD8, 0xFF, 0xE0, 0, 0], CancellationToken.None)).IsNull();
+        (await new WindowsAlbumArtConverter().ConvertAsync([0xFF, 0xD8, 0xFF, 0xE0, 0, 0], CancellationToken.None)).ShouldBeNull();
     }
 
     [Test]
@@ -77,11 +77,11 @@ public class PlayerCoverArtTests
             new HttpClient(new FakeHandler(request => request.RequestUri!.AbsolutePath.Contains("ready", StringComparison.Ordinal) ? ready : progressive)),
             converter);
 
-        await Assert.That((await fetcher.FetchAsync("https://lh3.googleusercontent.com/ready=w500-h500-l90-rj"))?.Data).IsEquivalentTo(ready, CollectionOrdering.Matching);
-        await Assert.That(converter.Converted).IsEmpty().Because("Art that's ready is embedded as is");
+        (await fetcher.FetchAsync("https://lh3.googleusercontent.com/ready=w500-h500-l90-rj")).ShouldNotBeNull().Data.ShouldBe(ready);
+        converter.Converted.ShouldBeEmpty(customMessage: "Art that's ready is embedded as is");
 
-        await Assert.That((await fetcher.FetchAsync("https://i.ytimg.com/vi/vid00000001/hq720.jpg"))?.Data).IsEquivalentTo(FakeConverter.Output, CollectionOrdering.Matching);
-        await Assert.That(converter.Converted).IsEquivalentTo(new[] { progressive }, CollectionOrdering.Matching);
+        (await fetcher.FetchAsync("https://i.ytimg.com/vi/vid00000001/hq720.jpg")).ShouldNotBeNull().Data.ShouldBe(FakeConverter.Output);
+        converter.Converted.ShouldBe(new[] { progressive });
     }
 
     [Test]
@@ -97,11 +97,11 @@ public class PlayerCoverArtTests
 
             var result = await writer.WriteAsync(path, new TrackMetadata { Title = "Song", AlbumImageUrl = "https://i.ytimg.com/vi/vid00000001/hq720.jpg" });
 
-            await Assert.That(result.CoverArtEmbedded).IsTrue();
+            result.CoverArtEmbedded.ShouldBeTrue();
             using var file = TagLib.File.Create(path);
-            var picture = file.Tag.Pictures.Single();
-            await Assert.That(picture.MimeType).IsEqualTo("image/jpeg");
-            await Assert.That(PlayerCoverArt.ReadJpegFrame(picture.Data.Data)).IsEqualTo(new JpegFrame(IsBaseline: true, 500, 500));
+            var picture = file.Tag.Pictures.ShouldHaveSingleItem();
+            picture.MimeType.ShouldBe("image/jpeg");
+            PlayerCoverArt.ReadJpegFrame(picture.Data.Data).ShouldBe(new JpegFrame(IsBaseline: true, 500, 500));
         }
         finally
         {
