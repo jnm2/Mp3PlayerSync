@@ -68,8 +68,8 @@ Every decision here was made by the user. Code and tests follow this list, not t
 
 | ID | Rule | Check |
 |----|------|-------|
-| ALIGN-1 | Back arrows are centered on the heading's cap height (optical midline), on both the library and contents pages, within 1px. | manual (ink-measurement check to come) |
-| ALIGN-2 | All the text in a heading shares one baseline, and descenders are never clipped. | manual (ink-measurement check to come) |
+| ALIGN-1 | Back arrows are centered on the heading's cap height (optical midline), on both the library and contents pages, within 1px. | e2e "[ALIGN-1] Player heading: …", "[ALIGN-1] Playlist heading: …" (measured from the pixels the app draws) |
+| ALIGN-2 | All the text in a heading shares one baseline, and descenders are never clipped. | e2e "[ALIGN-2] … descenders are drawn in full" (both headings); manual for the shared baseline |
 | ALIGN-3 | The heading row and banner have exactly the same height and position on every page (player, library and contents): the back arrow, heading baseline and banner baseline sit at the same y, so switching pages doesn't shift the layout. | manual (check coming with the change) |
 | SPACE-1 | All spacing comes from the 4px ramp (4, 8, 12, 16, 24, 32). No two visible elements touch or overlap, measured between visual bounds (button backgrounds, text line boxes including descenders). Related elements, such as a label and its action or buttons in one row, are 8px apart; separate groups are at least 16px apart. | manual (UIA check of headers and toolbars coming) |
 | CONTENTS-1 | Contents page, top to bottom: row 1 has the playlist heading on the left and the Player line right-justified, with Open folder below it; then the banner; then a toolbar with the track count on the left and Refresh, the sync summary and Sync to player on the right. | e2e "[CONTENTS-1] Contents page layout" |
