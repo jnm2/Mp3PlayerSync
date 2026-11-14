@@ -88,7 +88,7 @@ public sealed partial class MainPage : Page
         viewTimer.Tick += (_, _) => UpdateView();
 
         PlayerGridView.ItemsSource = playerOptions;
-        Unloaded += (_, _) => { driveWatcher?.Dispose(); playerLibrary?.Dispose(); downloader?.Dispose(); youTubeTraffic?.Dispose(); };
+        Unloaded += (_, _) => { driveWatcher?.Dispose(); driveWatcher = null; playerLibrary?.Dispose(); downloader?.Dispose(); youTubeTraffic?.Dispose(); };
         LayoutUpdated += (_, _) => PlaceOpenFolder();
         ContentsPlayer.Loaded += (_, _) => PlaceOpenFolder();
         OpenPlayerFolderButton.Loaded += (_, _) => PlaceOpenFolder();
@@ -117,8 +117,12 @@ public sealed partial class MainPage : Page
 
         if (App.MainWindow is { } window)
         {
-            driveWatcher = new DriveChangeWatcher(SynchronizationContext.Current!);
-            driveWatcher.DrivesChanged += (_, _) => RecheckPlayers();
+            driveWatcher = new DriveChangeWatcher();
+            driveWatcher.DrivesChanged += (watcher, _) => DispatcherQueue.TryEnqueue(() =>
+            {
+                // Not once the page has stopped watching: the watcher can still raise this as it's disposed.
+                if (ReferenceEquals(watcher, driveWatcher)) RecheckPlayers();
+            });
 
             // Also covers changes that send no device notification, such as unlocking an encrypted drive.
             window.Activated += (_, args) =>
