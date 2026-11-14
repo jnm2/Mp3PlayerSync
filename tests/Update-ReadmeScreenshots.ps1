@@ -34,13 +34,14 @@ if (!$ScreenshotFolder) {
         & (Join-Path $PSScriptRoot 'Invoke-EndToEnd.ps1') -TestScript $PSCommandPath -ScreenshotFolder $staging -PassedText $passedText -TimeoutMinutes 5
         if ($LASTEXITCODE) { throw "Taking the screenshots failed ($LASTEXITCODE)" }
 
-        # A locked workstation gives black pictures; never keep those.
+        # While the PC is locked, Windows gives blank pictures (one color, black or white, perhaps with a border) or
+        # stale ones (refused as they're taken, above); never keep those.
         foreach ($name in $names) {
             $bitmap = [System.Drawing.Bitmap]::new((Join-Path $staging "$name.png"))
             try {
-                $bright = 0; $samples = 0
-                for ($x = 0; $x -lt $bitmap.Width; $x += 17) { for ($y = 0; $y -lt $bitmap.Height; $y += 17) { $samples++; if ($bitmap.GetPixel($x, $y).GetBrightness() -gt 0.08) { $bright++ } } }
-                if ($bright / $samples -lt 0.2) { throw "$name.png came out black. Is the workstation locked? Nothing was saved." }
+                $bright = 0; $samples = 0; $colors = [System.Collections.Generic.HashSet[int]]::new()
+                for ($x = 0; $x -lt $bitmap.Width; $x += 17) { for ($y = 0; $y -lt $bitmap.Height; $y += 17) { $samples++; $pixel = $bitmap.GetPixel($x, $y); $colors.Add($pixel.ToArgb()) | Out-Null; if ($pixel.GetBrightness() -gt 0.08) { $bright++ } } }
+                if ($bright / $samples -lt 0.2 -or $colors.Count -le 2) { throw "$name.png came out blank. Is the PC locked? Nothing was saved." }
             } finally { $bitmap.Dispose() }
         }
         New-Item -ItemType Directory -Force $OutputFolder | Out-Null
@@ -77,6 +78,14 @@ public static class ScreenshotWin32 {
     public const uint SWP_NOMOVE = 0x2, SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10;
     public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
     public struct RECT { public int Left, Top, Right, Bottom; }
+    [DllImport("wtsapi32.dll")] static extern bool WTSQuerySessionInformationW(IntPtr server, int sessionId, int infoClass, out IntPtr buffer, out int bytes);
+    [DllImport("wtsapi32.dll")] static extern void WTSFreeMemory(IntPtr memory);
+    // WTSSessionInfoEx (25) for this session (-1): its SessionFlags, at offset 16, is WTS_SESSIONSTATE_LOCK (0) while locked.
+    public static bool IsLocked() {
+        IntPtr buffer; int bytes;
+        if (!WTSQuerySessionInformationW(IntPtr.Zero, -1, 25, out buffer, out bytes)) return false;
+        try { return Marshal.ReadInt32(buffer, 16) == 0; } finally { WTSFreeMemory(buffer); }
+    }
 }
 '@
 
@@ -109,6 +118,8 @@ function Invoke-Element($element) { (Pattern $element ([System.Windows.Automatio
 # The window without its invisible resize borders, at the window's own DPI.
 function Save-Screenshot($window, [string] $name) {
     Start-Sleep -Milliseconds 800 # Lets animations and covers settle
+    # Windows gives PrintWindow stale or blank pictures while the PC is locked.
+    if ([ScreenshotWin32]::IsLocked()) { throw "The PC is locked, so $name.png can't be taken. Run this again once it's unlocked." }
     $hwnd = [IntPtr]$window.Current.NativeWindowHandle
     $rect = New-Object ScreenshotWin32+RECT; $frame = New-Object ScreenshotWin32+RECT
     [ScreenshotWin32]::GetWindowRect($hwnd, [ref]$rect) | Out-Null

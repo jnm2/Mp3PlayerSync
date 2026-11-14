@@ -16,6 +16,7 @@ namespace Mp3PlayerSync.E2EHost;
 /// </list>
 /// Links the app would open outside itself are written to <c>OpenedExternally.txt</c> in the data folder instead.
 /// While <c>HoldFinding.txt</c> exists in the data folder, looking for songs in the background pauses (see <see cref="FakeTrackFinder"/>).
+/// Creating <c>Capture.request</c> there asks for a picture of the window (see <see cref="WindowCapture"/>).
 /// </remarks>
 public static class Program
 {
@@ -39,6 +40,7 @@ public static class Program
                 // Off-screen rather than minimized, which would stop the window's content from rendering.
                 window.AppWindow.Move(new Windows.Graphics.PointInt32(-32000, -32000));
                 window.AppWindow.Show(activateWindow: false);
+                WindowCapture.Serve(window, dataDirectory);
             },
             // Launching again never brings the window to the front: it stays off-screen and inactive.
             BringBackWindow = _ => { },
