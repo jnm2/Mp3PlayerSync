@@ -49,19 +49,18 @@ public class PlacementExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, t => t.Id == "u" ? under : null);
 
-        using (Assert.Multiple())
-        {
-            await Assert.That(report.Failed).IsEmpty();
-            await Assert.That(report.Canceled).IsFalse();
-            await Assert.That(report.Moved.Single().ActualRelativePath).IsEqualTo(@"Queen\Hot Space (1982)\01. Staying Power.m4a");
-            await Assert.That(report.Added.Single().ActualRelativePath).IsEqualTo(@"Queen\Hot Space (1982)\11. Under Pressure.m4a");
-            await Assert.That(report.Added.Single().TrackId).IsEqualTo("u");
-            await Assert.That(ReadPlayerFile(@"Queen\Hot Space (1982)\01. Staying Power.m4a")).IsEqualTo("existing");
-            await Assert.That(ReadPlayerFile(@"Queen\Hot Space (1982)\11. Under Pressure.m4a")).IsEqualTo("under pressure");
-            await Assert.That(File.Exists(Path.Combine(root, "Queen - Staying Power.m4a"))).IsFalse();
-            await Assert.That(File.Exists(under)).IsTrue().Because("The download is the caller's to clean up.");
-            await Assert.That(Directory.GetFiles(root, "*.tmp", SearchOption.AllDirectories)).IsEmpty();
-        }
+        report.ShouldSatisfyAllConditions(
+            r => r.Failed.ShouldBeEmpty(),
+            r => r.Canceled.ShouldBeFalse(),
+            r => r.Moved.ShouldHaveSingleItem().ActualRelativePath.ShouldBe(@"Queen\Hot Space (1982)\01. Staying Power.m4a"),
+            r => r.Added.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+                a => a.ActualRelativePath.ShouldBe(@"Queen\Hot Space (1982)\11. Under Pressure.m4a"),
+                a => a.TrackId.ShouldBe("u")),
+            _ => ReadPlayerFile(@"Queen\Hot Space (1982)\01. Staying Power.m4a").ShouldBe("existing"),
+            _ => ReadPlayerFile(@"Queen\Hot Space (1982)\11. Under Pressure.m4a").ShouldBe("under pressure"),
+            _ => File.Exists(Path.Combine(root, "Queen - Staying Power.m4a")).ShouldBeFalse(),
+            _ => File.Exists(under).ShouldBeTrue(customMessage: "The download is the caller's to clean up."),
+            _ => Directory.GetFiles(root, "*.tmp", SearchOption.AllDirectories).ShouldBeEmpty());
     }
 
     [Test]
@@ -76,14 +75,12 @@ public class PlacementExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, _ => WriteDownload("a.m4a", "new"));
 
-        using (Assert.Multiple())
-        {
-            await Assert.That(report.Moved.Single().ActualRelativePath).IsEqualTo(@"Queen\Hot Space (1982)\01. Staying Power (2).m4a");
-            await Assert.That(report.Added.Single().ActualRelativePath).IsEqualTo(@"Queen\Hot Space (1982)\11. Under Pressure (2).m4a");
-            await Assert.That(ReadPlayerFile(@"Queen\Hot Space (1982)\01. Staying Power.m4a")).IsEqualTo("squatter 1");
-            await Assert.That(ReadPlayerFile(@"Queen\Hot Space (1982)\11. Under Pressure.m4a")).IsEqualTo("squatter 2");
-            await Assert.That(ReadPlayerFile(@"Queen\Hot Space (1982)\11. Under Pressure (2).m4a")).IsEqualTo("new");
-        }
+        report.ShouldSatisfyAllConditions(
+            r => r.Moved.ShouldHaveSingleItem().ActualRelativePath.ShouldBe(@"Queen\Hot Space (1982)\01. Staying Power (2).m4a"),
+            r => r.Added.ShouldHaveSingleItem().ActualRelativePath.ShouldBe(@"Queen\Hot Space (1982)\11. Under Pressure (2).m4a"),
+            _ => ReadPlayerFile(@"Queen\Hot Space (1982)\01. Staying Power.m4a").ShouldBe("squatter 1"),
+            _ => ReadPlayerFile(@"Queen\Hot Space (1982)\11. Under Pressure.m4a").ShouldBe("squatter 2"),
+            _ => ReadPlayerFile(@"Queen\Hot Space (1982)\11. Under Pressure (2).m4a").ShouldBe("new"));
     }
 
     [Test]
@@ -99,10 +96,10 @@ public class PlacementExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, t => t.Id == "missing" ? null : WriteDownload(t.Id, t.Id));
 
-        await Assert.That(report.Failed.Select(c => c.FromRelativePath ?? c.TrackId)).IsEquivalentTo(new string?[] { "gone.m4a", "missing", "escape" }, CollectionOrdering.Matching);
-        await Assert.That(report.Added.Single().TrackId).IsEqualTo("ok");
-        await Assert.That(File.Exists(Path.Combine(Path.GetDirectoryName(root)!, "outside.m4a"))).IsFalse();
-        await Assert.That(Directory.GetFiles(root, "*", SearchOption.AllDirectories).Select(Path.GetFileName)).IsEquivalentTo(new string?[] { "C.m4a" }, CollectionOrdering.Matching);
+        report.Failed.Select(c => c.FromRelativePath ?? c.TrackId).ShouldBe(new string?[] { "gone.m4a", "missing", "escape" });
+        report.Added.ShouldHaveSingleItem().TrackId.ShouldBe("ok");
+        File.Exists(Path.Combine(Path.GetDirectoryName(root)!, "outside.m4a")).ShouldBeFalse();
+        Directory.GetFiles(root, "*", SearchOption.AllDirectories).Select(Path.GetFileName).ShouldBe(new string?[] { "C.m4a" });
     }
 
     [Test]
@@ -120,9 +117,9 @@ public class PlacementExecutorTests
             return WriteDownload("a.m4a", "new");
         }, cancellation.Token);
 
-        await Assert.That(report.Canceled).IsTrue();
-        await Assert.That(report.Moved.Count()).IsEqualTo(1);
-        await Assert.That(report.Added).IsEmpty();
-        await Assert.That(Directory.GetFiles(root, "*.tmp", SearchOption.AllDirectories)).IsEmpty();
+        report.Canceled.ShouldBeTrue();
+        report.Moved.ShouldHaveSingleItem();
+        report.Added.ShouldBeEmpty();
+        Directory.GetFiles(root, "*.tmp", SearchOption.AllDirectories).ShouldBeEmpty();
     }
 }

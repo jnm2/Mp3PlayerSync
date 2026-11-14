@@ -50,18 +50,16 @@ public class PlaylistExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, t => t.Track.Title == "D" ? download : null);
 
-        using (Assert.Multiple())
-        {
-            await Assert.That(report.Failed).IsEmpty();
-            await Assert.That(report.Deleted.Single().FromRelativePath).IsEqualTo(@"My Mix\03. Old - Gone.m4a");
-            await Assert.That(report.Renamed.Count()).IsEqualTo(2);
-            await Assert.That(report.Added.Select(c => (c.TrackId, c.FromRelativePath))).IsEquivalentTo(new (string?, string?)[] { ("3", "Queen - C.m4a"), ("4", null) }, CollectionOrdering.Matching);
-            await Assert.That(FolderContents("My Mix")).IsEquivalentTo(new[] { "01. Queen - B.m4a", "02. Queen - A.m4a", "03. Queen - C.m4a", "04. Queen - D.m4a" }, CollectionOrdering.Matching);
-            await Assert.That(Read(@"My Mix\01. Queen - B.m4a")).IsEqualTo("B");
-            await Assert.That(Read(@"My Mix\02. Queen - A.m4a")).IsEqualTo("A");
-            await Assert.That(Read(@"My Mix\03. Queen - C.m4a")).IsEqualTo("C");
-            await Assert.That(Read("Queen - C.m4a")).IsEqualTo("C").Because("Copying leaves the original where it was.");
-        }
+        report.ShouldSatisfyAllConditions(
+            r => r.Failed.ShouldBeEmpty(),
+            r => r.Deleted.ShouldHaveSingleItem().FromRelativePath.ShouldBe(@"My Mix\03. Old - Gone.m4a"),
+            r => r.Renamed.Count().ShouldBe(2),
+            r => r.Added.Select(c => (c.TrackId, c.FromRelativePath)).ShouldBe(new (string?, string?)[] { ("3", "Queen - C.m4a"), ("4", null) }),
+            _ => FolderContents("My Mix").ShouldBe(new[] { "01. Queen - B.m4a", "02. Queen - A.m4a", "03. Queen - C.m4a", "04. Queen - D.m4a" }),
+            _ => Read(@"My Mix\01. Queen - B.m4a").ShouldBe("B"),
+            _ => Read(@"My Mix\02. Queen - A.m4a").ShouldBe("A"),
+            _ => Read(@"My Mix\03. Queen - C.m4a").ShouldBe("C"),
+            _ => Read("Queen - C.m4a").ShouldBe("C", customMessage: "Copying leaves the original where it was."));
     }
 
     [Test]
@@ -74,8 +72,8 @@ public class PlaylistExecutorTests
         var rescanned = new[] { PlaylistPlannerTests.FileAt(root, @"My Mix\01. Queen - B.m4a", "B"), PlaylistPlannerTests.FileAt(root, @"My Mix\02. Queen - A.m4a", "A") };
         var plan = PlaylistPlanner.Plan("My Mix", tracks, root, rescanned);
 
-        await Assert.That(plan.Tracks.Select(t => t.State)).All(item => item == PlaylistTrackState.InPlace);
-        await Assert.That(plan.Renames).IsEmpty();
+        plan.Tracks.Select(t => t.State).ShouldAllBe(item => item == PlaylistTrackState.InPlace);
+        plan.Renames.ShouldBeEmpty();
     }
 
     [Test]
@@ -87,9 +85,9 @@ public class PlaylistExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, _ => null);
 
-        await Assert.That(report.Failed).IsEmpty();
-        await Assert.That(FolderContents("My Mix")).IsEquivalentTo(new[] { "01. Queen - A.m4a", "02. Queen - B.m4a" }, CollectionOrdering.Matching);
-        await Assert.That(Read(@"My Mix\01. Queen - A.m4a")).IsEqualTo("A");
+        report.Failed.ShouldBeEmpty();
+        FolderContents("My Mix").ShouldBe(new[] { "01. Queen - A.m4a", "02. Queen - B.m4a" });
+        Read(@"My Mix\01. Queen - A.m4a").ShouldBe("A");
     }
 
     [Test, RunOn(TUnit.Core.Enums.OS.Windows)]
@@ -103,13 +101,11 @@ public class PlaylistExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, _ => null);
 
-        using (Assert.Multiple())
-        {
-            await Assert.That(report.Failed).IsEmpty();
-            await Assert.That(report.Added).IsEmpty();
-            await Assert.That(FileId(@"My Mix\01. Queen - B.m4a")).IsEqualTo(idOfB).Because("B is the same file, renamed");
-            await Assert.That(FileId(@"My Mix\02. Queen - A.m4a")).IsEqualTo(idOfA).Because("A is the same file, renamed");
-        }
+        report.ShouldSatisfyAllConditions(
+            r => r.Failed.ShouldBeEmpty(),
+            r => r.Added.ShouldBeEmpty(),
+            _ => FileId(@"My Mix\01. Queen - B.m4a").ShouldBe(idOfB, customMessage: "B is the same file, renamed"),
+            _ => FileId(@"My Mix\02. Queen - A.m4a").ShouldBe(idOfA, customMessage: "A is the same file, renamed"));
     }
 
     /// <summary>The file system's ID for the file, which a rename keeps and a copy doesn't.</summary>
@@ -138,7 +134,7 @@ public class PlaylistExecutorTests
 
         await new PlacementExecutor(root).ExecuteAsync(PlaylistPlanner.Plan("My Mix", [], root, []), _ => null);
 
-        await Assert.That(FolderContents("My Mix")).IsEquivalentTo(new[] { "~mps-notours.partial" }, CollectionOrdering.Matching);
+        FolderContents("My Mix").ShouldBe(new[] { "~mps-notours.partial" });
     }
 
     [Test]
@@ -150,8 +146,8 @@ public class PlaylistExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, _ => null);
 
-        await Assert.That(report.Renamed.Single().ActualRelativePath).IsEqualTo(@"My Mix\01. Queen - A (2).m4a");
-        await Assert.That(Read(@"My Mix\01. Queen - A.m4a")).IsEqualTo("squatter");
+        report.Renamed.ShouldHaveSingleItem().ActualRelativePath.ShouldBe(@"My Mix\01. Queen - A (2).m4a");
+        Read(@"My Mix\01. Queen - A.m4a").ShouldBe("squatter");
     }
 
     [Test]
@@ -163,6 +159,6 @@ public class PlaylistExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, _ => null);
 
-        await Assert.That(report.Failed.Select(c => c.TrackId)).IsEquivalentTo(new string?[] { "1", "2" }, CollectionOrdering.Matching);
+        report.Failed.Select(c => c.TrackId).ShouldBe(new string?[] { "1", "2" });
     }
 }
