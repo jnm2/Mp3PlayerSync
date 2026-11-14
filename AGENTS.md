@@ -37,4 +37,13 @@ purpose.
 The end-to-end run passes when it prints `All end-to-end checks passed`. It exits with 1 when a check failed, and with 2
 when nothing failed but some checks were INCONCLUSIVE (they couldn't see what they check), which is not a pass.
 
+The unit tests use [TUnit](https://tunit.dev) on Microsoft.Testing.Platform, which runs them in parallel, each in a new
+instance of its class. Give each test its own temporary folder, and mark one that can't share a resource with
+`[NotInParallel]`, saying why. Compare collections in order with `IsEquivalentTo(expected, CollectionOrdering.Matching)`:
+`IsEqualTo` compares their references. To run some of them, filter by class:
+
+```powershell
+dotnet test --project tests\Mp3PlayerSync.Tests --treenode-filter "/*/*/PlayersTests/*"
+```
+
 See [src/Mp3PlayerSync/AGENTS.md](src/Mp3PlayerSync/AGENTS.md) for WinUI tooling.

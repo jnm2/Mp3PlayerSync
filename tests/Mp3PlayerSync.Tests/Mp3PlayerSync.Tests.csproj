@@ -17,8 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- For CollectionOrdering.Matching: NUnit's Is.EqualTo compared collections in order, and TUnit's IsEqualTo
-         compares their references -->
+    <!-- For CollectionOrdering.Matching, to compare collections item by item in order: TUnit's IsEqualTo compares
+         their references -->
     <Using Include="TUnit.Assertions.Enums" />
   </ItemGroup>
 

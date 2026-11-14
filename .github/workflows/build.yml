@@ -70,7 +70,7 @@ jobs:
         run: |
           $files = Get-ChildItem TestResults -Filter *.trx -Recurse -ErrorAction SilentlyContinue
           if (!$files) { '### Tests did not run' >> $env:GITHUB_STEP_SUMMARY; exit }
-          # Counted from the results: the summary counters leave out tests NUnit doesn't run, like ignored ones.
+          # Counted from the results: the summary counters leave out skipped tests.
           $results = foreach ($file in $files) { ([xml](Get-Content $file -Raw)).TestRun.Results.UnitTestResult }
           $passed = @($results | Where-Object outcome -eq 'Passed').Count
           $failedResults = @($results | Where-Object outcome -eq 'Failed')

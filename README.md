@@ -61,7 +61,7 @@ Requires the [.NET 11 SDK](https://dotnet.microsoft.com/download).
 dotnet run --project src\Mp3PlayerSync
 ```
 
-Unit tests: `dotnet test tests\Mp3PlayerSync.Tests`. End-to-end tests run on a hidden desktop:
+Unit tests ([TUnit](https://tunit.dev)): `dotnet test tests\Mp3PlayerSync.Tests`. End-to-end tests run on a hidden desktop:
 `dotnet build Mp3PlayerSync.slnx`, then `pwsh tests\Invoke-EndToEnd.ps1`. The screenshots above are generated
 from a made-up library by `pwsh tests\Update-ReadmeScreenshots.ps1`.
 
