@@ -4,4 +4,9 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- The patch part of this version is automatically incremented based on git tags in build\Version.targets. -->
+    <VersionPrefix>0.1.0</VersionPrefix>
+  </PropertyGroup>
 </Project>
