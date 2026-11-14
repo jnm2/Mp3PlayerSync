@@ -63,13 +63,13 @@ public class TrackTagWriterTests
         var tag = file.Tag;
         tag.ShouldSatisfyAllConditions(
             t => t.Title.ShouldBe("Under Pressure"),
-            t => t.Performers.ShouldBe(new[] { "Queen, David Bowie" }),
+            t => t.Performers.ShouldBe(["Queen, David Bowie"]),
             t => t.Album.ShouldBe("Hot Space"),
-            t => t.AlbumArtists.ShouldBe(new[] { "Queen" }),
+            t => t.AlbumArtists.ShouldBe(["Queen"]),
             t => t.Year.ShouldBe(1982u),
             t => t.Track.ShouldBe(11u),
             t => t.Disc.ShouldBe(1u),
-            t => t.Genres.ShouldBe(new[] { "classic rock", "glam rock" }),
+            t => t.Genres.ShouldBe(["classic rock", "glam rock"]),
             t => t.ISRC.ShouldBe("GBUM71029604"),
             t => t.Publisher.ShouldBe("EMI"),
             t => t.Copyright.ShouldBe("© 1982 Queen Productions Ltd"),
@@ -83,14 +83,14 @@ public class TrackTagWriterTests
         if (file is TagLib.Mpeg4.File)
         {
             var apple = file.GetTag(TagTypes.Apple).ShouldBeOfType<TagLib.Mpeg4.AppleTag>();
-            apple.GetText(new ReadOnlyByteVector(0xA9, (byte)'d', (byte)'a', (byte)'y')).ShouldBe(new[] { "1982-05-21" });
-            apple.DataBoxes(RatingBox).ShouldHaveSingleItem().Data.Data.ShouldBe(new byte[] { 1 });
+            apple.GetText(new ReadOnlyByteVector(0xA9, (byte)'d', (byte)'a', (byte)'y')).ShouldBe(["1982-05-21"]);
+            apple.DataBoxes(RatingBox).ShouldHaveSingleItem().Data.Data.ShouldBe([1]);
         }
         else
         {
             var id3 = file.GetTag(TagTypes.Id3v2).ShouldBeOfType<TagLib.Id3v2.Tag>();
             id3.Version.ShouldBe((byte)4);
-            id3.GetFrames<TagLib.Id3v2.TextInformationFrame>("TDRC").ShouldHaveSingleItem().Text.ShouldBe(new[] { "1982-05-21" });
+            id3.GetFrames<TagLib.Id3v2.TextInformationFrame>("TDRC").ShouldHaveSingleItem().Text.ShouldBe(["1982-05-21"]);
         }
 
         file.Properties.Codecs.ShouldNotBeEmpty(customMessage: "The audio stream must still be readable.");
@@ -110,7 +110,7 @@ public class TrackTagWriterTests
         var tag = file.Tag;
         tag.ShouldSatisfyAllConditions(
             t => t.Title.ShouldBe("Untitled"),
-            t => t.Performers.ShouldBe(new[] { "Solo" }),
+            t => t.Performers.ShouldBe(["Solo"]),
             t => t.Album.ShouldBeNull(),
             t => t.AlbumArtists.ShouldBeEmpty(),
             t => t.Year.ShouldBe(0u),
@@ -146,7 +146,7 @@ public class TrackTagWriterTests
         var result = await new TrackTagWriter(fetcher).WriteAsync(path, Full);
 
         result.CoverArtEmbedded.ShouldBeTrue();
-        fetcher.RequestedUrls.ShouldBe(new[] { "https://i.scdn.co/image/abc" });
+        fetcher.RequestedUrls.ShouldBe(["https://i.scdn.co/image/abc"]);
         using var file = TagLib.File.Create(path);
         file.Tag.Pictures.ShouldHaveSingleItem();
     }

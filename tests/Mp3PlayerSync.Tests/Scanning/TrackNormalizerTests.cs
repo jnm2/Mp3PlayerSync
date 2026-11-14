@@ -60,7 +60,7 @@ public class TrackNormalizerTests
     public void StripTitleDecorations_moves_featured_artists_out_of_the_title(string title)
     {
         TrackNormalizer.StripTitleDecorations(title, out var featured).ShouldBe("Song");
-        featured.ShouldBe(new[] { "Artist B" });
+        featured.ShouldBe(["Artist B"]);
     }
 
     [Test]

@@ -34,17 +34,17 @@ public class LibraryBuilderTests
         new(1, "", title, ["Band"], album, TimeSpan.FromMinutes(3), releaseDate, Now, "", false, "", "");
 
     private static string[] Names(IEnumerable<LibraryItem> items, LibraryFilter filter) =>
-        LibraryBuilder.Present(items, filter, Now).Select(i => i.Name).ToArray();
+        [.. LibraryBuilder.Present(items, filter, Now).Select(i => i.Name)];
 
     [Test]
     public void Splits_playlists_by_owner_and_puts_album_like_playlists_with_saved_albums()
     {
         var items = LibraryBuilder.Build(Rows, Albums, NoExports);
 
-        Names(items, LibraryFilter.CreatedPlaylists).ShouldBe(new[] { "Liked Songs", "Mine", "Empty" });
-        Names(items, LibraryFilter.SavedPlaylists).ShouldBe(new[] { "Theirs" });
-        Names(items, LibraryFilter.SavedAlbums).ShouldBe(new[] { "Seeker", "Their album", "New album", "Old album" });
-        Names(items, LibraryFilter.All).ShouldBe(new[] { "Liked Songs", "Mine", "Theirs", "Seeker", "Their album", "Empty", "New album", "Old album" });
+        Names(items, LibraryFilter.CreatedPlaylists).ShouldBe(["Liked Songs", "Mine", "Empty"]);
+        Names(items, LibraryFilter.SavedPlaylists).ShouldBe(["Theirs"]);
+        Names(items, LibraryFilter.SavedAlbums).ShouldBe(["Seeker", "Their album", "New album", "Old album"]);
+        Names(items, LibraryFilter.All).ShouldBe(["Liked Songs", "Mine", "Theirs", "Seeker", "Their album", "Empty", "New album", "Old album"]);
     }
 
     [Test]
@@ -59,7 +59,7 @@ public class LibraryBuilderTests
 
         var items = LibraryBuilder.Build(rows, Albums, exports);
 
-        Names(items, LibraryFilter.CreatedPlaylists).ShouldBe(new[] { "Liked Songs", "Mine" });
+        Names(items, LibraryFilter.CreatedPlaylists).ShouldBe(["Liked Songs", "Mine"]);
         Names(items, LibraryFilter.All)[0].ShouldBe("Liked Songs");
         Names(items, LibraryFilter.SavedAlbums).ShouldNotContain("Liked Songs");
     }
@@ -77,7 +77,7 @@ public class LibraryBuilderTests
 
         var items = LibraryBuilder.Build(rows, null, NoExports);
 
-        items.Select(i => i.Key).ShouldBe(new[] { "https://open.spotify.com/playlist/my-dj" });
+        items.Select(i => i.Key).ShouldBe(["https://open.spotify.com/playlist/my-dj"]);
     }
     [Test]
     public void Earlier_exports_override_the_cover()
@@ -90,7 +90,7 @@ public class LibraryBuilderTests
 
         var items = LibraryBuilder.Build(Rows, albums: null, exports);
 
-        Names(items, LibraryFilter.SavedAlbums).ShouldBe(new[] { "Mine", "Their album" });
+        Names(items, LibraryFilter.SavedAlbums).ShouldBe(["Mine", "Their album"]);
         Names(items, LibraryFilter.CreatedPlaylists).ShouldContain("Seeker");
     }
 
@@ -226,7 +226,7 @@ public class SavedAlbumTests
             Track(3, "Greatest Hits", savedEarlier, "1990"), // Same name, a different saved album
         ]));
 
-        albums.Select(a => (a.Name, a.ReleaseDate, a.Tracks.Count)).ShouldBe(new[] { ("Greatest Hits", "2001", 2), ("Greatest Hits", "1990", 1) });
+        albums.Select(a => (a.Name, a.ReleaseDate, a.Tracks.Count)).ShouldBe([("Greatest Hits", "2001", 2), ("Greatest Hits", "1990", 1)]);
         albums[1].ToExportedPlaylist().Tracks.ShouldHaveSingleItem().Number.ShouldBe(1);
         albums.Select(a => a.Key).ShouldBeUnique();
     }

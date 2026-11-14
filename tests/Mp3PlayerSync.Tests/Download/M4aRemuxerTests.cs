@@ -29,13 +29,13 @@ public class M4aRemuxerTests
 
         var file = File.ReadAllBytes(output);
         var topLevel = Mp4Box.ParseChildren(file);
-        topLevel.Select(b => b.Type).ShouldBe(new[] { "ftyp", "moov", "mdat" });
+        topLevel.Select(b => b.Type).ShouldBe(["ftyp", "moov", "mdat"]);
 
         var moov = topLevel[1];
         moov.Child("mvex").ShouldBeNull();
 
         var stbl = moov.RequiredChild("trak").RequiredChild("mdia").RequiredChild("minf").RequiredChild("stbl");
-        stbl.Children.ShouldNotBeNull().Select(b => b.Type).ShouldBe(new[] { "stsd", "stts", "stsc", "stsz", "stco" });
+        stbl.Children.ShouldNotBeNull().Select(b => b.Type).ShouldBe(["stsd", "stts", "stsc", "stsz", "stco"]);
 
         var sampleSizes = ReadTable(stbl.RequiredChild("stsz").Payload.ShouldNotBeNull(), start: 12, count: 9, entrySize: 4);
         sampleSizes.ShouldBe(fragments.SelectMany(f => f).Select(s => (long)s));
@@ -46,7 +46,7 @@ public class M4aRemuxerTests
         chunkOffsets.Select((offset, fragment) => file.AsSpan((int)offset, expected[fragment].Length).ToArray()).ShouldBe(expected);
 
         var stts = stbl.RequiredChild("stts").Payload.ShouldNotBeNull();
-        ReadTable(stts, start: 4, count: 3, entrySize: 4).ShouldBe(new long[] { 1, 9, Mp4TestFiles.SampleDuration });
+        ReadTable(stts, start: 4, count: 3, entrySize: 4).ShouldBe([1, 9, Mp4TestFiles.SampleDuration]);
 
         info.IsAac.ShouldBeTrue();
         info.Codec.ShouldBe("mp4a.40.2");
@@ -96,8 +96,6 @@ public class M4aRemuxerTests
 
     private static long[] ReadTable(byte[] payload, int start, int count, int entrySize)
     {
-        return Enumerable.Range(0, count)
-            .Select(i => (long)BinaryPrimitives.ReadUInt32BigEndian(payload.AsSpan(start + (i * entrySize))))
-            .ToArray();
+        return [.. Enumerable.Range(0, count).Select(i => (long)BinaryPrimitives.ReadUInt32BigEndian(payload.AsSpan(start + (i * entrySize))))];
     }
 }

@@ -17,14 +17,14 @@ public class TrackMetadataTests
 
         metadata.ShouldSatisfyAllConditions(
             m => m.Title.ShouldBe("Under Pressure"),
-            m => m.Artists.ShouldBe(new[] { "Queen", "David Bowie" }),
+            m => m.Artists.ShouldBe(["Queen", "David Bowie"]),
             m => m.AlbumArtists.ShouldBeEmpty(customMessage: "One track can't tell its album's artist."),
             m => m.Album.ShouldBe("Hot Space"),
             m => m.Year.ShouldBe(1982),
             m => m.NormalizedReleaseDate.ShouldBe("1982-05-21"),
             m => m.TrackNumber.ShouldBeNull(),
             m => m.DiscNumber.ShouldBeNull(),
-            m => m.Genres.ShouldBe(new[] { "glam rock", "classic rock", "rock" }),
+            m => m.Genres.ShouldBe(["glam rock", "classic rock", "rock"]),
             m => m.Isrc.ShouldBe("USRC2"),
             m => m.Label.ShouldBe("EMI"),
             m => m.Explicit.ShouldBe(true),
@@ -43,14 +43,14 @@ public class TrackMetadataTests
         var metadata = TrackMetadata.FromExportedTrack(ExportifyCsv.Parse(csv).Tracks.ShouldHaveSingleItem());
 
         metadata.ShouldSatisfyAllConditions(
-            m => m.AlbumArtists.ShouldBe(new[] { "Earth, Wind & Fire", "Various" }),
+            m => m.AlbumArtists.ShouldBe(["Earth, Wind & Fire", "Various"]),
             m => m.PrimaryAlbumArtist.ShouldBe("Earth, Wind & Fire"),
             m => m.NormalizedReleaseDate.ShouldBe("1979-06"),
             m => m.AlbumImageUrl.ShouldBe("https://i.scdn.co/image/abc"),
             m => m.DiscNumber.ShouldBe(2),
             m => m.TrackNumber.ShouldBe(7),
             m => m.Explicit.ShouldBe(false),
-            m => m.Genres.ShouldBe(new[] { "funk", "disco" }, customMessage: "Duplicates across artist and album genres are dropped."),
+            m => m.Genres.ShouldBe(["funk", "disco"], customMessage: "Duplicates across artist and album genres are dropped."),
             m => m.InitialKey.ShouldBe("C#"),
             m => m.BeatsPerMinute.ShouldBe(120),
             m => m.Label.ShouldBe("Columbia"),
@@ -68,7 +68,7 @@ public class TrackMetadataTests
 
         var metadata = TrackMetadata.FromAlbum(ExportifyCsv.Parse(csv).Tracks);
 
-        metadata.Select(m => (m.Title, m.TrackNumber)).ShouldBe(new[] { ("First", (int?)1), ("Second", 2), ("Third", 3) });
+        metadata.Select(m => (m.Title, m.TrackNumber)).ShouldBe([("First", (int?)1), ("Second", 2), ("Third", 3)]);
     }
 
     [Test]
@@ -80,7 +80,7 @@ public class TrackMetadataTests
             "spotify:track:2,Other,A,Album,,1\n";
         var tracks = ExportifyCsv.Parse(csv).Tracks;
 
-        TrackMetadata.FromAlbum(tracks).Select(m => m.TrackNumber).ShouldBe(new int?[] { 7, 2 });
+        TrackMetadata.FromAlbum(tracks).Select(m => m.TrackNumber).ShouldBe([7, 2]);
         TrackMetadata.FromExportedTrack(tracks[1]).TrackNumber.ShouldBeNull();
     }
 
@@ -113,7 +113,7 @@ public class TrackMetadataTests
         var metadata = TrackMetadata.FromAlbum(Album("Queen", "David Bowie;Queen", "QUEEN"));
 
         metadata.Select(m => m.AlbumArtists).ShouldAllBe(artists => artists.SequenceEqual(new[] { "Queen" }));
-        metadata[1].Artists.ShouldBe(new[] { "David Bowie", "Queen" }, customMessage: "Track artists are unchanged.");
+        metadata[1].Artists.ShouldBe(["David Bowie", "Queen"], customMessage: "Track artists are unchanged.");
     }
 
     [Test]

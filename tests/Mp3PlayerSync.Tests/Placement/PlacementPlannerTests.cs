@@ -14,7 +14,7 @@ public class PlacementPlannerTests
         plan.NewFiles.ToDictionary(f => f.Track.Id, f => f.RelativePath);
 
     private static List<(string From, string To)> Moves(PlacementPlan plan) =>
-        plan.Moves.Select(m => (m.FromRelativePath, m.ToRelativePath)).ToList();
+        [.. plan.Moves.Select(m => (m.FromRelativePath, m.ToRelativePath))];
 
     [Test]
     public void Only_song_from_its_album_goes_to_the_root()
@@ -52,7 +52,7 @@ public class PlacementPlannerTests
             [Track("A", 1, album: "Duets", artist: "X", albumArtists: ["Elton John", "Kiki Dee"]), Track("B", 2, album: "Duets", artist: "Y", albumArtists: ["Elton John", "Kiki Dee"])],
             []);
 
-        plan.NewFiles.Select(f => f.RelativePath).ShouldBe(new[] { @"Elton John\Duets (1982)\01. A.m4a", @"Elton John\Duets (1982)\02. B.m4a" });
+        plan.NewFiles.Select(f => f.RelativePath).ShouldBe([@"Elton John\Duets (1982)\01. A.m4a", @"Elton John\Duets (1982)\02. B.m4a"]);
     }
 
     [Test]
@@ -63,7 +63,7 @@ public class PlacementPlannerTests
             [File("Queen - Staying Power.mp3", "Staying Power", 1), File("Other - Thing.m4a", "Thing", 3, album: "Elsewhere", albumArtist: "Other")]);
 
         plan.NewFiles.ShouldHaveSingleItem().RelativePath.ShouldBe(@"Queen\Hot Space (1982)\11. Under Pressure.m4a");
-        Moves(plan).ShouldBe(new[] { ("Queen - Staying Power.mp3", @"Queen\Hot Space (1982)\01. Staying Power.mp3") });
+        Moves(plan).ShouldBe([("Queen - Staying Power.mp3", @"Queen\Hot Space (1982)\01. Staying Power.mp3")]);
     }
 
     [Test]
@@ -78,7 +78,7 @@ public class PlacementPlannerTests
             ]);
 
         plan.NewFiles.ShouldHaveSingleItem().RelativePath.ShouldBe(@"Music\Queen - Hot Space\11. Under Pressure.m4a");
-        Moves(plan).ShouldBe(new[] { ("Queen - Back Chat.m4a", @"Music\Queen - Hot Space\03. Back Chat.m4a") });
+        Moves(plan).ShouldBe([("Queen - Back Chat.m4a", @"Music\Queen - Hot Space\03. Back Chat.m4a")]);
     }
 
     [Test]
@@ -92,7 +92,7 @@ public class PlacementPlannerTests
                 File("Queen - Back Chat.m4a", "Back Chat", 3),
             ]);
 
-        Destinations(plan).Values.ShouldBe(new[] { "Queen - Under Pressure.m4a", "Queen - Las Palabras de Amor.m4a" }, ignoreOrder: true);
+        Destinations(plan).Values.ShouldBe(["Queen - Under Pressure.m4a", "Queen - Las Palabras de Amor.m4a"], ignoreOrder: true);
         plan.Moves.ShouldBeEmpty();
     }
 
@@ -161,7 +161,7 @@ public class PlacementPlannerTests
             [Track("B", 2, album: "Duets", artist: "Kiki Dee", albumArtists: ["Elton John", "Kiki Dee"])],
             [File("Elton John - A.m4a", "A", 1, album: "Duets", albumArtist: "Elton John, Kiki Dee", artist: "Elton John")]);
 
-        Moves(plan).ShouldBe(new[] { ("Elton John - A.m4a", @"Elton John\Duets (1982)\01. A.m4a") });
+        Moves(plan).ShouldBe([("Elton John - A.m4a", @"Elton John\Duets (1982)\01. A.m4a")]);
         plan.NewFiles.ShouldHaveSingleItem().RelativePath.ShouldBe(@"Elton John\Duets (1982)\02. B.m4a");
     }
 
@@ -170,7 +170,7 @@ public class PlacementPlannerTests
     {
         var plan = PlacementPlanner.Plan([Track("A", 1, album: ""), Track("B", 2, album: "")], [File("Queen - C.m4a", "C", 3, album: "")]);
 
-        plan.NewFiles.Select(f => f.RelativePath).ShouldBe(new[] { "Queen - A.m4a", "Queen - B.m4a" });
+        plan.NewFiles.Select(f => f.RelativePath).ShouldBe(["Queen - A.m4a", "Queen - B.m4a"]);
         plan.Moves.ShouldBeEmpty();
     }
 
@@ -197,7 +197,7 @@ public class PlacementPlannerTests
             [Track("Under Pressure", 11)],
             [File(@"Hot Space\01. Staying Power.m4a", "Staying Power", 1), File("Queen - Staying Power.m4a", "Staying Power", 1)]);
 
-        Moves(plan).ShouldBe(new[] { ("Queen - Staying Power.m4a", @"Hot Space\01. Staying Power (2).m4a") });
+        Moves(plan).ShouldBe([("Queen - Staying Power.m4a", @"Hot Space\01. Staying Power (2).m4a")]);
     }
 
     [Test]
@@ -215,7 +215,7 @@ public class PlacementPlannerTests
     {
         var plan = PlacementPlanner.Plan([Track("B", 2)], [File("track01.MP3", "", 1)]);
 
-        Moves(plan).ShouldBe(new[] { ("track01.MP3", @"Queen\Hot Space (1982)\01. track01.MP3") });
+        Moves(plan).ShouldBe([("track01.MP3", @"Queen\Hot Space (1982)\01. track01.MP3")]);
     }
 
     [Test]
@@ -225,11 +225,10 @@ public class PlacementPlannerTests
             [Track("What?: \"Live\"...", 1, album: "AC/DC Live.", artist: "AC/DC "), Track("Con", 2, album: "AC/DC Live.", artist: "AC/DC ")],
             []);
 
-        plan.NewFiles.Select(f => f.RelativePath).ShouldBe(new[]
-        {
+        plan.NewFiles.Select(f => f.RelativePath).ShouldBe([
             @"AC_DC\AC_DC Live (1982)\01. What__ _Live_.m4a",
             @"AC_DC\AC_DC Live (1982)\02. Con.m4a",
-        });
+]);
     }
 
     [Test]
@@ -266,12 +265,11 @@ public class PlacementPlannerTests
                 File("Queen - Dancer.m4a", "Dancer", 2),
             ]);
 
-        Moves(plan).ShouldBe(new[]
-        {
+        Moves(plan).ShouldBe([
             (@"Queen\Hot Space (1982)\01. Staying Power.m4a", @"Queen\Hot Space (1982)\001. Staying Power.m4a"),
             (@"Queen\Hot Space (1982)\99. Encore.m4a", @"Queen\Hot Space (1982)\099. Encore.m4a"),
             ("Queen - Dancer.m4a", @"Queen\Hot Space (1982)\002. Dancer.m4a"),
-        });
+]);
         plan.NewFiles.ShouldHaveSingleItem().RelativePath.ShouldBe(@"Queen\Hot Space (1982)\100. Finale.m4a");
     }
 
@@ -293,11 +291,10 @@ public class PlacementPlannerTests
             [File(@"Road trip\03. Queen - Back Chat.m4a", "Back Chat", 3)],
             playlistFolders: ["Road trip"]);
 
-        plan.NewFiles.Select(f => f.RelativePath).ShouldBe(new[]
-        {
+        plan.NewFiles.Select(f => f.RelativePath).ShouldBe([
             @"Queen\Hot Space (1982)\01. Staying Power.m4a",
             @"Queen\Hot Space (1982)\02. Dancer.m4a",
-        });
+]);
         plan.Moves.ShouldBeEmpty(customMessage: "Playlist files are never moved or renamed.");
     }
 
@@ -334,19 +331,17 @@ public class PlacementPlannerTests
     public void Compilation_tracks_share_a_various_artists_folder()
     {
         // Corner case 3, probes P3 and P9: each track of a compilation went to the root as its own one-song album.
-        var tracks = new[]
-        {
+        PlacementTrack[] tracks = [
             new PlacementTrack("1", "Hooked on a Feeling", "Blue Swede", ["Various Artists"], "Awesome Mix Vol. 1", 2014, 1, ".m4a"),
             new PlacementTrack("2", "Come and Get Your Love", "Redbone", ["Various Artists"], "Awesome Mix Vol. 1", 2014, 3, ".m4a"),
-        };
+];
 
         var plan = PlacementPlanner.Plan(tracks, []);
 
-        plan.NewFiles.Select(f => f.RelativePath).ShouldBe(new[]
-        {
+        plan.NewFiles.Select(f => f.RelativePath).ShouldBe([
             @"Various Artists\Awesome Mix Vol. 1 (2014)\01. Hooked on a Feeling.m4a",
             @"Various Artists\Awesome Mix Vol. 1 (2014)\03. Come and Get Your Love.m4a",
-        });
+]);
     }
 
     [Test]

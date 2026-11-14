@@ -49,7 +49,7 @@ public class ToolResolverTests
         lease1.FilePath.ShouldBe(Path.Join(directory, "v1.0", "tool.exe"));
         File.ReadAllText(lease1.FilePath).ShouldBe("tool 1.0");
         File.Exists(Path.Join(directory, "v1.0", "_internal", "lib.dll")).ShouldBeTrue();
-        Directory.GetFileSystemEntries(directory).Select(Path.GetFileName).ShouldBe(new string?[] { "v1.0" }, customMessage: "No temporary files are left behind");
+        Directory.GetFileSystemEntries(directory).Select(Path.GetFileName).ShouldBe(["v1.0"], customMessage: "No temporary files are left behind");
 
         latest = "2.0";
         await resolver.CheckForUpdatesAsync(CancellationToken.None);

@@ -1,4 +1,5 @@
 using Mp3PlayerSync.Core.Placement;
+using Mp3PlayerSync.Core.Scanning;
 using Mp3PlayerSync.Core.Sync;
 
 namespace Mp3PlayerSync.Tests.Placement;
@@ -31,10 +32,10 @@ public class CopySafetyTests
     }
 
     private string[] PlayerFiles() =>
-        Directory.GetFiles(root, "*", SearchOption.AllDirectories).Select(p => Path.GetRelativePath(root, p)).Order(StringComparer.Ordinal).ToArray();
+        [.. Directory.GetFiles(root, "*", SearchOption.AllDirectories).Select(p => Path.GetRelativePath(root, p)).Order(StringComparer.Ordinal)];
 
     private static PlacementPlan Plan(params string[] ids) =>
-        new([], ids.Select(id => new PlannedNewFile(Track(id), $"Queen - Song {id}.m4a")).ToList());
+        new([], [.. ids.Select(id => new PlannedNewFile(Track(id), $"Queen - Song {id}.m4a"))]);
 
     [Test]
     public async Task Failed_copy_leaves_nothing_on_the_player_and_keeps_the_download()
@@ -83,12 +84,11 @@ public class CopySafetyTests
 
         report.ShouldSatisfyAllConditions(
             r => r.Canceled.ShouldBeTrue(),
-            r => r.Changes.Select(c => (c.Kind, c.Succeeded, c.ActualRelativePath)).ShouldBe(new (PlacementChangeKind, bool, string?)[]
-            {
+            r => r.Changes.Select(c => (c.Kind, c.Succeeded, c.ActualRelativePath)).ShouldBe([
                 (PlacementChangeKind.Moved, true, @"Old\old.m4a"),
                 (PlacementChangeKind.Added, true, "Queen - Song 1.m4a"),
-            }),
-            _ => PlayerFiles().ShouldBe(new[] { @"Old\old.m4a", "Queen - Song 1.m4a" }, customMessage: "No partial or later file is left."),
+]),
+            _ => PlayerFiles().ShouldBe([@"Old\old.m4a", "Queen - Song 1.m4a"], customMessage: "No partial or later file is left."),
             _ => File.Exists(sources["1"]).ShouldBeFalse(customMessage: "A copied download is deleted."),
             _ => File.Exists(sources["2"]).ShouldBeTrue(customMessage: "An unfinished one is kept."));
     }
@@ -97,7 +97,7 @@ public class CopySafetyTests
     public async Task Copying_from_elsewhere_on_the_player_never_deletes_the_original()
     {
         File.WriteAllText(Path.Combine(root, "Queen - A.m4a"), "A");
-        var files = new[] { PlaylistPlannerTests.FileAt(root, "Queen - A.m4a", "A") };
+        IndexedFile[] files = [PlaylistPlannerTests.FileAt(root, "Queen - A.m4a", "A")];
         var plan = PlaylistPlanner.Plan("Mix", [PlaylistPlannerTests.Song("A")], root, files);
 
         var report = await new PlacementExecutor(root) { DeleteDownloadsAfterCopy = true }.ExecuteAsync(plan, _ => null);
@@ -116,7 +116,7 @@ public class CopySafetyTests
 
         await new PlacementExecutor(root).ExecuteAsync(Plan(), _ => null);
 
-        PlayerFiles().ShouldBe(new[] { @"Artist\Album\~mps-0f0f0f 01. Kept.m4a" });
+        PlayerFiles().ShouldBe([@"Artist\Album\~mps-0f0f0f 01. Kept.m4a"]);
     }
 
     [Test]
@@ -126,12 +126,11 @@ public class CopySafetyTests
         File.WriteAllText(Path.Combine(root, @"Mix\01. Queen - A.m4a"), "A");
         File.WriteAllText(Path.Combine(root, @"Mix\02. Queen - B.m4a"), "B");
         File.WriteAllText(Path.Combine(root, @"Mix\03. Old - Gone.m4a"), "Gone");
-        var files = new[]
-        {
+        IndexedFile[] files = [
             PlaylistPlannerTests.FileAt(root, @"Mix\01. Queen - A.m4a", "A"),
             PlaylistPlannerTests.FileAt(root, @"Mix\02. Queen - B.m4a", "B"),
             PlaylistPlannerTests.FileAt(root, @"Mix\03. Old - Gone.m4a", "Gone", "Old"),
-        };
+];
         var folder = PlaylistFolders.Assign(root, "https://open.spotify.com/playlist/a", "Mix", "me");
         PlaylistFolders.Claim(root, folder);
         var before = Snapshot();
@@ -151,10 +150,9 @@ public class CopySafetyTests
     private string[] Snapshot()
     {
         var root = new DirectoryInfo(this.root);
-        return root.EnumerateFileSystemInfos("*", SearchOption.AllDirectories).Append(root)
+        return [.. root.EnumerateFileSystemInfos("*", SearchOption.AllDirectories).Append(root)
             .Select(e => $"{e.FullName}|{e.LastWriteTimeUtc.Ticks}|{e.CreationTimeUtc.Ticks}|{e.Attributes}|{(e as FileInfo)?.Length}")
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
     }
 
     [Test]

@@ -24,7 +24,7 @@ public class OpenPlaylistFindingTests
         finding.Find([Song("A1"), Song("A2")], Key);
         finding.Find([Song("B1")], Key);
 
-        finder.Calls.ShouldBe(new[] { "A1,A2", "B1" }, ignoreOrder: false, customMessage: "Opening another playlist replaces what was queued");
+        finder.Calls.ShouldBe(["A1,A2", "B1"], ignoreOrder: false, customMessage: "Opening another playlist replaces what was queued");
     }
 
     [Test]
@@ -35,7 +35,7 @@ public class OpenPlaylistFindingTests
 
         finding.Stop();
 
-        finder.Calls.ShouldBe(new[] { "A1,A2", "" });
+        finder.Calls.ShouldBe(["A1,A2", ""]);
     }
 
     [Test]
@@ -50,7 +50,7 @@ public class OpenPlaylistFindingTests
         finding.Find([Song("B1")], Key);
 
         during.ShouldBeNull();
-        finder.Calls.ShouldBe(new[] { "A1,A2", "", "B1" });
+        finder.Calls.ShouldBe(["A1,A2", "", "B1"]);
     }
 
     [Test]
@@ -63,7 +63,7 @@ public class OpenPlaylistFindingTests
         finding.Stop();
         finding.Find([Song("A1")], Key).ShouldNotBeNull(customMessage: "A reloaded playlist is looked for again");
 
-        finder.Calls.ShouldBe(new[] { "A1", "", "A1" });
+        finder.Calls.ShouldBe(["A1", "", "A1"]);
     }
 
     [Test]
@@ -86,7 +86,7 @@ public class OpenPlaylistFindingTests
         public IReadOnlyList<TrackResolution?> FindInBackground(IReadOnlyList<ExportedTrack> tracks)
         {
             Calls.Add(string.Join(",", tracks.Select(t => t.Title)));
-            return tracks.Select(_ => (TrackResolution?)null).ToList();
+            return [.. tracks.Select(_ => (TrackResolution?)null)];
         }
 
         public event EventHandler<TrackResolutionProgress>? LookupProgress { add { } remove { } }

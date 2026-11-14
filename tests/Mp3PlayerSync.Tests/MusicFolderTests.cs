@@ -143,8 +143,7 @@ public class MusicFolderTests
 
     // Files only: listing a folder updates the folder's own last-access time, as any scan of the player does.
     private string[] Snapshot() =>
-        Directory.EnumerateFiles(drive, "*", SearchOption.AllDirectories)
+        [.. Directory.EnumerateFiles(drive, "*", SearchOption.AllDirectories)
             .Select(p => $"{p}|{File.GetLastWriteTimeUtc(p):O}|{File.GetLastAccessTimeUtc(p):O}|{File.GetAttributes(p)}")
-            .Order()
-            .ToArray();
+            .Order()];
 }

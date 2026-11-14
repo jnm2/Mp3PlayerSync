@@ -94,12 +94,11 @@ public class TrackMatcherTests
             Flat("Under Pressure (Single Version; 2017 Remaster)", 5),
         ]);
 
-        ranked.Select(c => c.Video.Title).ShouldBe(new[]
-        {
+        ranked.Select(c => c.Video.Title).ShouldBe([
             "Under Pressure (feat. David Bowie)",
             "Under Pressure (Single Version; 2017 Remaster)",
             "Queen & David Bowie - Under Pressure (Official Video)",
-        });
+]);
     }
 
     [Test]
@@ -159,7 +158,7 @@ public class TrackMatcherTests
             ]},"musicCardShelfRenderer":{"badges":[{"icon":{"iconType":"MUSIC_EXPLICIT_BADGE"}}]}}}
             """;
 
-        YouTubeMusicSearchPage.ReadExplicitBadges(page).ShouldBe(new[] { ("explicit001", true), ("clean000001", false) });
+        YouTubeMusicSearchPage.ReadExplicitBadges(page).ShouldBe([("explicit001", true), ("clean000001", false)]);
     }
 
     [Test]

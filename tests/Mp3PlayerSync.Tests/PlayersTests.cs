@@ -34,12 +34,11 @@ public class PlayersTests
             ],
             remembered: null, folderExists: _ => true);
 
-        options.Select(o => (o.Kind, o.Title, o.Subtitle)).ShouldBe(new[]
-        {
+        options.Select(o => (o.Kind, o.Title, o.Subtitle)).ShouldBe([
             (PlayerOptionKind.Drive, "SANSA CLIP", "Drive E:"),
             (PlayerOptionKind.Drive, "Memory card", "Drive F:"),
             (PlayerOptionKind.OtherFolder, "Other folder", "Choose any folder"),
-        });
+]);
         options[0].Detail.ShouldBe("12 GB free of 32 GB");
         remembered.ShouldBeNull();
     }
@@ -84,7 +83,7 @@ public class PlayersTests
         var choice = new PlayerChoice(FolderPath: @"D:\Music\Player\");
 
         var (options, remembered) = Players.BuildOptions([], choice, _ => true);
-        options.Select(o => o.Title).ShouldBe(new[] { "Player", "Other folder" });
+        options.Select(o => o.Title).ShouldBe(["Player", "Other folder"]);
         remembered.ShouldBeSameAs(options[0]);
         Players.ChoiceFor(options[0]).ShouldBe(choice);
 
@@ -99,7 +98,7 @@ public class PlayersTests
             [Drive("E:\\", DriveType.Removable, StorageBus.Usb, label: "SANDISK", volumeId: "vol-1")],
             new PlayerChoice(FolderPath: @"E:\"), _ => true);
 
-        options.Select(o => o.Kind).ShouldBe(new[] { PlayerOptionKind.Drive, PlayerOptionKind.OtherFolder });
+        options.Select(o => o.Kind).ShouldBe([PlayerOptionKind.Drive, PlayerOptionKind.OtherFolder]);
         var tile = remembered.ShouldNotBeNull();
         tile.ShouldBeSameAs(options[0]);
         Players.ChoiceFor(tile).VolumeId.ShouldBe("vol-1");
@@ -122,7 +121,8 @@ public class PlayersTests
     [Test]
     public void Folder_dialog_opens_in_the_player_folder_then_the_last_picked_one()
     {
-        var exists = new HashSet<string>([@"D:\Player", @"D:\Picked"]).Contains;
+        HashSet<string> existing = [@"D:\Player", @"D:\Picked"];
+        var exists = existing.Contains;
 
         Players.DialogStartFolder(@"D:\Player", @"D:\Picked", exists).ShouldBe(@"D:\Player");
         Players.DialogStartFolder(null, @"D:\Picked", exists).ShouldBe(@"D:\Picked");
@@ -169,8 +169,11 @@ public class PlayersTests
         options.ShouldAllBe(option => ShownTexts(option).Distinct().Count() == ShownTexts(option).Count);
     }
 
-    private static List<string> ShownTexts(PlayerOption option) =>
-        new[] { option.Title, option.Subtitle, option.Detail }.Where(t => t.Length > 0).ToList();
+    private static List<string> ShownTexts(PlayerOption option)
+    {
+        string[] texts = [option.Title, option.Subtitle, option.Detail];
+        return [.. texts.Where(t => t.Length > 0)];
+    }
 
     [Test]
     [Arguments(100L, 50L, false)]

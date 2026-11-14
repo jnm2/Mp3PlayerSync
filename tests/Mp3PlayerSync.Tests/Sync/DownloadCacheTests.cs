@@ -51,7 +51,8 @@ public class DownloadCacheTests
     public void Prunes_old_entries_then_the_oldest_until_it_fits()
     {
         var cache = new DownloadCache(directory) { MaxAge = TimeSpan.FromDays(30), MaxBytes = 2500 };
-        foreach (var id in new[] { "old", "a", "b", "c" }) cache.Add(id, "140", null, source);
+        string[] ids = ["old", "a", "b", "c"];
+        foreach (var id in ids) cache.Add(id, "140", null, source);
         var now = DateTimeOffset.UtcNow;
         SetSavedAt("old", now.AddDays(-31));
         SetSavedAt("a", now.AddDays(-3));
@@ -60,7 +61,7 @@ public class DownloadCacheTests
 
         cache.Prune(now);
 
-        new[] { "old", "a", "b", "c" }.Where(id => cache.TryGet(id) is not null).ShouldBe(new[] { "b", "c" });
+        ids.Where(id => cache.TryGet(id) is not null).ShouldBe(["b", "c"]);
     }
 
     [Test]
@@ -76,7 +77,7 @@ public class DownloadCacheTests
 
         new DownloadCache(directory).Prune(DateTimeOffset.UtcNow);
 
-        Directory.GetFiles(directory).Select(Path.GetFileName).ShouldBe(new string?[] { "y.140.m4a.4567.tmp" });
+        Directory.GetFiles(directory).Select(Path.GetFileName).ShouldBe(["y.140.m4a.4567.tmp"]);
     }
 
     private void SetSavedAt(string videoId, DateTimeOffset savedAt) =>

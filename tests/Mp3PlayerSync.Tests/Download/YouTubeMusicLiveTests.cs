@@ -25,7 +25,7 @@ public class YouTubeMusicLiveTests
 
         check.DenoVersion.ShouldNotBeNull(customMessage: "Deno couldn't be downloaded");
         check.HasJavaScriptRuntimeWarning.ShouldBeFalse(customMessage: "yt-dlp didn't find its JavaScript runtime");
-        check.BestAac.ShouldNotBeNull().FormatId.ShouldBeOneOf(new[] { "140", "141" }, "No good AAC format; YouTube may have changed");
+        check.BestAac.ShouldNotBeNull().FormatId.ShouldBeOneOf(["140", "141"], "No good AAC format; YouTube may have changed");
     }
 
     [Test]

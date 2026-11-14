@@ -29,11 +29,10 @@ public class PlaylistPlannerTests
         var plan = Plan([Song("Under Pressure", "Queen"), Song("Heroes", "David Bowie")], []);
 
         plan.FolderRelativePath.ShouldBe("My Mix");
-        plan.Tracks.Select(t => (t.Position, t.State, t.TargetRelativePath)).ShouldBe(new[]
-        {
+        plan.Tracks.Select(t => (t.Position, t.State, t.TargetRelativePath)).ShouldBe([
             (1, PlaylistTrackState.Download, @"My Mix\01. Queen - Under Pressure.m4a"),
             (2, PlaylistTrackState.Download, @"My Mix\02. David Bowie - Heroes.m4a"),
-        });
+]);
         plan.Downloads.Count().ShouldBe(2);
         plan.Renames.ShouldBeEmpty();
         plan.PlayerOnlyFiles.ShouldBeEmpty();
@@ -64,11 +63,10 @@ public class PlaylistPlannerTests
         var plan = Plan([Song("B"), Song("A")], [File(@"My Mix\01. Queen - A.m4a", "A"), File(@"My Mix\02. Queen - B.m4a", "B")]);
 
         plan.Tracks.Select(t => t.State).ShouldAllBe(item => item == PlaylistTrackState.Renumber);
-        Renames(plan).ShouldBe(new[]
-        {
+        Renames(plan).ShouldBe([
             (@"My Mix\02. Queen - B.m4a", @"My Mix\01. Queen - B.m4a"),
             (@"My Mix\01. Queen - A.m4a", @"My Mix\02. Queen - A.m4a"),
-        }, ignoreOrder: true);
+], ignoreOrder: true);
     }
 
     [Test]
@@ -76,13 +74,12 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("A"), Song("New"), Song("B")], [File(@"My Mix\01. Queen - A.m4a", "A"), File(@"My Mix\02. Queen - B.m4a", "B")]);
 
-        plan.Tracks.Select(t => (t.State, t.TargetRelativePath)).ShouldBe(new[]
-        {
+        plan.Tracks.Select(t => (t.State, t.TargetRelativePath)).ShouldBe([
             (PlaylistTrackState.InPlace, @"My Mix\01. Queen - A.m4a"),
             (PlaylistTrackState.Download, @"My Mix\02. Queen - New.m4a"),
             (PlaylistTrackState.Renumber, @"My Mix\03. Queen - B.m4a"),
-        });
-        Renames(plan).ShouldBe(new[] { (@"My Mix\02. Queen - B.m4a", @"My Mix\03. Queen - B.m4a") });
+]);
+        Renames(plan).ShouldBe([(@"My Mix\02. Queen - B.m4a", @"My Mix\03. Queen - B.m4a")]);
     }
 
     [Test]
@@ -90,11 +87,10 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("New"), Song("A")], [File(@"My Mix\01. my own name.mp3", "A"), File(@"My Mix\untitled.mp3", "New")]);
 
-        Renames(plan).ShouldBe(new[]
-        {
+        Renames(plan).ShouldBe([
             (@"My Mix\untitled.mp3", @"My Mix\01. untitled.mp3"),
             (@"My Mix\01. my own name.mp3", @"My Mix\02. my own name.mp3"),
-        }, ignoreOrder: true);
+], ignoreOrder: true);
     }
 
     [Test]
@@ -127,7 +123,7 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("A")], [File(@"My Mix\001. Queen - A.m4a", "A")]);
 
-        Renames(plan).ShouldBe(new[] { (@"My Mix\001. Queen - A.m4a", @"My Mix\01. Queen - A.m4a") });
+        Renames(plan).ShouldBe([(@"My Mix\001. Queen - A.m4a", @"My Mix\01. Queen - A.m4a")]);
     }
 
     [Test]
@@ -138,14 +134,13 @@ public class PlaylistPlannerTests
             [Song("A"), Song("B")],
             [File(@"My Mix\01. Queen - A.m4a", "A"), gone, File(@"My Mix\03. Queen - B.m4a", "B"), File(@"My Mix\notes.mp3", "Notes", "Me")]);
 
-        plan.PlayerOnlyFiles.Select(f => (f.RelativePath, f.TargetRelativePath, f.AfterPosition, f.Delete)).ShouldBe(new[]
-        {
+        plan.PlayerOnlyFiles.Select(f => (f.RelativePath, f.TargetRelativePath, f.AfterPosition, f.Delete)).ShouldBe([
             (@"My Mix\02. Old - Gone.m4a", @"My Mix\02. Old - Gone.m4a", 1, false),
             (@"My Mix\notes.mp3", @"My Mix\notes.mp3", 2, false),
-        });
+]);
         plan.PlayerOnlyFiles[0].File.ShouldBeSameAs(gone);
-        plan.Rows.Select(r => r.Track?.Track.Title ?? r.PlayerOnlyFile!.File.Tags.Title).ShouldBe(new[] { "A", "Gone", "B", "Notes" });
-        Renames(plan).ShouldBe(new[] { (@"My Mix\03. Queen - B.m4a", @"My Mix\02. Queen - B.m4a") });
+        plan.Rows.Select(r => r.Track?.Track.Title ?? r.PlayerOnlyFile!.File.Tags.Title).ShouldBe(["A", "Gone", "B", "Notes"]);
+        Renames(plan).ShouldBe([(@"My Mix\03. Queen - B.m4a", @"My Mix\02. Queen - B.m4a")]);
         plan.Deletions.ShouldBeEmpty(customMessage: "Nothing is deleted unless the user selects it.");
     }
 
@@ -166,7 +161,7 @@ public class PlaylistPlannerTests
             [File(@"My Mix\01. Queen - A.m4a", "A"), File(@"My Mix\02. Old - Gone.m4a", "Gone", "Old"), File(@"My Mix\03. Old - Kept.m4a", "Kept", "Old")],
             cleanup: [@"my mix/02. Old - Gone.m4a", @"My Mix\01. Queen - A.m4a", @"Elsewhere.m4a"]);
 
-        plan.Deletions.Select(f => f.RelativePath).ShouldBe(new[] { @"My Mix\02. Old - Gone.m4a" });
+        plan.Deletions.Select(f => f.RelativePath).ShouldBe([@"My Mix\02. Old - Gone.m4a"]);
         plan.Tracks.ShouldHaveSingleItem().State.ShouldBe(PlaylistTrackState.InPlace, customMessage: "A playlist track is never deleted, even if selected.");
     }
 
@@ -177,11 +172,10 @@ public class PlaylistPlannerTests
             [Song("Under Pressure", isrc: "GB1"), Song("Heroes", "David Bowie")],
             [File(@"Queen\Hot Space (1982)\11. Under Pressure.mp3", "Under Pressure", isrc: "GB1"), File(@"Other Mix\01. David Bowie - Heroes.m4a", "Heroes", "David Bowie")]);
 
-        plan.Tracks.Select(t => (t.State, t.CopySourceRelativePath, t.TargetRelativePath)).ShouldBe(new (PlaylistTrackState, string?, string)[]
-        {
+        plan.Tracks.Select(t => (t.State, t.CopySourceRelativePath, t.TargetRelativePath)).ShouldBe([
             (PlaylistTrackState.CopyFromPlayer, @"Queen\Hot Space (1982)\11. Under Pressure.mp3", @"My Mix\01. Queen - Under Pressure.mp3"),
             (PlaylistTrackState.CopyFromPlayer, @"Other Mix\01. David Bowie - Heroes.m4a", @"My Mix\02. David Bowie - Heroes.m4a"),
-        });
+]);
         plan.PlayerOnlyFiles.ShouldBeEmpty(customMessage: "Files outside the folder are never player-only.");
     }
 
@@ -198,12 +192,11 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("New"), Song("A"), Song("A")], [File(@"My Mix\01. Queen - A.m4a", "A")]);
 
-        plan.Tracks.Select(t => (t.State, t.TargetRelativePath, t.CopySourceRelativePath)).ShouldBe(new (PlaylistTrackState, string, string?)[]
-        {
+        plan.Tracks.Select(t => (t.State, t.TargetRelativePath, t.CopySourceRelativePath)).ShouldBe([
             (PlaylistTrackState.Download, @"My Mix\01. Queen - New.m4a", null),
             (PlaylistTrackState.Renumber, @"My Mix\02. Queen - A.m4a", null),
             (PlaylistTrackState.CopyFromPlayer, @"My Mix\03. Queen - A.m4a", @"My Mix\02. Queen - A.m4a"),
-        });
+]);
     }
 
     [Test]
@@ -213,11 +206,10 @@ public class PlaylistPlannerTests
             [Song("A"), Song("B")],
             [File(@"My Mix\~mps-0a1b2c 02. Queen - A.m4a", "A"), File(@"My Mix\02. Queen - B.m4a", "B"), File(@"My Mix\~mps-ffffff 07. Old - Gone.m4a", "Gone", "Old")]);
 
-        Renames(plan).ShouldBe(new[]
-        {
+        Renames(plan).ShouldBe([
             (@"My Mix\~mps-0a1b2c 02. Queen - A.m4a", @"My Mix\01. Queen - A.m4a"),
             (@"My Mix\~mps-ffffff 07. Old - Gone.m4a", @"My Mix\07. Old - Gone.m4a"),
-        }, ignoreOrder: true);
+], ignoreOrder: true);
         plan.Tracks[1].State.ShouldBe(PlaylistTrackState.InPlace);
     }
 

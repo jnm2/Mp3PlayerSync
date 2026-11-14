@@ -48,7 +48,8 @@ public class PlayerCoverArtTests
         art.ShouldNotBeNull().MimeType.ShouldBe("image/jpeg");
         PlayerCoverArt.ReadJpegFrame(art.Data).ShouldBe(new JpegFrame(IsBaseline: true, 500, 500));
         var (left, right) = await EdgePixelsAsync(art.Data);
-        new[] { left, right }.ShouldAllBe(p => p.G > 200 && p.R < 50 && p.B < 50, customMessage: "Only the green center is left");
+        (byte B, byte G, byte R)[] edges = [left, right];
+        edges.ShouldAllBe(p => p.G > 200 && p.R < 50 && p.B < 50, customMessage: "Only the green center is left");
     }
 
     [Test]
@@ -81,7 +82,7 @@ public class PlayerCoverArtTests
         converter.Converted.ShouldBeEmpty(customMessage: "Art that's ready is embedded as is");
 
         (await fetcher.FetchAsync("https://i.ytimg.com/vi/vid00000001/hq720.jpg")).ShouldNotBeNull().Data.ShouldBe(FakeConverter.Output);
-        converter.Converted.ShouldBe(new[] { progressive });
+        converter.Converted.ShouldBe([progressive]);
     }
 
     [Test]

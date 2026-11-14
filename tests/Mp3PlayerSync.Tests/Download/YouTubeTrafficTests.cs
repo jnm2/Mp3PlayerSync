@@ -93,7 +93,7 @@ public class YouTubeTrafficTests
     public void Stays_within_250_requests_in_10_minutes_and_1000_in_an_hour()
     {
         var traffic = Create();
-        var sent = new List<DateTimeOffset>();
+        List<DateTimeOffset> sent = [];
         for (var i = 0; i < 30; i++)
         {
             while (traffic.TryTakeTurn(40) is { Granted: false } turn) clock.Advance(turn.Wait);

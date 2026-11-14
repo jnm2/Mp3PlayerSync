@@ -16,7 +16,8 @@ public class RerunningCheckTests
         // Asked twice while the first check waits, such as after a sync and by the drive watcher
         var asked = check.RunAsync();
         var askedAgain = check.RunAsync();
-        new[] { asked, askedAgain }.ShouldAllBe(task => task.IsCompleted, "Asking while it runs doesn't wait for it");
+        asked.IsCompleted.ShouldBeTrue("Asking while it runs doesn't wait for it");
+        askedAgain.IsCompleted.ShouldBeTrue();
 
         first.SetResult();
         await running;

@@ -27,6 +27,6 @@ public class ClientHintsTests
     {
         BrandVersion[] brands = [new("Chromium", "157"), new("Microsoft Edge WebView2", "157"), new("Something", "1"), new("Else", "2")];
 
-        ClientHints.AsEdge(brands).Select(b => b.Brand).ShouldBe(new[] { "Chromium", "Something", "Else" });
+        ClientHints.AsEdge(brands).Select(b => b.Brand).ShouldBe(["Chromium", "Something", "Else"]);
     }
 }

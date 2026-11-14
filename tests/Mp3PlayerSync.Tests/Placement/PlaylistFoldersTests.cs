@@ -210,7 +210,7 @@ public class PlaylistFoldersDiskTests
         var folder = PlaylistFolders.Assign(root, "https://open.spotify.com/playlist/a", "Mix", "me");
 
         PlaylistFolders.FinishRename(root, folder).ShouldBe("Mix");
-        Directory.GetDirectories(root).Select(Path.GetFileName).ShouldBe(new string?[] { "Mix" });
+        Directory.GetDirectories(root).Select(Path.GetFileName).ShouldBe(["Mix"]);
     }
 
     [Test]

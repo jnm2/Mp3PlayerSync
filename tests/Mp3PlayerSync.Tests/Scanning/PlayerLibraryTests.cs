@@ -73,7 +73,7 @@ public class PlayerLibraryTests
 
         var found = AudioFileScanner.EnumerateAudioFiles(root).Select(f => Path.GetRelativePath(root, f.FullName)).ToArray();
 
-        found.ShouldBe(new[] { "a.mp3", @"Music\Artist\Album\Disc 1\Deep\b.flac" });
+        found.ShouldBe(["a.mp3", @"Music\Artist\Album\Disc 1\Deep\b.flac"]);
     }
 
     [Test]
@@ -99,7 +99,7 @@ public class PlayerLibraryTests
         Touch(@"Unknown\01 - Untagged Song.mp3");
 
         using var library = new PlayerLibrary(root, new PlayerLibraryOptions { WatchForChanges = false });
-        var progress = new List<PlayerScanProgress>();
+        List<PlayerScanProgress> progress = [];
         library.ProgressChanged += (_, p) => { lock (progress) progress.Add(p); };
         library.Start();
         await library.ScanCompletion.WaitAsync(TimeSpan.FromSeconds(30));
@@ -112,9 +112,9 @@ public class PlayerLibraryTests
         tagged.ShouldSatisfyAllConditions(
             t => t.HasTags.ShouldBeTrue(),
             t => t.Tags.Title.ShouldBe("Under Pressure"),
-            t => t.Tags.Artists.ShouldBe(new[] { "Queen", "David Bowie" }),
+            t => t.Tags.Artists.ShouldBe(["Queen", "David Bowie"]),
             t => t.Tags.Album.ShouldBe("Hot Space"),
-            t => t.Tags.AlbumArtists.ShouldBe(new[] { "Queen" }),
+            t => t.Tags.AlbumArtists.ShouldBe(["Queen"]),
             t => t.Tags.TrackNumber.ShouldBe(11),
             t => t.Tags.DiscNumber.ShouldBe(1),
             t => t.Tags.Year.ShouldBe(1982),

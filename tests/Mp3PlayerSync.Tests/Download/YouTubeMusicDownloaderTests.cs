@@ -39,7 +39,7 @@ public class YouTubeMusicDownloaderTests
 
     private static string[] SongSearches(FakeSource source)
     {
-        lock (source) return source.Searches.Where(s => s.Section == YouTubeMusicSearchSection.Songs).Select(s => s.SearchText.Replace(" Artist", "")).ToArray();
+        lock (source) return [.. source.Searches.Where(s => s.Section == YouTubeMusicSearchSection.Songs).Select(s => s.SearchText.Replace(" Artist", ""))];
     }
 
     private static async Task WaitUntilIdleAsync(YouTubeMusicDownloader downloader)
@@ -64,23 +64,22 @@ public class YouTubeMusicDownloaderTests
     public async Task Finds_in_background_returning_known_results_instantly()
     {
         var source = new FakeSource();
-        var tracks = new[] { AddSong(source, "A"), AddSong(source, "B"), AddSong(source, "C"), AddSong(source, "D") };
+        ExportedTrack[] tracks = [AddSong(source, "A"), AddSong(source, "B"), AddSong(source, "C"), AddSong(source, "D")];
         using var downloader = CreateDownloader(source, maxParallelLookups: 2);
         downloader.Skip(tracks[1]);
-        var completed = new List<TrackResolutionProgress>();
+        List<TrackResolutionProgress> completed = [];
         downloader.LookupProgress += (_, p) => { lock (completed) if (p.Stage == TrackResolutionStage.Completed) completed.Add(p); };
 
         var immediate = downloader.FindInBackground(tracks);
 
-        immediate.Select(r => r?.State).ShouldBe(new TrackResolutionState?[] { null, TrackResolutionState.Skipped, null, null });
+        immediate.Select(r => r?.State).ShouldBe([null, TrackResolutionState.Skipped, null, null]);
         await WaitUntilIdleAsync(downloader);
         await WaitUntilAsync(() => { lock (completed) return completed.Count == 3; });
 
-        completed.Select(p => (p.Track, p.Resolution!.State)).ShouldBe(new[]
-        {
+        completed.Select(p => (p.Track, p.Resolution!.State)).ShouldBe([
             (tracks[0], TrackResolutionState.Resolved), (tracks[2], TrackResolutionState.Resolved), (tracks[3], TrackResolutionState.Resolved),
-        }, ignoreOrder: true);
-        SongSearches(source).ShouldBe(new[] { "A", "C", "D" }, ignoreOrder: true);
+], ignoreOrder: true);
+        SongSearches(source).ShouldBe(["A", "C", "D"], ignoreOrder: true);
         source.MaxConcurrentSearches.ShouldBeLessThanOrEqualTo(2);
         downloader.FindInBackground(tracks).Select(r => r?.State).ShouldAllBe(state => state != null, customMessage: "Remembered");
     }
@@ -89,7 +88,7 @@ public class YouTubeMusicDownloaderTests
     public async Task Stopping_background_finding_drops_queued_lookups_and_keeps_what_was_found()
     {
         var source = new FakeSource();
-        var songs = new[] { AddSong(source, "A"), AddSong(source, "B"), AddSong(source, "C") };
+        ExportedTrack[] songs = [AddSong(source, "A"), AddSong(source, "B"), AddSong(source, "C")];
         using var downloader = CreateDownloader(source, maxParallelLookups: 1);
         source.CloseGate();
 
@@ -99,7 +98,7 @@ public class YouTubeMusicDownloaderTests
         source.OpenGate();
         await WaitUntilIdleAsync(downloader);
 
-        SongSearches(source).ShouldBe(new[] { "A" }, customMessage: "B and C were dropped");
+        SongSearches(source).ShouldBe(["A"], customMessage: "B and C were dropped");
         downloader.GetCachedResolution(songs[0]).ShouldNotBeNull().State.ShouldBe(TrackResolutionState.Resolved, customMessage: "The lookup under way finished and was remembered");
     }
 
@@ -107,8 +106,8 @@ public class YouTubeMusicDownloaderTests
     public async Task Switching_playlists_drops_queued_lookups_for_the_old_one()
     {
         var source = new FakeSource();
-        var first = new[] { AddSong(source, "A"), AddSong(source, "B"), AddSong(source, "C") };
-        var second = new[] { AddSong(source, "D"), AddSong(source, "C"), AddSong(source, "E") };
+        ExportedTrack[] first = [AddSong(source, "A"), AddSong(source, "B"), AddSong(source, "C")];
+        ExportedTrack[] second = [AddSong(source, "D"), AddSong(source, "C"), AddSong(source, "E")];
         using var downloader = CreateDownloader(source, maxParallelLookups: 1);
         source.CloseGate();
 
@@ -119,7 +118,7 @@ public class YouTubeMusicDownloaderTests
         source.OpenGate();
         await WaitUntilIdleAsync(downloader);
 
-        SongSearches(source).ShouldBe(new[] { "A", "D", "C", "E" });
+        SongSearches(source).ShouldBe(["A", "D", "C", "E"]);
         downloader.GetCachedResolution(first[0]).ShouldNotBeNull().State.ShouldBe(TrackResolutionState.Resolved, customMessage: "The started lookup finished and was remembered");
         downloader.GetCachedResolution(first[1]).ShouldBeNull();
     }
@@ -128,7 +127,7 @@ public class YouTubeMusicDownloaderTests
     public async Task Awaited_lookups_go_ahead_of_background_lookups_and_join_ones_in_progress()
     {
         var source = new FakeSource();
-        var background = new[] { AddSong(source, "A"), AddSong(source, "B"), AddSong(source, "C") };
+        ExportedTrack[] background = [AddSong(source, "A"), AddSong(source, "B"), AddSong(source, "C")];
         var urgent = AddSong(source, "D");
         using var downloader = CreateDownloader(source, maxParallelLookups: 1);
         source.CloseGate();
@@ -142,7 +141,7 @@ public class YouTubeMusicDownloaderTests
 
         results.Select(r => r.State).ShouldAllBe(state => state == TrackResolutionState.Resolved);
         results[1].Track.ShouldBeSameAs(background[0]);
-        SongSearches(source).ShouldBe(new[] { "A", "D", "B", "C" }, customMessage: "A was joined, not searched again");
+        SongSearches(source).ShouldBe(["A", "D", "B", "C"], customMessage: "A was joined, not searched again");
     }
 
     [Test]
@@ -161,7 +160,7 @@ public class YouTubeMusicDownloaderTests
 
         result.Succeeded.ShouldBeTrue(customMessage: result.FailureReason);
         source.Searches.Count.ShouldBe(searches);
-        source.Extractions.ShouldBe(new[] { "BaxnrepwXck" }, ignoreOrder: false, customMessage: "Only the lookup's extraction");
+        source.Extractions.ShouldBe(["BaxnrepwXck"], ignoreOrder: false, customMessage: "Only the lookup's extraction");
         source.Downloads.ShouldHaveSingleItem().FromInfoJson.ShouldBeTrue();
     }
 
@@ -175,7 +174,7 @@ public class YouTubeMusicDownloaderTests
     private static FakeSource LoseYourselfSource(bool includeExplicit = true, bool includeClean = true, bool badges = true)
     {
         var source = new FakeSource();
-        var lines = new List<string>();
+        List<string> lines = [];
         if (includeExplicit) lines.Add(YtDlpSamples.Video("explicit001", "Lose Yourself", "Lose Yourself", ["Eminem"], "8 Mile", 320, lines.Count + 1, "Eminem"));
         if (includeClean) lines.Add(YtDlpSamples.Video("clean000001", "Lose Yourself", "Lose Yourself", ["Eminem"], "8 Mile", 320, lines.Count + 1, "Eminem"));
         source.AddSearch("Lose Yourself Eminem", lines);
@@ -202,7 +201,7 @@ public class YouTubeMusicDownloaderTests
         var resolution = (await downloader.ResolveTracksAsync([LoseYourself(isExplicit)], null, CancellationToken.None)).ShouldHaveSingleItem();
 
         resolution.Video.ShouldNotBeNull().VideoId.ShouldBe(expectedVideoId, customMessage: resolution.Reason);
-        source.Extractions.ShouldBe(new[] { expectedVideoId }, ignoreOrder: false, customMessage: "The right version is verified first");
+        source.Extractions.ShouldBe([expectedVideoId], ignoreOrder: false, customMessage: "The right version is verified first");
     }
 
     [Test]
@@ -260,7 +259,7 @@ public class YouTubeMusicDownloaderTests
     {
         var source = UnderPressureSource();
         using var downloader = CreateDownloader(source);
-        var stages = new List<TrackResolutionStage>();
+        List<TrackResolutionStage> stages = [];
 
         var resolution = (await downloader.ResolveTracksAsync([UnderPressure], new SynchronousProgress<TrackResolutionProgress>(p => stages.Add(p.Stage)), CancellationToken.None)).ShouldHaveSingleItem();
 
@@ -272,10 +271,10 @@ public class YouTubeMusicDownloaderTests
         video.Album.ShouldBe("Hot Space");
         video.Duration.ShouldBe(TimeSpan.FromSeconds(248));
         video.Source.ShouldBe(ResolutionSource.Automatic);
-        video.Artists.ShouldBe(new[] { "Queen", "David Bowie" });
+        video.Artists.ShouldBe(["Queen", "David Bowie"]);
         video.Url.ShouldBe("https://music.youtube.com/watch?v=BaxnrepwXck");
-        source.Extractions.ShouldBe(new[] { "BaxnrepwXck" });
-        stages.ShouldBe(new[] { TrackResolutionStage.Queued, TrackResolutionStage.Searching, TrackResolutionStage.Completed });
+        source.Extractions.ShouldBe(["BaxnrepwXck"]);
+        stages.ShouldBe([TrackResolutionStage.Queued, TrackResolutionStage.Searching, TrackResolutionStage.Completed]);
     }
 
     [Test]
@@ -287,7 +286,7 @@ public class YouTubeMusicDownloaderTests
         var resolution = (await downloader.ResolveTracksAsync([UnderPressure with { Album = "Greatest Hits II" }], null, CancellationToken.None)).ShouldHaveSingleItem();
 
         resolution.Video.ShouldNotBeNull().VideoId.ShouldBe("BaxnrepwXck");
-        source.Extractions.ShouldBe(new[] { "BaxnrepwXck", "nbwn21TU4ec" }, ignoreOrder: false, customMessage: "Not the live versions or other songs");
+        source.Extractions.ShouldBe(["BaxnrepwXck", "nbwn21TU4ec"], ignoreOrder: false, customMessage: "Not the live versions or other songs");
     }
 
     [Test]
@@ -304,7 +303,7 @@ public class YouTubeMusicDownloaderTests
         var resolution = (await downloader.ResolveTracksAsync([Track("Song", "Artist", 200)], null, CancellationToken.None)).ShouldHaveSingleItem();
 
         resolution.Video.ShouldNotBeNull().VideoId.ShouldBe("original001");
-        source.Extractions.ShouldBe(new[] { "cover000001", "original001" });
+        source.Extractions.ShouldBe(["cover000001", "original001"]);
     }
 
     [Test]
@@ -319,11 +318,10 @@ public class YouTubeMusicDownloaderTests
 
         var resolutions = await reloaded.ResolveTracksAsync([UnderPressure, sameRecordingOnACompilation], null, CancellationToken.None);
 
-        resolutions.Select(r => (r.State, r.FromCache, r.Video?.VideoId, r.Video?.Source)).ShouldBe(new (TrackResolutionState, bool, string?, ResolutionSource?)[]
-        {
+        resolutions.Select(r => (r.State, r.FromCache, r.Video?.VideoId, r.Video?.Source)).ShouldBe([
             (TrackResolutionState.Resolved, true, "BaxnrepwXck", ResolutionSource.Automatic),
             (TrackResolutionState.Resolved, true, "BaxnrepwXck", ResolutionSource.Automatic),
-        });
+]);
         resolutions[0].Video.ShouldNotBeNull().Title.ShouldBe("Under Pressure");
         source.Searches.ShouldBeEmpty();
     }
@@ -346,8 +344,8 @@ public class YouTubeMusicDownloaderTests
         resolution.State.ShouldBe(TrackResolutionState.NeedsReview);
         resolution.NeedsReview.ShouldBeTrue();
         resolution.Video.ShouldBeNull();
-        resolution.Candidates.Select(c => c.Video.Id).ShouldBe(new[] { "cover000001", "other000001" });
-        resolution.Candidates[0].Video.Artists.ShouldBe(new[] { "Tribute Band" });
+        resolution.Candidates.Select(c => c.Video.Id).ShouldBe(["cover000001", "other000001"]);
+        resolution.Candidates[0].Video.Artists.ShouldBe(["Tribute Band"]);
         resolution.Candidates[0].HasAcceptableAudio.ShouldBeTrue();
         resolution.Reason.ShouldBe("No confident match on YouTube Music. The closest result was \"Song\" by Tribute Band (3:20).");
 
@@ -359,7 +357,7 @@ public class YouTubeMusicDownloaderTests
             remembered.FromCache.ShouldBeTrue();
             remembered.Reason.ShouldBe(resolution.Reason);
             remembered.Candidates.Select(c => (c.Video.Id, c.Video.Url, c.Video.Album, c.Video.Duration, c.Score, c.Format)).ShouldBe(resolution.Candidates.Select(c => (c.Video.Id, c.Video.Url, c.Video.Album, c.Video.Duration, c.Score, c.Format)));
-            remembered.Candidates[0].Video.Artists.ShouldBe(new[] { "Tribute Band" });
+            remembered.Candidates[0].Video.Artists.ShouldBe(["Tribute Band"]);
             source.Searches.Count.ShouldBe(2, customMessage: "Not looked up again");
         }
 
@@ -478,7 +476,7 @@ public class YouTubeMusicDownloaderTests
         using var downloader = CreateDownloader(source);
         var resolution = (await downloader.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).ShouldHaveSingleItem();
         var request = Request(resolution, "track");
-        var stages = new List<TrackDownloadStage>();
+        List<TrackDownloadStage> stages = [];
 
         var result = await downloader.DownloadTrackAsync(request, p => stages.Add(p.Stage), CancellationToken.None);
 
@@ -486,10 +484,10 @@ public class YouTubeMusicDownloaderTests
         result.Format.ShouldNotBeNull().FormatId.ShouldBe("140");
         result.Audio.ShouldNotBeNull().IsAac.ShouldBeTrue();
         source.Extractions.ShouldHaveSingleItem();
-        source.Downloads.ShouldBe(new[] { ("BaxnrepwXck", true, "140/bestaudio[acodec^=mp4a][abr>=96][protocol=https]") });
+        source.Downloads.ShouldBe([("BaxnrepwXck", true, "140/bestaudio[acodec^=mp4a][abr>=96][protocol=https]")]);
         M4aRemuxer.ReadAudioInfo(request.DestinationPath).IsAac.ShouldBeTrue();
-        stages.Distinct().ShouldBe(new[] { TrackDownloadStage.Queued, TrackDownloadStage.Downloading, TrackDownloadStage.Remuxing, TrackDownloadStage.Succeeded });
-        Directory.GetFiles(directory).ShouldBe(new[] { request.DestinationPath }, customMessage: "No intermediate files are left behind");
+        stages.Distinct().ShouldBe([TrackDownloadStage.Queued, TrackDownloadStage.Downloading, TrackDownloadStage.Remuxing, TrackDownloadStage.Succeeded]);
+        Directory.GetFiles(directory).ShouldBe([request.DestinationPath], customMessage: "No intermediate files are left behind");
     }
 
     [Test]
@@ -672,12 +670,12 @@ public class YouTubeMusicDownloaderTests
         var source = UnderPressureSource();
         using var reloaded = CreateDownloader(source);
         var cached = (await reloaded.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).ShouldHaveSingleItem();
-        var stages = new List<TrackDownloadStage>();
+        List<TrackDownloadStage> stages = [];
 
         var result = await reloaded.DownloadTrackAsync(Request(cached, "track"), p => stages.Add(p.Stage), CancellationToken.None);
 
         result.Succeeded.ShouldBeTrue(customMessage: result.FailureReason);
-        source.Extractions.ShouldBe(new[] { "BaxnrepwXck" });
+        source.Extractions.ShouldBe(["BaxnrepwXck"]);
         stages.ShouldContain(TrackDownloadStage.Preparing);
     }
 
@@ -725,7 +723,7 @@ public class YouTubeMusicDownloaderTests
     public async Task Downloads_in_parallel_up_to_the_limit_and_isolates_failures()
     {
         var source = new FakeSource { DownloadDelay = TimeSpan.FromMilliseconds(100) };
-        var tracks = new List<ExportedTrack>();
+        List<ExportedTrack> tracks = [];
         for (var i = 0; i < 6; i++)
         {
             var title = $"Song {i}";
@@ -741,7 +739,7 @@ public class YouTubeMusicDownloaderTests
         var results = await downloader.DownloadTracksAsync(requests, null, CancellationToken.None);
 
         results.Select(r => r.Request).ShouldBe(requests);
-        results.Select(r => r.Succeeded).ShouldBe(new[] { true, true, false, true, true, true });
+        results.Select(r => r.Succeeded).ShouldBe([true, true, false, true, true, true]);
         results[2].FailureReason.ShouldBe("ERROR: [youtube] video000002: Video unavailable");
         source.MaxConcurrentDownloads.ShouldBe(2);
     }
@@ -795,15 +793,15 @@ public class YouTubeMusicDownloaderTests
     public async Task Lookups_and_downloads_share_one_limit()
     {
         var source = new FakeSource { DownloadDelay = TimeSpan.FromMilliseconds(50) };
-        var toDownload = new[] { AddSong(source, "A"), AddSong(source, "B") };
-        var toFind = new[] { AddSong(source, "C"), AddSong(source, "D") };
+        ExportedTrack[] toDownload = [AddSong(source, "A"), AddSong(source, "B")];
+        ExportedTrack[] toFind = [AddSong(source, "C"), AddSong(source, "D")];
         using var downloader = CreateDownloader(source, maxParallelDownloads: 2, maxParallelLookups: 2, maxParallelLookupsAndDownloads: 2);
         var resolutions = await downloader.ResolveTracksAsync(toDownload, null, CancellationToken.None);
 
         source.CloseGate();
         downloader.FindInBackground(toFind);
         await WaitUntilAsync(() => source.ConcurrentSearches == 2);
-        var downloads = downloader.DownloadTracksAsync(resolutions.Select((r, i) => Request(r, $"track{i}")).ToList(), null, CancellationToken.None);
+        var downloads = downloader.DownloadTracksAsync([.. resolutions.Select((r, i) => Request(r, $"track{i}"))], null, CancellationToken.None);
         await Task.Delay(100);
         (string VideoId, bool FromInfoJson, string FormatSelector)[] started;
         lock (source) started = [.. source.Downloads];
@@ -921,10 +919,9 @@ public class YouTubeMusicDownloaderTests
                 var lines = section == YouTubeMusicSearchSection.Songs ? searches.GetValueOrDefault(searchText) ?? [] : [];
 
                 // Flat results only have an ID, title, and rank.
-                return lines.Take(maxResults)
+                return [.. lines.Take(maxResults)
                     .Select(YouTubeVideoInfo.Parse)
-                    .Select(v => new YouTubeVideoInfo(v.Id, v.Url, v.Title, null, [], null, null, null, v.SearchRank, []) { IsExplicit = ExplicitBadges.TryGetValue(v.Id, out var e) ? e : null })
-                    .ToList();
+                    .Select(v => new YouTubeVideoInfo(v.Id, v.Url, v.Title, null, [], null, null, null, v.SearchRank, []) { IsExplicit = ExplicitBadges.TryGetValue(v.Id, out var e) ? e : null })];
             }
             finally
             {
@@ -940,7 +937,7 @@ public class YouTubeMusicDownloaderTests
         {
             if (ExtractError is not null) throw new YtDlpException(ExtractError, 1);
 
-            var results = new List<YouTubeVideoInfo>();
+            List<YouTubeVideoInfo> results = [];
             foreach (var url in videoUrls)
             {
                 var id = url[(url.IndexOf("v=", StringComparison.Ordinal) + 2)..];

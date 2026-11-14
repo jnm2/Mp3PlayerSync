@@ -44,7 +44,7 @@ public class PlacementExecutorTests
     {
         WritePlayerFile("Queen - Staying Power.m4a", "existing");
         var under = WriteDownload("a.m4a", "under pressure");
-        var tracks = new[] { Track("u", "Under Pressure", 11) };
+        PlacementTrack[] tracks = [Track("u", "Under Pressure", 11)];
         var plan = PlacementPlanner.Plan(tracks, [new PlayerFile("Queen - Staying Power.m4a", "Queen", "Hot Space", 1, "Staying Power", "Queen")]);
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, t => t.Id == "u" ? under : null);
@@ -95,10 +95,10 @@ public class PlacementExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, t => t.Id == "missing" ? null : WriteDownload(t.Id, t.Id));
 
-        report.Failed.Select(c => c.FromRelativePath ?? c.TrackId).ShouldBe(new string?[] { "gone.m4a", "missing", "escape" });
+        report.Failed.Select(c => c.FromRelativePath ?? c.TrackId).ShouldBe(["gone.m4a", "missing", "escape"]);
         report.Added.ShouldHaveSingleItem().TrackId.ShouldBe("ok");
         File.Exists(Path.Combine(Path.GetDirectoryName(root)!, "outside.m4a")).ShouldBeFalse();
-        Directory.GetFiles(root, "*", SearchOption.AllDirectories).Select(Path.GetFileName).ShouldBe(new string?[] { "C.m4a" });
+        Directory.GetFiles(root, "*", SearchOption.AllDirectories).Select(Path.GetFileName).ShouldBe(["C.m4a"]);
     }
 
     [Test]

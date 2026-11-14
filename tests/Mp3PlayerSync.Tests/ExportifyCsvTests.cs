@@ -23,7 +23,7 @@ public class ExportifyCsvTests
             s => s.Number.ShouldBe(1),
             s => s.Uri.ShouldBe("spotify:track:1"),
             s => s.Title.ShouldBe("September"),
-            s => s.Artists.ShouldBe(new[] { "Earth, Wind & Fire" }),
+            s => s.Artists.ShouldBe(["Earth, Wind & Fire"]),
             s => s.Album.ShouldBe("The Best Of Earth, Wind & Fire, Vol. 1"),
             s => s.Duration.ShouldBe(TimeSpan.FromMilliseconds(215093)),
             s => s.DurationText.ShouldBe("3:35"),
@@ -31,7 +31,7 @@ public class ExportifyCsvTests
             s => s.Explicit.ShouldBe(false),
             s => s.Genres.ShouldBe("disco,funk"));
 
-        playlist.Tracks[1].Artists.ShouldBe(new[] { "Queen", "David Bowie" });
+        playlist.Tracks[1].Artists.ShouldBe(["Queen", "David Bowie"]);
         playlist.Tracks[1].ArtistsText.ShouldBe("Queen, David Bowie");
     }
 
@@ -56,7 +56,7 @@ public class ExportifyCsvTests
 
         var track = ExportifyCsv.Parse(csv).Tracks.ShouldHaveSingleItem();
 
-        track.Artists.ShouldBe(new[] { "Earth, Wind & Fire", "Chaka Khan" });
+        track.Artists.ShouldBe(["Earth, Wind & Fire", "Chaka Khan"]);
         track.DurationText.ShouldBe("1:02:05");
         track.ReleaseDate.ShouldBe("2000");
     }

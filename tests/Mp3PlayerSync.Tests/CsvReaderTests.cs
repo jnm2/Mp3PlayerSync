@@ -9,11 +9,10 @@ public class CsvReaderTests
     {
         var records = CsvReader.Parse("a,\"b, \"\"c\"\"\",\"line1\r\nline2\"\r\nx,,z\n");
 
-        records.ShouldBe(new[]
-        {
-            new[] { "a", "b, \"c\"", "line1\r\nline2" },
-            new[] { "x", "", "z" },
-        });
+        records.ShouldBe([
+            ["a", "b, \"c\"", "line1\r\nline2"],
+            ["x", "", "z"],
+]);
     }
 
     [Test]
@@ -33,6 +32,6 @@ public class CsvReaderTests
     [Test]
     public void Quoted_empty_field_on_its_own_line_is_a_record()
     {
-        CsvReader.Parse("\"\"\n").ShouldBe(new[] { new[] { "" } });
+        CsvReader.Parse("\"\"\n").ShouldBe([[""]]);
     }
 }

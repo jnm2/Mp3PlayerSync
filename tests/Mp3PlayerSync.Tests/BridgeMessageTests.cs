@@ -15,11 +15,10 @@ public class BridgeMessageTests
             """);
 
         message.Type.ShouldBe(BridgeMessage.PlaylistsType);
-        message.Playlists.ShouldBe(new[]
-        {
+        message.Playlists.ShouldBe([
             new PlaylistSummary("https://open.spotify.com/collection/tracks", "Liked Songs", "me", 12, "https://open.spotify.com/collection/tracks", "https://exportify.net/liked_songs.jpeg"),
             new PlaylistSummary("row:1", "Odd", "", null, null),
-        });
+]);
     }
 
     [Test]

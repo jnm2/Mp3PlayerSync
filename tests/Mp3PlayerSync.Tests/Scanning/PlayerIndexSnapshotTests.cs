@@ -18,8 +18,8 @@ public class PlayerIndexSnapshotTests
         var cleanFile = File(@"E:\clean.m4a", "Song", ["Artist"], isExplicit: false);
         var snapshot = new PlayerIndexSnapshot([explicitFile, cleanFile]);
 
-        snapshot.Match(Track("Song", ["Artist"], isExplicit: true)).Files.ShouldBe(new[] { explicitFile });
-        snapshot.Match(Track("Song", ["Artist"], isExplicit: false)).Files.ShouldBe(new[] { cleanFile });
+        snapshot.Match(Track("Song", ["Artist"], isExplicit: true)).Files.ShouldBe([explicitFile]);
+        snapshot.Match(Track("Song", ["Artist"], isExplicit: false)).Files.ShouldBe([cleanFile]);
     }
 
     [Test]
@@ -63,7 +63,7 @@ public class PlayerIndexSnapshotTests
 
         match.IsOnPlayer.ShouldBeTrue();
         match.Kind.ShouldBe(TrackMatchKind.Isrc);
-        match.Files.ShouldBe(new[] { file });
+        match.Files.ShouldBe([file]);
     }
 
     [Test]
@@ -73,7 +73,7 @@ public class PlayerIndexSnapshotTests
         var match = new PlayerIndexSnapshot([file]).Match(Track("Bohemian Rhapsody - Remastered 2011", ["Queen"], seconds: 354));
 
         match.Kind.ShouldBe(TrackMatchKind.ArtistAndTitle);
-        match.Files.ShouldBe(new[] { file });
+        match.Files.ShouldBe([file]);
     }
 
     [Test]
@@ -134,7 +134,7 @@ public class PlayerIndexSnapshotTests
         var match = new PlayerIndexSnapshot([a, b]).Match(Track("Song", ["Artist"], isrc: "USX"));
 
         match.Kind.ShouldBe(TrackMatchKind.Isrc);
-        match.Files.ShouldBe(new[] { b, a });
+        match.Files.ShouldBe([b, a]);
     }
 
     [Test]
@@ -153,8 +153,8 @@ public class PlayerIndexSnapshotTests
         var other = File(@"E:\Other\Hot Space.mp3", "Hot Space", ["Someone"], "Hot Space");
         var snapshot = new PlayerIndexSnapshot([one, two, other]);
 
-        snapshot.FindAlbum("Queen", "Hot Space").ShouldBe(new[] { one, two }, ignoreOrder: true);
-        snapshot.FindAlbum(Track("Under Pressure", ["Queen", "David Bowie"], "Hot Space")).ShouldBe(new[] { one, two }, ignoreOrder: true);
+        snapshot.FindAlbum("Queen", "Hot Space").ShouldBe([one, two], ignoreOrder: true);
+        snapshot.FindAlbum(Track("Under Pressure", ["Queen", "David Bowie"], "Hot Space")).ShouldBe([one, two], ignoreOrder: true);
         snapshot.FindAlbum([], "Hot Space").Count.ShouldBe(3);
         snapshot.FindAlbum("Queen", "Greatest Hits").ShouldBeEmpty();
     }
@@ -166,7 +166,7 @@ public class PlayerIndexSnapshotTests
         var two = File(@"E:\2.mp3", "B", ["Someone Else"], "Hot Space (Remastered)", ["The Queen"]);
         var snapshot = new PlayerIndexSnapshot([one, two, File(@"E:\3.mp3", "C", ["X"])]);
 
-        snapshot.Albums.Keys.ShouldBe(new[] { AlbumKey.Create("Queen", "Hot Space") });
-        snapshot.Albums[AlbumKey.Create("Queen", "Hot Space")].ShouldBe(new[] { one, two }, ignoreOrder: true);
+        snapshot.Albums.Keys.ShouldBe([AlbumKey.Create("Queen", "Hot Space")]);
+        snapshot.Albums[AlbumKey.Create("Queen", "Hot Space")].ShouldBe([one, two], ignoreOrder: true);
     }
 }

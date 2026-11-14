@@ -13,11 +13,11 @@ public class YouTubeVideoInfoTests
             v => v.Id.ShouldBe("BaxnrepwXck"),
             v => v.Url.ShouldBe("https://music.youtube.com/watch?v=BaxnrepwXck"),
             v => v.Track.ShouldBe("Under Pressure"),
-            v => v.Artists.ShouldBe(new[] { "Queen", "David Bowie" }),
+            v => v.Artists.ShouldBe(["Queen", "David Bowie"]),
             v => v.Album.ShouldBe("Hot Space"),
             v => v.Duration.ShouldBe(TimeSpan.FromSeconds(248)),
             v => v.SearchRank.ShouldBe(1),
-            v => v.Formats.Select(f => f.FormatId).ShouldBe(new[] { "sb0", "233", "139", "249", "140", "251", "616" }));
+            v => v.Formats.Select(f => f.FormatId).ShouldBe(["sb0", "233", "139", "249", "140", "251", "616"]));
 
         var aac = video.Formats.Single(f => f.FormatId == "140");
         aac.ShouldBe(new YouTubeFormat("140", "m4a", "mp4a.40.2", "none", 129.573, 44100, "https", "medium", null, false));
@@ -32,7 +32,7 @@ public class YouTubeVideoInfoTests
         var video = YouTubeVideoInfo.Parse("""{"id": "x", "title": "Song", "artist": "Earth, Wind & Fire, Chaka Khan"}""");
 
         // yt-dlp joins artists with ", ", so a name containing a comma can't be told apart here.
-        video.Artists.ShouldBe(new[] { "Earth", "Wind & Fire", "Chaka Khan" });
+        video.Artists.ShouldBe(["Earth", "Wind & Fire", "Chaka Khan"]);
         video.Duration.ShouldBeNull();
         video.Formats.ShouldBeEmpty();
     }
@@ -42,7 +42,7 @@ public class YouTubeVideoInfoTests
     {
         var videos = YouTubeVideoInfo.ParseLines([YtDlpSamples.UnderPressureSearch[0], "", "WARNING: something", YtDlpSamples.UnderPressureSearch[1]]);
 
-        videos.Select(v => v.Id).ShouldBe(new[] { "BaxnrepwXck", "nbwn21TU4ec" });
+        videos.Select(v => v.Id).ShouldBe(["BaxnrepwXck", "nbwn21TU4ec"]);
     }
 
     [Test]
@@ -51,7 +51,7 @@ public class YouTubeVideoInfoTests
         var video = YouTubeVideoInfo.Parse("""{"id": "x", "title": "D\u00e9j\u00e0 Vu", "artists": ["Beyonc\u00e9", "JA\u0178-Z"]}""");
 
         video.Title.ShouldBe("Déjà Vu");
-        video.Artists.ShouldBe(new[] { "Beyoncé", "JAŸ-Z" });
+        video.Artists.ShouldBe(["Beyoncé", "JAŸ-Z"]);
     }
 }
 

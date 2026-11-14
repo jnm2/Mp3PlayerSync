@@ -107,7 +107,7 @@ public partial class DesignDecisionSourceTests
     [Test]
     public void DEV_1_DevTools_are_only_ever_enabled_in_Debug_builds()
     {
-        var enabled = new List<string>();
+        List<string> enabled = [];
         foreach (var path in SourceFiles("*.cs"))
         {
             var debugOnly = new Stack<bool>();

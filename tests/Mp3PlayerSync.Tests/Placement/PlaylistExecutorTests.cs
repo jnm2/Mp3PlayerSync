@@ -1,4 +1,6 @@
+using Mp3PlayerSync.Core;
 using Mp3PlayerSync.Core.Placement;
+using Mp3PlayerSync.Core.Scanning;
 
 namespace Mp3PlayerSync.Tests.Placement;
 
@@ -36,13 +38,12 @@ public class PlaylistExecutorTests
     [Test]
     public async Task Applies_deletions_swaps_copies_and_downloads()
     {
-        var files = new[]
-        {
+        IndexedFile[] files = [
             Put(@"My Mix\01. Queen - A.m4a", "A"),
             Put(@"My Mix\02. Queen - B.m4a", "B"),
             Put(@"My Mix\03. Old - Gone.m4a", "Gone", "Old"),
             Put(@"Queen - C.m4a", "C"),
-        };
+];
         var download = Path.Combine(downloads, "d.m4a");
         File.WriteAllText(download, "D");
         var plan = PlaylistPlanner.Plan("My Mix", [PlaylistPlannerTests.Song("B"), PlaylistPlannerTests.Song("A"), PlaylistPlannerTests.Song("C"), PlaylistPlannerTests.Song("D")],
@@ -54,8 +55,8 @@ public class PlaylistExecutorTests
             r => r.Failed.ShouldBeEmpty(),
             r => r.Deleted.ShouldHaveSingleItem().FromRelativePath.ShouldBe(@"My Mix\03. Old - Gone.m4a"),
             r => r.Renamed.Count().ShouldBe(2),
-            r => r.Added.Select(c => (c.TrackId, c.FromRelativePath)).ShouldBe(new (string?, string?)[] { ("3", "Queen - C.m4a"), ("4", null) }),
-            _ => FolderContents("My Mix").ShouldBe(new[] { "01. Queen - B.m4a", "02. Queen - A.m4a", "03. Queen - C.m4a", "04. Queen - D.m4a" }),
+            r => r.Added.Select(c => (c.TrackId, c.FromRelativePath)).ShouldBe([("3", "Queen - C.m4a"), ("4", null)]),
+            _ => FolderContents("My Mix").ShouldBe(["01. Queen - B.m4a", "02. Queen - A.m4a", "03. Queen - C.m4a", "04. Queen - D.m4a"]),
             _ => Read(@"My Mix\01. Queen - B.m4a").ShouldBe("B"),
             _ => Read(@"My Mix\02. Queen - A.m4a").ShouldBe("A"),
             _ => Read(@"My Mix\03. Queen - C.m4a").ShouldBe("C"),
@@ -65,11 +66,11 @@ public class PlaylistExecutorTests
     [Test]
     public async Task Rerunning_a_finished_plan_changes_nothing()
     {
-        var files = new[] { Put(@"My Mix\01. Queen - A.m4a", "A"), Put(@"My Mix\02. Queen - B.m4a", "B") };
-        var tracks = new[] { PlaylistPlannerTests.Song("B"), PlaylistPlannerTests.Song("A") };
+        IndexedFile[] files = [Put(@"My Mix\01. Queen - A.m4a", "A"), Put(@"My Mix\02. Queen - B.m4a", "B")];
+        ExportedTrack[] tracks = [PlaylistPlannerTests.Song("B"), PlaylistPlannerTests.Song("A")];
         await new PlacementExecutor(root).ExecuteAsync(PlaylistPlanner.Plan("My Mix", tracks, root, files), _ => null);
 
-        var rescanned = new[] { PlaylistPlannerTests.FileAt(root, @"My Mix\01. Queen - B.m4a", "B"), PlaylistPlannerTests.FileAt(root, @"My Mix\02. Queen - A.m4a", "A") };
+        IndexedFile[] rescanned = [PlaylistPlannerTests.FileAt(root, @"My Mix\01. Queen - B.m4a", "B"), PlaylistPlannerTests.FileAt(root, @"My Mix\02. Queen - A.m4a", "A")];
         var plan = PlaylistPlanner.Plan("My Mix", tracks, root, rescanned);
 
         plan.Tracks.Select(t => t.State).ShouldAllBe(item => item == PlaylistTrackState.InPlace);
@@ -80,13 +81,13 @@ public class PlaylistExecutorTests
     public async Task Interrupted_renumbering_converges_on_the_next_run()
     {
         // As if the previous run stopped after parking A on its way from 02 to 01.
-        var files = new[] { Put(@"My Mix\~mps-0a1b2c 02. Queen - A.m4a", "A"), Put(@"My Mix\01. Queen - B.m4a", "B") };
+        IndexedFile[] files = [Put(@"My Mix\~mps-0a1b2c 02. Queen - A.m4a", "A"), Put(@"My Mix\01. Queen - B.m4a", "B")];
         var plan = PlaylistPlanner.Plan("My Mix", [PlaylistPlannerTests.Song("A"), PlaylistPlannerTests.Song("B")], root, files);
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, _ => null);
 
         report.Failed.ShouldBeEmpty();
-        FolderContents("My Mix").ShouldBe(new[] { "01. Queen - A.m4a", "02. Queen - B.m4a" });
+        FolderContents("My Mix").ShouldBe(["01. Queen - A.m4a", "02. Queen - B.m4a"]);
         Read(@"My Mix\01. Queen - A.m4a").ShouldBe("A");
     }
 
@@ -94,7 +95,7 @@ public class PlaylistExecutorTests
     public async Task Renumbering_renames_the_files_without_copying_them()
     {
         // WRITE-4 in docs/design-decisions.md
-        var files = new[] { Put(@"My Mix\01. Queen - A.m4a", "A"), Put(@"My Mix\02. Queen - B.m4a", "B") };
+        IndexedFile[] files = [Put(@"My Mix\01. Queen - A.m4a", "A"), Put(@"My Mix\02. Queen - B.m4a", "B")];
         var idOfA = FileId(@"My Mix\01. Queen - A.m4a");
         var idOfB = FileId(@"My Mix\02. Queen - B.m4a");
         var plan = PlaylistPlanner.Plan("My Mix", [PlaylistPlannerTests.Song("B"), PlaylistPlannerTests.Song("A")], root, files);
@@ -134,13 +135,13 @@ public class PlaylistExecutorTests
 
         await new PlacementExecutor(root).ExecuteAsync(PlaylistPlanner.Plan("My Mix", [], root, []), _ => null);
 
-        FolderContents("My Mix").ShouldBe(new[] { "~mps-notours.partial" });
+        FolderContents("My Mix").ShouldBe(["~mps-notours.partial"]);
     }
 
     [Test]
     public async Task Rename_never_overwrites_a_file_that_appeared_after_planning()
     {
-        var files = new[] { Put(@"My Mix\02. Queen - A.m4a", "A") };
+        IndexedFile[] files = [Put(@"My Mix\02. Queen - A.m4a", "A")];
         var plan = PlaylistPlanner.Plan("My Mix", [PlaylistPlannerTests.Song("A")], root, files);
         Put(@"My Mix\01. Queen - A.m4a", "squatter");
 
@@ -153,12 +154,12 @@ public class PlaylistExecutorTests
     [Test]
     public async Task Missing_download_and_vanished_copy_source_are_reported()
     {
-        var files = new[] { Put(@"Queen - C.m4a", "C") };
+        IndexedFile[] files = [Put(@"Queen - C.m4a", "C")];
         var plan = PlaylistPlanner.Plan("My Mix", [PlaylistPlannerTests.Song("C"), PlaylistPlannerTests.Song("D")], root, files);
         File.Delete(Path.Combine(root, "Queen - C.m4a"));
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, _ => null);
 
-        report.Failed.Select(c => c.TrackId).ShouldBe(new string?[] { "1", "2" });
+        report.Failed.Select(c => c.TrackId).ShouldBe(["1", "2"]);
     }
 }
