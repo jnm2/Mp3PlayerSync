@@ -13,7 +13,8 @@ namespace Mp3PlayerSync.E2EHost;
 /// While this file exists, looking for songs in the background stops after the first <see cref="HeldAfter"/> of each
 /// batch, so a test can see progress that would otherwise be over in a moment.
 /// </param>
-internal sealed class FakeTrackFinder(string audioPath, string? holdFile = null) : ITrackFinder
+/// <param name="recorder">Writes down the songs it's asked to look for in the background, if a test asked for it.</param>
+internal sealed class FakeTrackFinder(string audioPath, string? holdFile = null, TrackRecorder? recorder = null) : ITrackFinder
 {
     public const int HeldAfter = 10;
     private static readonly YouTubeFormat Aac = new("140", "m4a", "mp4a.40.2", "none", 129, 44100, "https", "medium", null, false);
@@ -39,6 +40,7 @@ internal sealed class FakeTrackFinder(string audioPath, string? holdFile = null)
 
     public IReadOnlyList<TrackResolution?> FindInBackground(IReadOnlyList<ExportedTrack> tracks)
     {
+        recorder?.Record(tracks);
         background?.Cancel();
         var cancellation = background = new CancellationTokenSource();
         var results = tracks.Select(GetCachedResolution).ToList();
