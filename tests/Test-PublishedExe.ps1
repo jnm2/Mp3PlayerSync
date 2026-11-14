@@ -39,7 +39,9 @@ try {
         if (!$exitCode) { Copy-Item "$output\host\Mp3PlayerSync.pri" "$output\host\resources.pri" }
     }
     if (!$exitCode) {
-        & "$PSScriptRoot\Invoke-EndToEnd.ps1" -AppPath "$output\host\Mp3PlayerSync.E2EHost.exe" -Only $Only -ScreenshotFolder $ScreenshotFolder -Desktop $Desktop
+        # CI doubles every wait (see Test-MockEndToEnd.ps1), so it gets twice as long in all too.
+        $timeout = if ($env:CI -eq 'true') { 30 } else { 15 }
+        & "$PSScriptRoot\Invoke-EndToEnd.ps1" -AppPath "$output\host\Mp3PlayerSync.E2EHost.exe" -Only $Only -ScreenshotFolder $ScreenshotFolder -Desktop $Desktop -TimeoutMinutes $timeout
         $exitCode = $LASTEXITCODE
     }
 }
