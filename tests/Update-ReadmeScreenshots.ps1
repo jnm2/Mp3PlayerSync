@@ -16,6 +16,7 @@ param(
     # Set when this script runs itself on the hidden desktop
     [string] $ScreenshotFolder,
     [string] $AppPath = (Get-ChildItem "$PSScriptRoot\Mp3PlayerSync.E2EHost\bin\Debug" -Recurse -Filter Mp3PlayerSync.E2EHost.exe | Select-Object -First 1).FullName,
+    [string] $MockPath = (Get-ChildItem "$PSScriptRoot\Mp3PlayerSync.MockExportify\bin\Debug" -Recurse -Filter Mp3PlayerSync.MockExportify.exe | Select-Object -First 1).FullName,
     [string] $OutputFolder = (Join-Path $PSScriptRoot '..\docs\images'),
     # The window's size in device-independent pixels
     [int] $Width = 1100,
@@ -157,11 +158,7 @@ function Get-DemoTrack([string] $playlistId, [int] $index) {
     [pscustomobject]@{ Title = $library.titles[($seed + $index * 5) % $library.titles.Count]; Artist = $artist[0] }
 }
 
-$port = Get-Random -Minimum 20000 -Maximum 40000
-$url = "http://localhost:$port/"
-$dataDir = Join-Path ([IO.Path]::GetTempPath()) "Mp3PlayerSyncScreenshots-$port"
-$env:MP3PLAYERSYNC_EXPORTIFY_URL = "$($url)?autoSignIn&demo"
-$env:MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL = "http://127.0.0.1:$port/"
+$dataDir = Join-Path ([IO.Path]::GetTempPath()) "Mp3PlayerSyncScreenshots-$PID"
 $env:MP3PLAYERSYNC_DATA_DIR = $dataDir
 $env:MP3PLAYERSYNC_TEST_FAKE_AUDIO = Join-Path $PSScriptRoot 'Mp3PlayerSync.Tests\Tagging\Assets\silence.m4a'
 
@@ -184,10 +181,19 @@ foreach ($i in 0..($playlist.total - $playlist.newSinceLastSync - 1)) {
     [IO.File]::WriteAllBytes((Join-Path $playlistFolder ('{0:00}. {1} - {2}.m4a' -f ($i + 1), $track.Artist, $track.Title)), [byte[]](1..64))
 }
 
-$server = Start-Job { param($script, $port) & $script -Port $port } -ArgumentList "$PSScriptRoot\Start-MockExportify.ps1", $port
+# The mock picks a free port itself, and the first line it prints is its address.
+$mockLog = Join-Path ([IO.Path]::GetTempPath()) "Mp3PlayerSyncScreenshotsMock-$PID"
+$server = Start-Process $MockPath -ArgumentList '--port', '0' -PassThru -NoNewWindow -RedirectStandardOutput "$mockLog.out" -RedirectStandardError "$mockLog.err"
 $process = $null
 try {
-    Wait-Until { try { (Invoke-WebRequest $url -UseBasicParsing).StatusCode -eq 200 } catch { $false } } 'the mock server' | Out-Null
+    $url = Wait-Until {
+        if ($server.HasExited) { throw "The mock server exited: $(Get-Content "$mockLog.out", "$mockLog.err" -ErrorAction SilentlyContinue)" }
+        $address = Select-String -LiteralPath "$mockLog.out" -Pattern '^Mock Exportify listening on (\S+)' -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($address) { $address.Matches[0].Groups[1].Value }
+    } 'the mock server'
+    $env:MP3PLAYERSYNC_EXPORTIFY_URL = "$($url)?autoSignIn&demo"
+    # The mock's fake Spotify sign-in page, on another origin like accounts.spotify.com
+    $env:MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL = $url -replace '//localhost:', '//127.0.0.1:'
     $process = Start-Process $AppPath -PassThru
     $window = Wait-Until { $AE::RootElement.FindFirst($TreeScope::Children, [System.Windows.Automation.PropertyCondition]::new($AE::ProcessIdProperty, $process.Id)) } 'the app window'
     $hwnd = [IntPtr]$window.Current.NativeWindowHandle
@@ -230,6 +236,7 @@ try {
     exit 1
 } finally {
     if ($process -and !$process.HasExited) { $process.CloseMainWindow() | Out-Null; if (!$process.WaitForExit(5000)) { $process.Kill() } }
-    Stop-Job $server -ErrorAction SilentlyContinue; Remove-Job $server -Force -ErrorAction SilentlyContinue
+    if (!$server.HasExited) { $server.Kill(); $server.WaitForExit() }
+    Remove-Item "$mockLog.out", "$mockLog.err" -ErrorAction SilentlyContinue
     Remove-Item $dataDir -Recurse -Force -ErrorAction SilentlyContinue
 }
