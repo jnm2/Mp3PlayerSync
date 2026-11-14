@@ -1100,6 +1100,9 @@ try {
                 (Pattern $syncButton ([System.Windows.Automation.InvokePattern])).Invoke()
                 $synced = Wait-Until { $s = @(Get-ChildItem $card -Recurse -Filter *.m4a -ErrorAction SilentlyContinue); if ($s.Count -eq 6) { $s } } "the six songs on $label" 60
                 Wait-Until { (Get-AllText $window) -match '(?m)^On player$' } 'the synced song to show as on the player' 30 | Out-Null
+                # The sync goes on after the last file is in place (the playlist folder's marker, then the result), and
+                # closing the window before then asks "Stop syncing and close?" (SYNC-10).
+                Wait-Until { (Get-AllText $window) -match 'Synced 6 songs to' } "the sync to $label to finish" 30 | Out-Null
                 Check $true "[PLAYER-7] The scan reads where $label was synced: the synced song is on the player"
                 return @($synced | ForEach-Object { [IO.Path]::GetRelativePath($card, $_.FullName) })
             } finally { Stop-App $process }
