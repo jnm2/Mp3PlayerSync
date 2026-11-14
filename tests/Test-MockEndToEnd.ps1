@@ -442,10 +442,17 @@ function Status-Tone($window, $row, [string] $status) {
         for ($x = $right - 20; $x -lt $right; $x++) {
             for ($y = $top; $y -lt [int]($text.Bottom - $capture.Top); $y++) {
                 $c = $capture.Bitmap.GetPixel($x, $y)
-                if ($c.G -gt $c.R + 40 -and $c.G -gt $c.B + 20) { $counts.Success++ }
-                elseif ($c.R -gt 120 -and $c.G -gt 100 -and $c.B -lt $c.G - 60 -and [Math]::Abs($c.R - $c.G) -lt 60) { $counts.Caution++ }
-                elseif ($c.R -gt $c.G + 40 -and $c.R -gt $c.B + 30) { $counts.Critical++ }
-                elseif ([Math]::Max($c.R, [Math]::Max($c.G, $c.B)) - [Math]::Min($c.R, [Math]::Min($c.G, $c.B)) -lt 30 -and [Math]::Abs($c.GetBrightness() - $background) -gt 0.25) { $counts.Neutral++ }
+                # By hue, which anti-aliasing against the background keeps, unlike the channels themselves. Fluent's
+                # brushes: success #0F7B0F (light) and #6CCB5F (dark) at 120° and 113°, caution #9D5D00 and #FCE100 at
+                # 36° and 54°, critical #C42B1C and #FF99A4 at 5° and 354°.
+                $chroma = [Math]::Max($c.R, [Math]::Max($c.G, $c.B)) - [Math]::Min($c.R, [Math]::Min($c.G, $c.B))
+                $hue = $c.GetHue()
+                if ($chroma -ge 40) {
+                    if ($hue -ge 90 -and $hue -le 150) { $counts.Success++ }
+                    elseif ($hue -ge 25 -and $hue -le 65) { $counts.Caution++ }
+                    elseif ($hue -lt 15 -or $hue -gt 340) { $counts.Critical++ }
+                }
+                elseif ($chroma -lt 30 -and [Math]::Abs($c.GetBrightness() - $background) -gt 0.25) { $counts.Neutral++ }
             }
         }
     } finally { $capture.Bitmap.Dispose() }
