@@ -7,7 +7,7 @@ namespace Mp3PlayerSync.Tests;
 public partial class FailureTextTests
 {
     // What exportify.js puts in its #error element, as innerText.
-    private static readonly string[] PageErrors =
+    private static string[] PageErrors() =>
     [
         "The server returned an HTTP 403 response.",
         "The server returned an HTTP 429 response.",
@@ -22,9 +22,10 @@ public partial class FailureTextTests
     ];
 
     [Test]
+    [MatrixDataSource]
     public void No_message_names_the_browser_or_Exportify(
-        [ValueSource(nameof(PageErrors))] string pageError,
-        [Values(null, "busy", "notListed", "noButton", "noCsv", "readFailed", "sessionEnded", "unknown")] string? code)
+        [MatrixMethod<FailureTextTests>(nameof(PageErrors))] string pageError,
+        [Matrix(null, "busy", "notListed", "noButton", "noCsv", "readFailed", "sessionEnded", "unknown")] string? code)
     {
         string[] messages =
         [
@@ -33,46 +34,48 @@ public partial class FailureTextTests
             FailureText.ForExport(code, null),
         ];
 
-        Assert.That(messages, Has.None.Match("(?i)browser|exportify"));
-        Assert.That(messages, Has.All.Not.Empty);
+        messages.ShouldNotContain(message => Regex.IsMatch(message, "(?i)browser|exportify"));
+        messages.ShouldAllBe(message => !string.IsNullOrEmpty(message));
     }
 
-    [TestCase("The server returned an HTTP 429 response.", FailureText.Busy)]
-    [TestCase("The server returned an HTTP 401 response.", FailureText.SessionEnded)]
-    [TestCase("The server returned an HTTP 403 response.\nThe server returned an HTTP 403 response.", "Spotify refused some requests (HTTP 403).")]
-    [TestCase("Exportify has encountered a bad gateway while querying endpoint https://api.spotify.com/v1/me!", "Spotify is having trouble right now (HTTP 502). Try again in a moment.")]
-    [TestCase("Couldn't export Mix. Encountered TypeError: oops", FailureText.TryAgain)]
+    [Test]
+    [Arguments("The server returned an HTTP 429 response.", FailureText.Busy)]
+    [Arguments("The server returned an HTTP 401 response.", FailureText.SessionEnded)]
+    [Arguments("The server returned an HTTP 403 response.\nThe server returned an HTTP 403 response.", "Spotify refused some requests (HTTP 403).")]
+    [Arguments("Exportify has encountered a bad gateway while querying endpoint https://api.spotify.com/v1/me!", "Spotify is having trouble right now (HTTP 502). Try again in a moment.")]
+    [Arguments("Couldn't export Mix. Encountered TypeError: oops", FailureText.TryAgain)]
     public void Page_errors_are_said_plainly(string pageError, string expected)
     {
-        Assert.That(FailureText.ForPageError(pageError), Is.EqualTo(expected));
+        FailureText.ForPageError(pageError).ShouldBe(expected);
     }
 
     [Test]
     public void No_page_error_is_no_message()
     {
-        Assert.That(FailureText.ForPageError("  "), Is.Null);
-        Assert.That(FailureText.ForExport("noCsv", ""), Is.EqualTo(FailureText.TryAgain));
+        FailureText.ForPageError("  ").ShouldBeNull();
+        FailureText.ForExport("noCsv", "").ShouldBe(FailureText.TryAgain);
     }
 
-    [TestCase("notListed", "The server returned an HTTP 500 response.", FailureText.NotListed)]
-    [TestCase("busy", null, FailureText.StillLoading)]
-    [TestCase("noCsv", "The server returned an HTTP 429 response.", FailureText.Busy)]
+    [Test]
+    [Arguments("notListed", "The server returned an HTTP 500 response.", FailureText.NotListed)]
+    [Arguments("busy", null, FailureText.StillLoading)]
+    [Arguments("noCsv", "The server returned an HTTP 429 response.", FailureText.Busy)]
     public void Export_failures_are_worded_by_code(string code, string? pageError, string expected)
     {
-        Assert.That(FailureText.ForExport(code, pageError), Is.EqualTo(expected));
+        FailureText.ForExport(code, pageError).ShouldBe(expected);
     }
 
     [Test]
     public void The_bridge_only_sends_codes_the_app_knows()
     {
-        var root = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (!File.Exists(Path.Combine(root.FullName, "Mp3PlayerSync.slnx"))) root = root.Parent!;
         var bridge = File.ReadAllText(Path.Combine(root.FullName, "src", "Mp3PlayerSync", "ExportifyBridge.js"));
         var sent = BridgeCode().Matches(bridge).Select(m => m.Groups[1].Value).Distinct().ToList();
         var known = typeof(FailureText.Codes).GetFields().Select(f => (string)f.GetValue(null)!).ToList();
 
-        Assert.That(sent, Is.Not.Empty);
-        Assert.That(sent, Is.SubsetOf(known));
+        sent.ShouldNotBeEmpty();
+        sent.ShouldBeSubsetOf(known);
     }
 
     [GeneratedRegex(@"(?:fail\(|code: )'(\w+)'")]

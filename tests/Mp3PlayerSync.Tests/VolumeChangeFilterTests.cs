@@ -13,7 +13,7 @@ public class VolumeChangeFilterTests
         filter.OnAdded();
         filter.OnEnumerationCompleted();
 
-        Assert.That(changes, Is.Zero);
+        changes.ShouldBe(0);
     }
 
     [Test]
@@ -27,7 +27,7 @@ public class VolumeChangeFilterTests
         filter.OnAdded();
         filter.OnUpdated();
 
-        Assert.That(changes, Is.EqualTo(2));
+        changes.ShouldBe(2);
     }
 
     [Test]
@@ -39,6 +39,6 @@ public class VolumeChangeFilterTests
 
         filter.OnRemoved();
 
-        Assert.That(changes, Is.EqualTo(1));
+        changes.ShouldBe(1);
     }
 }

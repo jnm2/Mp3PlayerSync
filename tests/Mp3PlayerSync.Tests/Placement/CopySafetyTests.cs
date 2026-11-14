@@ -1,4 +1,5 @@
 using Mp3PlayerSync.Core.Placement;
+using Mp3PlayerSync.Core.Scanning;
 using Mp3PlayerSync.Core.Sync;
 
 namespace Mp3PlayerSync.Tests.Placement;
@@ -8,7 +9,7 @@ public class CopySafetyTests
     private string root = null!;
     private string downloads = null!;
 
-    [SetUp]
+    [Before(Test)]
     public void SetUp()
     {
         var baseDirectory = Path.Combine(Path.GetTempPath(), "Mp3PlayerSync.Tests", Guid.NewGuid().ToString("N"));
@@ -18,7 +19,7 @@ public class CopySafetyTests
         Directory.CreateDirectory(downloads);
     }
 
-    [TearDown]
+    [After(Test)]
     public void TearDown() => Directory.Delete(Path.GetDirectoryName(root)!, recursive: true);
 
     private static PlacementTrack Track(string id) => new(id, "Song " + id, "Queen", ["Queen"], "", null, null, ".m4a");
@@ -31,10 +32,10 @@ public class CopySafetyTests
     }
 
     private string[] PlayerFiles() =>
-        Directory.GetFiles(root, "*", SearchOption.AllDirectories).Select(p => Path.GetRelativePath(root, p)).Order(StringComparer.Ordinal).ToArray();
+        [.. Directory.GetFiles(root, "*", SearchOption.AllDirectories).Select(p => Path.GetRelativePath(root, p)).Order(StringComparer.Ordinal)];
 
     private static PlacementPlan Plan(params string[] ids) =>
-        new([], ids.Select(id => new PlannedNewFile(Track(id), $"Queen - Song {id}.m4a")).ToList());
+        new([], [.. ids.Select(id => new PlannedNewFile(Track(id), $"Queen - Song {id}.m4a"))]);
 
     [Test]
     public async Task Failed_copy_leaves_nothing_on_the_player_and_keeps_the_download()
@@ -48,9 +49,9 @@ public class CopySafetyTests
 
         var report = await executor.ExecuteAsync(Plan("1"), _ => source);
 
-        Assert.That(report.Failed.Single().Error, Is.EqualTo("The device is not ready."));
-        Assert.That(PlayerFiles(), Is.Empty, "The partial copy is deleted.");
-        Assert.That(File.Exists(source), Is.True);
+        report.Failed.ShouldHaveSingleItem().Error.ShouldBe("The device is not ready.");
+        PlayerFiles().ShouldBeEmpty(customMessage: "The partial copy is deleted.");
+        File.Exists(source).ShouldBeTrue();
     }
 
     [Test]
@@ -60,8 +61,8 @@ public class CopySafetyTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, _ => Download("a.m4a"));
 
-        Assert.That(report.Failed.Count(), Is.EqualTo(1));
-        Assert.That(PlayerFiles(), Is.Empty);
+        report.Failed.ShouldHaveSingleItem();
+        PlayerFiles().ShouldBeEmpty();
     }
 
     [Test]
@@ -81,31 +82,28 @@ public class CopySafetyTests
 
         var report = await executor.ExecuteAsync(plan, t => sources[t.Id], cancellation.Token);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(report.Canceled, Is.True);
-            Assert.That(report.Changes.Select(c => (c.Kind, c.Succeeded, c.ActualRelativePath)), Is.EqualTo(new[]
-            {
+        report.ShouldSatisfyAllConditions(
+            r => r.Canceled.ShouldBeTrue(),
+            r => r.Changes.Select(c => (c.Kind, c.Succeeded, c.ActualRelativePath)).ShouldBe([
                 (PlacementChangeKind.Moved, true, @"Old\old.m4a"),
                 (PlacementChangeKind.Added, true, "Queen - Song 1.m4a"),
-            }));
-            Assert.That(PlayerFiles(), Is.EqualTo(new[] { @"Old\old.m4a", "Queen - Song 1.m4a" }), "No partial or later file is left.");
-            Assert.That(File.Exists(sources["1"]), Is.False, "A copied download is deleted.");
-            Assert.That(File.Exists(sources["2"]), Is.True, "An unfinished one is kept.");
-        });
+]),
+            _ => PlayerFiles().ShouldBe([@"Old\old.m4a", "Queen - Song 1.m4a"], customMessage: "No partial or later file is left."),
+            _ => File.Exists(sources["1"]).ShouldBeFalse(customMessage: "A copied download is deleted."),
+            _ => File.Exists(sources["2"]).ShouldBeTrue(customMessage: "An unfinished one is kept."));
     }
 
     [Test]
     public async Task Copying_from_elsewhere_on_the_player_never_deletes_the_original()
     {
         File.WriteAllText(Path.Combine(root, "Queen - A.m4a"), "A");
-        var files = new[] { PlaylistPlannerTests.FileAt(root, "Queen - A.m4a", "A") };
+        IndexedFile[] files = [PlaylistPlannerTests.FileAt(root, "Queen - A.m4a", "A")];
         var plan = PlaylistPlanner.Plan("Mix", [PlaylistPlannerTests.Song("A")], root, files);
 
         var report = await new PlacementExecutor(root) { DeleteDownloadsAfterCopy = true }.ExecuteAsync(plan, _ => null);
 
-        Assert.That(report.Added.Single().ActualRelativePath, Is.EqualTo(@"Mix\01. Queen - A.m4a"));
-        Assert.That(File.Exists(Path.Combine(root, "Queen - A.m4a")), Is.True);
+        report.Added.ShouldHaveSingleItem().ActualRelativePath.ShouldBe(@"Mix\01. Queen - A.m4a");
+        File.Exists(Path.Combine(root, "Queen - A.m4a")).ShouldBeTrue();
     }
 
     [Test]
@@ -118,7 +116,7 @@ public class CopySafetyTests
 
         await new PlacementExecutor(root).ExecuteAsync(Plan(), _ => null);
 
-        Assert.That(PlayerFiles(), Is.EqualTo(new[] { @"Artist\Album\~mps-0f0f0f 01. Kept.m4a" }));
+        PlayerFiles().ShouldBe([@"Artist\Album\~mps-0f0f0f 01. Kept.m4a"]);
     }
 
     [Test]
@@ -128,12 +126,11 @@ public class CopySafetyTests
         File.WriteAllText(Path.Combine(root, @"Mix\01. Queen - A.m4a"), "A");
         File.WriteAllText(Path.Combine(root, @"Mix\02. Queen - B.m4a"), "B");
         File.WriteAllText(Path.Combine(root, @"Mix\03. Old - Gone.m4a"), "Gone");
-        var files = new[]
-        {
+        IndexedFile[] files = [
             PlaylistPlannerTests.FileAt(root, @"Mix\01. Queen - A.m4a", "A"),
             PlaylistPlannerTests.FileAt(root, @"Mix\02. Queen - B.m4a", "B"),
             PlaylistPlannerTests.FileAt(root, @"Mix\03. Old - Gone.m4a", "Gone", "Old"),
-        };
+];
         var folder = PlaylistFolders.Assign(root, "https://open.spotify.com/playlist/a", "Mix", "me");
         PlaylistFolders.Claim(root, folder);
         var before = Snapshot();
@@ -144,8 +141,8 @@ public class CopySafetyTests
         PlaylistFolders.FinishRename(root, folder);
         await new PlacementExecutor(root).ExecuteAsync(new PlacementPlan([], []), _ => null);
 
-        Assert.That(report.Changes, Is.Empty);
-        Assert.That(Snapshot(), Is.EqualTo(before));
+        report.Changes.ShouldBeEmpty();
+        Snapshot().ShouldBe(before);
     }
 
     // Every entry with its timestamps and attributes; a folder's write time changes whenever an entry in it is
@@ -153,10 +150,9 @@ public class CopySafetyTests
     private string[] Snapshot()
     {
         var root = new DirectoryInfo(this.root);
-        return root.EnumerateFileSystemInfos("*", SearchOption.AllDirectories).Append(root)
+        return [.. root.EnumerateFileSystemInfos("*", SearchOption.AllDirectories).Append(root)
             .Select(e => $"{e.FullName}|{e.LastWriteTimeUtc.Ticks}|{e.CreationTimeUtc.Ticks}|{e.Attributes}|{(e as FileInfo)?.Length}")
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+            .Order(StringComparer.Ordinal)];
     }
 
     [Test]
@@ -170,11 +166,11 @@ public class CopySafetyTests
 
         using var next = StagingDirectory.Create(work);
 
-        Assert.That(Directory.Exists(Path.Combine(work, "crashed")), Is.False);
-        Assert.That(File.Exists(Path.Combine(running.Path, "1.m4a")), Is.True);
+        Directory.Exists(Path.Combine(work, "crashed")).ShouldBeFalse();
+        File.Exists(Path.Combine(running.Path, "1.m4a")).ShouldBeTrue();
 
         next.Dispose();
-        Assert.That(Directory.Exists(next.Path), Is.False);
+        Directory.Exists(next.Path).ShouldBeFalse();
     }
 
     /// <summary>Returns <paramref name="chunks"/> chunks of data, then runs <paramref name="afterChunks"/> on the next read.</summary>

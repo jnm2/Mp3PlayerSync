@@ -9,14 +9,14 @@ public class SpaceEstimateTests
     [Test]
     public void A_download_is_estimated_from_its_length()
     {
-        Assert.That(SpaceEstimate.ForDownload(TimeSpan.FromMinutes(3)), Is.EqualTo(3_600_000 + SpaceEstimate.PerFileBytes));
-        Assert.That(SpaceEstimate.ForDownload(null), Is.EqualTo(SpaceEstimate.ForDownload(SpaceEstimate.UnknownDuration)));
+        SpaceEstimate.ForDownload(TimeSpan.FromMinutes(3)).ShouldBe(3_600_000 + SpaceEstimate.PerFileBytes);
+        SpaceEstimate.ForDownload(null).ShouldBe(SpaceEstimate.ForDownload(SpaceEstimate.UnknownDuration));
     }
 
     [Test]
     public void Everything_fits()
     {
-        Assert.That(SpaceEstimate.Check([10 * MB, 10 * MB], freeBytes: 20 * MB + SpaceEstimate.MarginBytes), Is.Null);
+        SpaceEstimate.Check([10 * MB, 10 * MB], freeBytes: 20 * MB + SpaceEstimate.MarginBytes).ShouldBeNull();
     }
 
     [Test]
@@ -24,19 +24,19 @@ public class SpaceEstimateTests
     {
         var shortfall = SpaceEstimate.Check([10 * MB, 10 * MB, 10 * MB], freeBytes: 15 * MB + SpaceEstimate.MarginBytes);
 
-        Assert.That(shortfall, Is.EqualTo(new SpaceShortfall(2, 15 * MB)));
-        Assert.That(SpaceEstimate.Describe(shortfall!), Is.EqualTo("2 songs won't fit. 15 MB more space is needed."));
+        shortfall.ShouldNotBeNull().ShouldBe(new SpaceShortfall(2, 15 * MB));
+        SpaceEstimate.Describe(shortfall).ShouldBe("2 songs won't fit. 15 MB more space is needed.");
     }
 
     [Test]
     public void Files_being_removed_make_room()
     {
-        Assert.That(SpaceEstimate.Check([10 * MB], freeBytes: SpaceEstimate.MarginBytes, freedBytes: 10 * MB), Is.Null);
+        SpaceEstimate.Check([10 * MB], freeBytes: SpaceEstimate.MarginBytes, freedBytes: 10 * MB).ShouldBeNull();
     }
 
     [Test]
     public void A_nearly_full_card_has_no_room_at_all()
     {
-        Assert.That(SpaceEstimate.Check([1 * MB], freeBytes: 1 * MB), Is.EqualTo(new SpaceShortfall(1, 1 * MB)));
+        SpaceEstimate.Check([1 * MB], freeBytes: 1 * MB).ShouldBe(new SpaceShortfall(1, 1 * MB));
     }
 }

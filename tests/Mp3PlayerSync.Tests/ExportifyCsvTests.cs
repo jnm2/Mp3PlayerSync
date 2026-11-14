@@ -16,25 +16,23 @@ public class ExportifyCsvTests
     {
         var playlist = ExportifyCsv.Parse(ExportifyNetCsv);
 
-        Assert.That(playlist.Tracks, Has.Count.EqualTo(3));
+        playlist.Tracks.Count.ShouldBe(3);
 
         var september = playlist.Tracks[0];
-        Assert.Multiple(() =>
-        {
-            Assert.That(september.Number, Is.EqualTo(1));
-            Assert.That(september.Uri, Is.EqualTo("spotify:track:1"));
-            Assert.That(september.Title, Is.EqualTo("September"));
-            Assert.That(september.Artists, Is.EqualTo(new[] { "Earth, Wind & Fire" }));
-            Assert.That(september.Album, Is.EqualTo("The Best Of Earth, Wind & Fire, Vol. 1"));
-            Assert.That(september.Duration, Is.EqualTo(TimeSpan.FromMilliseconds(215093)));
-            Assert.That(september.DurationText, Is.EqualTo("3:35"));
-            Assert.That(september.AddedAt, Is.EqualTo(new DateTimeOffset(2024, 3, 1, 12, 34, 56, TimeSpan.Zero)));
-            Assert.That(september.Explicit, Is.False);
-            Assert.That(september.Genres, Is.EqualTo("disco,funk"));
-        });
+        september.ShouldSatisfyAllConditions(
+            s => s.Number.ShouldBe(1),
+            s => s.Uri.ShouldBe("spotify:track:1"),
+            s => s.Title.ShouldBe("September"),
+            s => s.Artists.ShouldBe(["Earth, Wind & Fire"]),
+            s => s.Album.ShouldBe("The Best Of Earth, Wind & Fire, Vol. 1"),
+            s => s.Duration.ShouldBe(TimeSpan.FromMilliseconds(215093)),
+            s => s.DurationText.ShouldBe("3:35"),
+            s => s.AddedAt.ShouldBe(new DateTimeOffset(2024, 3, 1, 12, 34, 56, TimeSpan.Zero)),
+            s => s.Explicit.ShouldBe(false),
+            s => s.Genres.ShouldBe("disco,funk"));
 
-        Assert.That(playlist.Tracks[1].Artists, Is.EqualTo(new[] { "Queen", "David Bowie" }));
-        Assert.That(playlist.Tracks[1].ArtistsText, Is.EqualTo("Queen, David Bowie"));
+        playlist.Tracks[1].Artists.ShouldBe(["Queen", "David Bowie"]);
+        playlist.Tracks[1].ArtistsText.ShouldBe("Queen, David Bowie");
     }
 
     [Test]
@@ -42,13 +40,11 @@ public class ExportifyCsvTests
     {
         var removed = ExportifyCsv.Parse(ExportifyNetCsv).Tracks[2];
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(removed.Title, Is.Empty);
-            Assert.That(removed.Album, Is.Empty);
-            Assert.That(removed.Artists, Is.Empty);
-            Assert.That(removed.Duration, Is.Null);
-        });
+        removed.ShouldSatisfyAllConditions(
+            r => r.Title.ShouldBeEmpty(),
+            r => r.Album.ShouldBeEmpty(),
+            r => r.Artists.ShouldBeEmpty(),
+            r => r.Duration.ShouldBeNull());
     }
 
     [Test]
@@ -58,23 +54,23 @@ public class ExportifyCsvTests
             "\"Track URI\",\"Track Name\",\"Artist URI(s)\",\"Artist Name(s)\",\"Album URI\",\"Album Name\",\"Album Artist URI(s)\",\"Album Artist Name(s)\",\"Album Release Date\",\"Album Image URL\",\"Disc Number\",\"Track Number\",\"Track Duration (ms)\",\"Track Preview URL\",\"Explicit\",\"Popularity\",\"ISRC\",\"Added By\",\"Added At\"\n" +
             "\"spotify:track:1\",\"Song\",\"a, b\",\"Earth\\, Wind & Fire, Chaka Khan\",\"spotify:album:1\",\"Album\",\"\",\"\",\"2000\",\"\",\"1\",\"1\",\"3725000\",\"\",\"false\",\"1\",\"X\",\"\",\"2020-01-01T00:00:00Z\"\n";
 
-        var track = ExportifyCsv.Parse(csv).Tracks.Single();
+        var track = ExportifyCsv.Parse(csv).Tracks.ShouldHaveSingleItem();
 
-        Assert.That(track.Artists, Is.EqualTo(new[] { "Earth, Wind & Fire", "Chaka Khan" }));
-        Assert.That(track.DurationText, Is.EqualTo("1:02:05"));
-        Assert.That(track.ReleaseDate, Is.EqualTo("2000"));
+        track.Artists.ShouldBe(["Earth, Wind & Fire", "Chaka Khan"]);
+        track.DurationText.ShouldBe("1:02:05");
+        track.ReleaseDate.ShouldBe("2000");
     }
 
     [Test]
     public void Total_duration_sums_known_durations()
     {
-        Assert.That(ExportifyCsv.Parse(ExportifyNetCsv).TotalDuration, Is.EqualTo(TimeSpan.FromMilliseconds(215093 + 248440)));
+        ExportifyCsv.Parse(ExportifyNetCsv).TotalDuration.ShouldBe(TimeSpan.FromMilliseconds(215093 + 248440));
     }
 
     [Test]
     public void Rejects_csv_without_track_name_column()
     {
-        Assert.That(() => ExportifyCsv.Parse("Album URI,Album Name\nspotify:album:1,X\n"), Throws.TypeOf<FormatException>());
-        Assert.That(() => ExportifyCsv.Parse(""), Throws.TypeOf<FormatException>());
+        Should.Throw<FormatException>(() => ExportifyCsv.Parse("Album URI,Album Name\nspotify:album:1,X\n"));
+        Should.Throw<FormatException>(() => ExportifyCsv.Parse(""));
     }
 }

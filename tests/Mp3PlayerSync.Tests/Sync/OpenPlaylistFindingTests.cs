@@ -24,7 +24,7 @@ public class OpenPlaylistFindingTests
         finding.Find([Song("A1"), Song("A2")], Key);
         finding.Find([Song("B1")], Key);
 
-        Assert.That(finder.Calls, Is.EqualTo(new[] { "A1,A2", "B1" }), "Opening another playlist replaces what was queued");
+        finder.Calls.ShouldBe(["A1,A2", "B1"], ignoreOrder: false, customMessage: "Opening another playlist replaces what was queued");
     }
 
     [Test]
@@ -35,7 +35,7 @@ public class OpenPlaylistFindingTests
 
         finding.Stop();
 
-        Assert.That(finder.Calls, Is.EqualTo(new[] { "A1,A2", "" }));
+        finder.Calls.ShouldBe(["A1,A2", ""]);
     }
 
     [Test]
@@ -49,8 +49,8 @@ public class OpenPlaylistFindingTests
         finding.ResumeAfterSync();
         finding.Find([Song("B1")], Key);
 
-        Assert.That(during, Is.Null);
-        Assert.That(finder.Calls, Is.EqualTo(new[] { "A1,A2", "", "B1" }));
+        during.ShouldBeNull();
+        finder.Calls.ShouldBe(["A1,A2", "", "B1"]);
     }
 
     [Test]
@@ -58,12 +58,12 @@ public class OpenPlaylistFindingTests
     {
         var (finding, finder) = Create();
 
-        Assert.That(finding.Find([Song("A1")], Key), Is.Not.Null);
-        Assert.That(finding.Find([Song("A1")], Key), Is.Null);
+        finding.Find([Song("A1")], Key).ShouldNotBeNull();
+        finding.Find([Song("A1")], Key).ShouldBeNull();
         finding.Stop();
-        Assert.That(finding.Find([Song("A1")], Key), Is.Not.Null, "A reloaded playlist is looked for again");
+        finding.Find([Song("A1")], Key).ShouldNotBeNull(customMessage: "A reloaded playlist is looked for again");
 
-        Assert.That(finder.Calls, Is.EqualTo(new[] { "A1", "", "A1" }));
+        finder.Calls.ShouldBe(["A1", "", "A1"]);
     }
 
     [Test]
@@ -72,11 +72,11 @@ public class OpenPlaylistFindingTests
         var created = false;
         var finding = new OpenPlaylistFinding(() => { created = true; return new RecordingFinder(); });
 
-        Assert.That(finding.Find([], Key), Is.Empty);
+        finding.Find([], Key).ShouldBeEmpty();
         finding.Stop();
         finding.PauseForSync();
 
-        Assert.That(created, Is.False);
+        created.ShouldBeFalse();
     }
 
     private sealed class RecordingFinder : ITrackFinder
@@ -86,7 +86,7 @@ public class OpenPlaylistFindingTests
         public IReadOnlyList<TrackResolution?> FindInBackground(IReadOnlyList<ExportedTrack> tracks)
         {
             Calls.Add(string.Join(",", tracks.Select(t => t.Title)));
-            return tracks.Select(_ => (TrackResolution?)null).ToList();
+            return [.. tracks.Select(_ => (TrackResolution?)null)];
         }
 
         public event EventHandler<TrackResolutionProgress>? LookupProgress { add { } remove { } }

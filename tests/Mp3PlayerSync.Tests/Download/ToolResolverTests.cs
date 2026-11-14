@@ -7,14 +7,14 @@ public class ToolResolverTests
 {
     private string directory = null!;
 
-    [SetUp]
+    [Before(Test)]
     public void SetUp()
     {
         directory = Path.Join(Path.GetTempPath(), "Mp3PlayerSync.Tests", Path.GetRandomFileName());
         Directory.CreateDirectory(directory);
     }
 
-    [TearDown]
+    [After(Test)]
     public void TearDown() => Directory.Delete(directory, recursive: true);
 
     private static AvailableToolDownload ZipDownload(string version)
@@ -46,23 +46,23 @@ public class ToolResolverTests
 
         using var lease1 = await resolver.LeaseToolAsync(CancellationToken.None);
 
-        Assert.That(lease1.FilePath, Is.EqualTo(Path.Join(directory, "v1.0", "tool.exe")));
-        Assert.That(File.ReadAllText(lease1.FilePath), Is.EqualTo("tool 1.0"));
-        Assert.That(File.Exists(Path.Join(directory, "v1.0", "_internal", "lib.dll")));
-        Assert.That(Directory.GetFileSystemEntries(directory).Select(Path.GetFileName), Is.EqualTo(new[] { "v1.0" }), "No temporary files are left behind");
+        lease1.FilePath.ShouldBe(Path.Join(directory, "v1.0", "tool.exe"));
+        File.ReadAllText(lease1.FilePath).ShouldBe("tool 1.0");
+        File.Exists(Path.Join(directory, "v1.0", "_internal", "lib.dll")).ShouldBeTrue();
+        Directory.GetFileSystemEntries(directory).Select(Path.GetFileName).ShouldBe(["v1.0"], customMessage: "No temporary files are left behind");
 
         latest = "2.0";
         await resolver.CheckForUpdatesAsync(CancellationToken.None);
         using (var lease2 = await resolver.LeaseToolAsync(CancellationToken.None))
-            Assert.That(lease2.FilePath, Is.EqualTo(Path.Join(directory, "v2.0", "tool.exe")));
+            lease2.FilePath.ShouldBe(Path.Join(directory, "v2.0", "tool.exe"));
 
         resolver.PurgeOldVersions();
-        Assert.That(File.Exists(lease1.FilePath), "A version in use is not deleted");
+        File.Exists(lease1.FilePath).ShouldBeTrue(customMessage: "A version in use is not deleted");
 
         lease1.Dispose();
         resolver.PurgeOldVersions();
-        Assert.That(Directory.Exists(Path.Join(directory, "v1.0")), Is.False);
-        Assert.That(downloads, Is.EqualTo(2));
+        Directory.Exists(Path.Join(directory, "v1.0")).ShouldBeFalse();
+        downloads.ShouldBe(2);
     }
 
     [Test]
@@ -74,6 +74,6 @@ public class ToolResolverTests
         using var second = new ToolResolver(directory, "tool.exe", _ => throw new HttpRequestException("Offline"));
         using var lease = await second.LeaseToolAsync(CancellationToken.None);
 
-        Assert.That(lease.Version, Is.EqualTo("1.0"));
+        lease.Version.ShouldBe("1.0");
     }
 }

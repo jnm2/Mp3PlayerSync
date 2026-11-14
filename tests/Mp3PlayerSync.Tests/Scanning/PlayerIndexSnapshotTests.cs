@@ -18,8 +18,8 @@ public class PlayerIndexSnapshotTests
         var cleanFile = File(@"E:\clean.m4a", "Song", ["Artist"], isExplicit: false);
         var snapshot = new PlayerIndexSnapshot([explicitFile, cleanFile]);
 
-        Assert.That(snapshot.Match(Track("Song", ["Artist"], isExplicit: true)).Files, Is.EqualTo(new[] { explicitFile }));
-        Assert.That(snapshot.Match(Track("Song", ["Artist"], isExplicit: false)).Files, Is.EqualTo(new[] { cleanFile }));
+        snapshot.Match(Track("Song", ["Artist"], isExplicit: true)).Files.ShouldBe([explicitFile]);
+        snapshot.Match(Track("Song", ["Artist"], isExplicit: false)).Files.ShouldBe([cleanFile]);
     }
 
     [Test]
@@ -31,10 +31,10 @@ public class PlayerIndexSnapshotTests
             File(@"E:\b.mp3", "Song B", ["Artist"], album: "Album [Explicit]"),
         ]);
 
-        Assert.That(snapshot.Match(Track("Song A", ["Artist"], isExplicit: true)).IsOnPlayer, Is.False);
-        Assert.That(snapshot.Match(Track("Song A", ["Artist"], isExplicit: false)).IsOnPlayer, Is.True);
-        Assert.That(snapshot.Match(Track("Song B", ["Artist"], isExplicit: false)).IsOnPlayer, Is.False);
-        Assert.That(snapshot.Match(Track("Song B", ["Artist"], isExplicit: true)).IsOnPlayer, Is.True);
+        snapshot.Match(Track("Song A", ["Artist"], isExplicit: true)).IsOnPlayer.ShouldBeFalse();
+        snapshot.Match(Track("Song A", ["Artist"], isExplicit: false)).IsOnPlayer.ShouldBeTrue();
+        snapshot.Match(Track("Song B", ["Artist"], isExplicit: false)).IsOnPlayer.ShouldBeFalse();
+        snapshot.Match(Track("Song B", ["Artist"], isExplicit: true)).IsOnPlayer.ShouldBeTrue();
     }
 
     [Test]
@@ -42,9 +42,9 @@ public class PlayerIndexSnapshotTests
     {
         var snapshot = new PlayerIndexSnapshot([File(@"E:\a.mp3", "Song", ["Artist"])]);
 
-        Assert.That(snapshot.Match(Track("Song", ["Artist"], isExplicit: true)).IsOnPlayer);
-        Assert.That(snapshot.Match(Track("Song", ["Artist"], isExplicit: false)).IsOnPlayer);
-        Assert.That(new PlayerIndexSnapshot([File(@"E:\a.mp3", "Song", ["Artist"], isExplicit: true)]).Match(Track("Song", ["Artist"])).IsOnPlayer);
+        snapshot.Match(Track("Song", ["Artist"], isExplicit: true)).IsOnPlayer.ShouldBeTrue();
+        snapshot.Match(Track("Song", ["Artist"], isExplicit: false)).IsOnPlayer.ShouldBeTrue();
+        new PlayerIndexSnapshot([File(@"E:\a.mp3", "Song", ["Artist"], isExplicit: true)]).Match(Track("Song", ["Artist"])).IsOnPlayer.ShouldBeTrue();
     }
 
     [Test]
@@ -52,7 +52,7 @@ public class PlayerIndexSnapshotTests
     {
         var file = File(@"E:\a.mp3", "Song", ["Artist"], isrc: "USX", isExplicit: false);
 
-        Assert.That(new PlayerIndexSnapshot([file]).Match(Track("Song", ["Artist"], isrc: "USX", isExplicit: true)).Kind, Is.EqualTo(TrackMatchKind.Isrc));
+        new PlayerIndexSnapshot([file]).Match(Track("Song", ["Artist"], isrc: "USX", isExplicit: true)).Kind.ShouldBe(TrackMatchKind.Isrc);
     }
 
     [Test]
@@ -61,9 +61,9 @@ public class PlayerIndexSnapshotTests
         var file = File(@"E:\x.mp3", "Something else", ["Someone"], isrc: "GBUM71029604");
         var match = new PlayerIndexSnapshot([file]).Match(Track("Bohemian Rhapsody", ["Queen"], isrc: "gbum71029604"));
 
-        Assert.That(match.IsOnPlayer);
-        Assert.That(match.Kind, Is.EqualTo(TrackMatchKind.Isrc));
-        Assert.That(match.Files, Is.EqualTo(new[] { file }));
+        match.IsOnPlayer.ShouldBeTrue();
+        match.Kind.ShouldBe(TrackMatchKind.Isrc);
+        match.Files.ShouldBe([file]);
     }
 
     [Test]
@@ -72,8 +72,8 @@ public class PlayerIndexSnapshotTests
         var file = File(@"E:\Queen\01 Bohemian Rhapsody.mp3", "Bohemian Rhapsody (2011 Remaster)", ["QUEEN"], seconds: 355);
         var match = new PlayerIndexSnapshot([file]).Match(Track("Bohemian Rhapsody - Remastered 2011", ["Queen"], seconds: 354));
 
-        Assert.That(match.Kind, Is.EqualTo(TrackMatchKind.ArtistAndTitle));
-        Assert.That(match.Files, Is.EqualTo(new[] { file }));
+        match.Kind.ShouldBe(TrackMatchKind.ArtistAndTitle);
+        match.Files.ShouldBe([file]);
     }
 
     [Test]
@@ -82,8 +82,8 @@ public class PlayerIndexSnapshotTests
         var file = File(@"E:\a.mp3", "Señorita", ["Shawn Mendes feat. Camila Cabello"]);
         var snapshot = new PlayerIndexSnapshot([file]);
 
-        Assert.That(snapshot.Match(Track("Senorita", ["Camila Cabello"])).IsOnPlayer);
-        Assert.That(snapshot.Match(Track("Señorita (with Shawn Mendes)", ["Camila Cabello"])).IsOnPlayer);
+        snapshot.Match(Track("Senorita", ["Camila Cabello"])).IsOnPlayer.ShouldBeTrue();
+        snapshot.Match(Track("Señorita (with Shawn Mendes)", ["Camila Cabello"])).IsOnPlayer.ShouldBeTrue();
     }
 
     [Test]
@@ -91,9 +91,9 @@ public class PlayerIndexSnapshotTests
     {
         var snapshot = new PlayerIndexSnapshot([File(@"E:\a.mp3", "Song", ["Artist"], seconds: 200)]);
 
-        Assert.That(snapshot.Match(Track("Song", ["Artist"], seconds: 203)).IsOnPlayer, Is.True);
-        Assert.That(snapshot.Match(Track("Song", ["Artist"], seconds: 260)).IsOnPlayer, Is.False);
-        Assert.That(snapshot.Match(Track("Song", ["Artist"])).IsOnPlayer, Is.True);
+        snapshot.Match(Track("Song", ["Artist"], seconds: 203)).IsOnPlayer.ShouldBeTrue();
+        snapshot.Match(Track("Song", ["Artist"], seconds: 260)).IsOnPlayer.ShouldBeFalse();
+        snapshot.Match(Track("Song", ["Artist"])).IsOnPlayer.ShouldBeTrue();
     }
 
     [Test]
@@ -101,7 +101,7 @@ public class PlayerIndexSnapshotTests
     {
         var snapshot = new PlayerIndexSnapshot([File(@"E:\a.mp3", "Hurt", ["Nine Inch Nails"], seconds: 300)]);
 
-        Assert.That(snapshot.Match(Track("Hurt", ["Johnny Cash"], seconds: 218)).IsOnPlayer, Is.False);
+        snapshot.Match(Track("Hurt", ["Johnny Cash"], seconds: 218)).IsOnPlayer.ShouldBeFalse();
     }
 
     [Test]
@@ -111,10 +111,10 @@ public class PlayerIndexSnapshotTests
         var snapshot = new PlayerIndexSnapshot([file]);
 
         var similar = snapshot.Match(Track("Song - From \"The Movie\"", ["Artist"], seconds: 201));
-        Assert.That(similar.Kind, Is.EqualTo(TrackMatchKind.SimilarTitle));
+        similar.Kind.ShouldBe(TrackMatchKind.SimilarTitle);
 
-        Assert.That(snapshot.Match(Track("Song - Radio Edit", ["Artist"], seconds: 170)).IsOnPlayer, Is.False);
-        Assert.That(snapshot.Match(Track("Song - From \"The Movie\"", ["Artist"])).IsOnPlayer, Is.False);
+        snapshot.Match(Track("Song - Radio Edit", ["Artist"], seconds: 170)).IsOnPlayer.ShouldBeFalse();
+        snapshot.Match(Track("Song - From \"The Movie\"", ["Artist"])).IsOnPlayer.ShouldBeFalse();
     }
 
     [Test]
@@ -122,8 +122,8 @@ public class PlayerIndexSnapshotTests
     {
         var snapshot = new PlayerIndexSnapshot([File(@"E:\Song.mp3", "Song", [], seconds: 200)]);
 
-        Assert.That(snapshot.Match(Track("Song", ["Artist"], seconds: 199)).Kind, Is.EqualTo(TrackMatchKind.TitleAndDuration));
-        Assert.That(snapshot.Match(Track("Song", ["Artist"])).IsOnPlayer, Is.False);
+        snapshot.Match(Track("Song", ["Artist"], seconds: 199)).Kind.ShouldBe(TrackMatchKind.TitleAndDuration);
+        snapshot.Match(Track("Song", ["Artist"])).IsOnPlayer.ShouldBeFalse();
     }
 
     [Test]
@@ -133,8 +133,8 @@ public class PlayerIndexSnapshotTests
         var b = File(@"E:\B\Song.mp3", "Song", ["Artist"], isrc: "USX");
         var match = new PlayerIndexSnapshot([a, b]).Match(Track("Song", ["Artist"], isrc: "USX"));
 
-        Assert.That(match.Kind, Is.EqualTo(TrackMatchKind.Isrc));
-        Assert.That(match.Files, Is.EqualTo(new[] { b, a }));
+        match.Kind.ShouldBe(TrackMatchKind.Isrc);
+        match.Files.ShouldBe([b, a]);
     }
 
     [Test]
@@ -142,7 +142,7 @@ public class PlayerIndexSnapshotTests
     {
         var snapshot = new PlayerIndexSnapshot([File(@"E:\a.mp3", "", [])]);
 
-        Assert.That(snapshot.Match(Track("", [])).IsOnPlayer, Is.False);
+        snapshot.Match(Track("", [])).IsOnPlayer.ShouldBeFalse();
     }
 
     [Test]
@@ -153,10 +153,10 @@ public class PlayerIndexSnapshotTests
         var other = File(@"E:\Other\Hot Space.mp3", "Hot Space", ["Someone"], "Hot Space");
         var snapshot = new PlayerIndexSnapshot([one, two, other]);
 
-        Assert.That(snapshot.FindAlbum("Queen", "Hot Space"), Is.EquivalentTo(new[] { one, two }));
-        Assert.That(snapshot.FindAlbum(Track("Under Pressure", ["Queen", "David Bowie"], "Hot Space")), Is.EquivalentTo(new[] { one, two }));
-        Assert.That(snapshot.FindAlbum([], "Hot Space"), Has.Count.EqualTo(3));
-        Assert.That(snapshot.FindAlbum("Queen", "Greatest Hits"), Is.Empty);
+        snapshot.FindAlbum("Queen", "Hot Space").ShouldBe([one, two], ignoreOrder: true);
+        snapshot.FindAlbum(Track("Under Pressure", ["Queen", "David Bowie"], "Hot Space")).ShouldBe([one, two], ignoreOrder: true);
+        snapshot.FindAlbum([], "Hot Space").Count.ShouldBe(3);
+        snapshot.FindAlbum("Queen", "Greatest Hits").ShouldBeEmpty();
     }
 
     [Test]
@@ -166,7 +166,7 @@ public class PlayerIndexSnapshotTests
         var two = File(@"E:\2.mp3", "B", ["Someone Else"], "Hot Space (Remastered)", ["The Queen"]);
         var snapshot = new PlayerIndexSnapshot([one, two, File(@"E:\3.mp3", "C", ["X"])]);
 
-        Assert.That(snapshot.Albums.Keys, Is.EqualTo(new[] { AlbumKey.Create("Queen", "Hot Space") }));
-        Assert.That(snapshot.Albums[AlbumKey.Create("Queen", "Hot Space")], Is.EquivalentTo(new[] { one, two }));
+        snapshot.Albums.Keys.ShouldBe([AlbumKey.Create("Queen", "Hot Space")]);
+        snapshot.Albums[AlbumKey.Create("Queen", "Hot Space")].ShouldBe([one, two], ignoreOrder: true);
     }
 }

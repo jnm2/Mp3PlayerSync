@@ -1,12 +1,14 @@
+using TUnit.Core.Executors;
+
 namespace Mp3PlayerSync.Tests;
 
-[Apartment(ApartmentState.STA)]
+[STAThreadExecutor]
 public class LaunchHandOverTests
 {
     [Test]
     public void A_hand_over_that_finishes_is_reported()
     {
-        Assert.That(LaunchHandOver.TryHandOver(() => Task.Delay(10), TimeSpan.FromSeconds(10)), Is.True);
+        LaunchHandOver.TryHandOver(() => Task.Delay(10), TimeSpan.FromSeconds(10)).ShouldBeTrue();
     }
 
     [Test]
@@ -17,13 +19,13 @@ public class LaunchHandOverTests
 
         var handedOver = LaunchHandOver.TryHandOver(() => neverAnswers.Task, TimeSpan.FromMilliseconds(200));
 
-        Assert.That(handedOver, Is.False);
-        Assert.That(stopwatch.Elapsed, Is.InRange(TimeSpan.FromMilliseconds(190), TimeSpan.FromSeconds(5)));
+        handedOver.ShouldBeFalse();
+        stopwatch.Elapsed.ShouldBeInRange(TimeSpan.FromMilliseconds(190), TimeSpan.FromSeconds(5));
     }
 
     [Test]
     public void A_running_copy_that_cannot_be_reached_is_reported_without_throwing()
     {
-        Assert.That(LaunchHandOver.TryHandOver(() => throw new InvalidOperationException("gone"), TimeSpan.FromSeconds(10)), Is.False);
+        LaunchHandOver.TryHandOver(() => throw new InvalidOperationException("gone"), TimeSpan.FromSeconds(10)).ShouldBeFalse();
     }
 }

@@ -34,17 +34,17 @@ public class LibraryBuilderTests
         new(1, "", title, ["Band"], album, TimeSpan.FromMinutes(3), releaseDate, Now, "", false, "", "");
 
     private static string[] Names(IEnumerable<LibraryItem> items, LibraryFilter filter) =>
-        LibraryBuilder.Present(items, filter, Now).Select(i => i.Name).ToArray();
+        [.. LibraryBuilder.Present(items, filter, Now).Select(i => i.Name)];
 
     [Test]
     public void Splits_playlists_by_owner_and_puts_album_like_playlists_with_saved_albums()
     {
         var items = LibraryBuilder.Build(Rows, Albums, NoExports);
 
-        Assert.That(Names(items, LibraryFilter.CreatedPlaylists), Is.EqualTo(new[] { "Liked Songs", "Mine", "Empty" }));
-        Assert.That(Names(items, LibraryFilter.SavedPlaylists), Is.EqualTo(new[] { "Theirs" }));
-        Assert.That(Names(items, LibraryFilter.SavedAlbums), Is.EqualTo(new[] { "Seeker", "Their album", "New album", "Old album" }));
-        Assert.That(Names(items, LibraryFilter.All), Is.EqualTo(new[] { "Liked Songs", "Mine", "Theirs", "Seeker", "Their album", "Empty", "New album", "Old album" }));
+        Names(items, LibraryFilter.CreatedPlaylists).ShouldBe(["Liked Songs", "Mine", "Empty"]);
+        Names(items, LibraryFilter.SavedPlaylists).ShouldBe(["Theirs"]);
+        Names(items, LibraryFilter.SavedAlbums).ShouldBe(["Seeker", "Their album", "New album", "Old album"]);
+        Names(items, LibraryFilter.All).ShouldBe(["Liked Songs", "Mine", "Theirs", "Seeker", "Their album", "Empty", "New album", "Old album"]);
     }
 
     [Test]
@@ -59,9 +59,9 @@ public class LibraryBuilderTests
 
         var items = LibraryBuilder.Build(rows, Albums, exports);
 
-        Assert.That(Names(items, LibraryFilter.CreatedPlaylists), Is.EqualTo(new[] { "Liked Songs", "Mine" }));
-        Assert.That(Names(items, LibraryFilter.All)[0], Is.EqualTo("Liked Songs"));
-        Assert.That(Names(items, LibraryFilter.SavedAlbums), Does.Not.Contain("Liked Songs"));
+        Names(items, LibraryFilter.CreatedPlaylists).ShouldBe(["Liked Songs", "Mine"]);
+        Names(items, LibraryFilter.All)[0].ShouldBe("Liked Songs");
+        Names(items, LibraryFilter.SavedAlbums).ShouldNotContain("Liked Songs");
     }
 
     [Test]
@@ -77,7 +77,7 @@ public class LibraryBuilderTests
 
         var items = LibraryBuilder.Build(rows, null, NoExports);
 
-        Assert.That(items.Select(i => i.Key), Is.EqualTo(new[] { "https://open.spotify.com/playlist/my-dj" }));
+        items.Select(i => i.Key).ShouldBe(["https://open.spotify.com/playlist/my-dj"]);
     }
     [Test]
     public void Earlier_exports_override_the_cover()
@@ -90,8 +90,8 @@ public class LibraryBuilderTests
 
         var items = LibraryBuilder.Build(Rows, albums: null, exports);
 
-        Assert.That(Names(items, LibraryFilter.SavedAlbums), Is.EqualTo(new[] { "Mine", "Their album" }));
-        Assert.That(Names(items, LibraryFilter.CreatedPlaylists), Does.Contain("Seeker"));
+        Names(items, LibraryFilter.SavedAlbums).ShouldBe(["Mine", "Their album"]);
+        Names(items, LibraryFilter.CreatedPlaylists).ShouldContain("Seeker");
     }
 
     [Test]
@@ -106,9 +106,9 @@ public class LibraryBuilderTests
 
         string Byline(LibraryFilter filter) => LibraryBuilder.Present(items, filter, Now).Single(i => i.Name == "Mine").Byline;
 
-        Assert.That(Byline(LibraryFilter.CreatedPlaylists), Is.Empty);
-        Assert.That(Byline(LibraryFilter.All), Is.EqualTo("me"));
-        Assert.That(LibraryBuilder.Present(items, LibraryFilter.All, Now)[0].Byline, Is.Empty, "Liked Songs");
+        Byline(LibraryFilter.CreatedPlaylists).ShouldBeEmpty();
+        Byline(LibraryFilter.All).ShouldBe("me");
+        LibraryBuilder.Present(items, LibraryFilter.All, Now)[0].Byline.ShouldBeEmpty(customMessage: "Liked Songs");
     }
 
     [Test]
@@ -116,7 +116,7 @@ public class LibraryBuilderTests
     {
         PlaylistSummary[] rows = [new("https://open.spotify.com/playlist/x", "X", "7fjct5b53ypygv8hdtcpuwzc2", 3, null, Mosaic)];
 
-        Assert.That(LibraryBuilder.Present(LibraryBuilder.Build(rows, null, NoExports), LibraryFilter.All, Now).Single().Byline, Is.Empty);
+        LibraryBuilder.Present(LibraryBuilder.Build(rows, null, NoExports), LibraryFilter.All, Now).ShouldHaveSingleItem().Byline.ShouldBeEmpty();
     }
 
     [Test]
@@ -129,7 +129,8 @@ public class LibraryBuilderTests
         var items = LibraryBuilder.Present(LibraryBuilder.Build(Rows, null, exports), LibraryFilter.CreatedPlaylists, Now);
 
         var mine = items.Single(i => i.Name == "Mine");
-        Assert.That((mine.Stats, mine.DateText), Is.EqualTo(("30 tracks", "")));
+        mine.Stats.ShouldBe("30 tracks");
+        mine.DateText.ShouldBeEmpty();
     }
 
     [Test]
@@ -138,7 +139,9 @@ public class LibraryBuilderTests
         var album = LibraryBuilder.Present(LibraryBuilder.Build(Rows, Albums, NoExports), LibraryFilter.SavedAlbums, Now)
             .Single(i => i.Name == "New album");
 
-        Assert.That((album.Byline, album.Stats, album.DateText), Is.EqualTo(("Band · 2020", "1 track", "Saved 2 days ago")));
+        album.Byline.ShouldBe("Band · 2020");
+        album.Stats.ShouldBe("1 track");
+        album.DateText.ShouldBe("Saved 2 days ago");
     }
 
     [Test]
@@ -146,52 +149,64 @@ public class LibraryBuilderTests
     {
         var items = LibraryBuilder.Build(Rows, null, NoExports);
 
-        Assert.That(items.Single(i => i.Name == "Theirs").CoverUrl, Is.EqualTo(UploadedCover));
-        Assert.That(items.Single(i => i.Name == "Empty").CoverUrl, Is.Null);
-        Assert.That(items.Single(i => i.Name == "Liked Songs").CoverUrl, Is.Null);
+        items.Single(i => i.Name == "Theirs").CoverUrl.ShouldBe(UploadedCover);
+        items.Single(i => i.Name == "Empty").CoverUrl.ShouldBeNull();
+        items.Single(i => i.Name == "Liked Songs").CoverUrl.ShouldBeNull();
     }
 
-    [TestCase(AlbumCover, ExpectedResult = true)]
-    [TestCase(Mosaic, ExpectedResult = false)]
-    [TestCase(UploadedCover, ExpectedResult = false)]
-    [TestCase(NoCover, ExpectedResult = false)]
-    [TestCase(null, ExpectedResult = false)]
-    public bool Cover_tells_whether_a_playlist_looks_like_an_album(string? imageUrl) => PlaylistCover.LooksLikeAlbum(imageUrl);
+    [Test]
+    [Arguments(AlbumCover, true)]
+    [Arguments(Mosaic, false)]
+    [Arguments(UploadedCover, false)]
+    [Arguments(NoCover, false)]
+    [Arguments(null, false)]
+    public void Cover_tells_whether_a_playlist_looks_like_an_album(string? imageUrl, bool expected)
+    {
+        PlaylistCover.LooksLikeAlbum(imageUrl).ShouldBe(expected);
+    }
 
-    [TestCase(UploadedCover, ExpectedResult = true)]
-    [TestCase("http://localhost:5178/demo-cover/run.png", ExpectedResult = true, Description = "The mock's covers")]
-    [TestCase("http://i.scdn.co/image/ab67616d0000b273", ExpectedResult = false)]
-    [TestCase(NoCover, ExpectedResult = false)]
-    public bool Covers_are_shown_over_HTTPS_or_from_this_computer(string imageUrl) => PlaylistCover.RealCover(imageUrl) is not null;
+    [Test]
+    [Arguments(UploadedCover, true)]
+    [Arguments("http://localhost:5178/demo-cover/run.png", true)] // The mock's covers
+    [Arguments("http://i.scdn.co/image/ab67616d0000b273", false)]
+    [Arguments(NoCover, false)]
+    public void Covers_are_shown_over_HTTPS_or_from_this_computer(string imageUrl, bool expected)
+    {
+        (PlaylistCover.RealCover(imageUrl) is not null).ShouldBe(expected);
+    }
 
     [Test]
     public void Single_album_means_every_track_shares_album_and_release()
     {
-        Assert.That(PlaylistCover.IsSingleAlbum(new([], [Track("A", "X"), Track("B", "X")])), Is.True);
-        Assert.That(PlaylistCover.IsSingleAlbum(new([], [Track("A", "X"), Track("B", "Y")])), Is.False);
-        Assert.That(PlaylistCover.IsSingleAlbum(new([], [Track("A", "X"), Track("B", "X", "2001")])), Is.False);
-        Assert.That(PlaylistCover.IsSingleAlbum(new([], [])), Is.False);
+        PlaylistCover.IsSingleAlbum(new([], [Track("A", "X"), Track("B", "X")])).ShouldBeTrue();
+        PlaylistCover.IsSingleAlbum(new([], [Track("A", "X"), Track("B", "Y")])).ShouldBeFalse();
+        PlaylistCover.IsSingleAlbum(new([], [Track("A", "X"), Track("B", "X", "2001")])).ShouldBeFalse();
+        PlaylistCover.IsSingleAlbum(new([], [])).ShouldBeFalse();
     }
 }
 
 public class OwnerNameTests
 {
-    [TestCase("jnm236", ExpectedResult = true)]
-    [TestCase("someone", ExpectedResult = true)]
-    [TestCase("1234567", ExpectedResult = true, Description = "Short numbers are ordinary names")]
-    [TestCase("abc7fjct5b53ypygv8hdtcpuwzc", ExpectedResult = true, Description = "27 characters")]
-    [TestCase("x31xprpmnul6fqtufeje253axvece", ExpectedResult = true, Description = "29 characters")]
-    [TestCase("7FJCT5B53YPYGV8HDTCPUWZC2", ExpectedResult = true, Description = "Generated IDs are lowercase")]
-    [TestCase("spotify", ExpectedResult = false)]
-    [TestCase("Spotify", ExpectedResult = false)]
-    [TestCase("12345678", ExpectedResult = false)]
-    [TestCase("1210987654", ExpectedResult = false)]
-    [TestCase("7fjct5b53ypygv8hdtcpuwzc2", ExpectedResult = false)]
-    [TestCase("21geiktnqpsxb7vtwgu5oj3kq", ExpectedResult = false)]
-    [TestCase("whtyar93ro8wciwptbhwn18mh", ExpectedResult = false)]
-    [TestCase("31xprpmnul6fqtufeje253axvece", ExpectedResult = false)]
-    [TestCase("", ExpectedResult = false)]
-    public bool Is_shown(string owner) => OwnerName.IsShown(owner);
+    [Test]
+    [Arguments("jnm236", true)]
+    [Arguments("someone", true)]
+    [Arguments("1234567", true)] // Short numbers are ordinary names
+    [Arguments("abc7fjct5b53ypygv8hdtcpuwzc", true)] // 27 characters
+    [Arguments("x31xprpmnul6fqtufeje253axvece", true)] // 29 characters
+    [Arguments("7FJCT5B53YPYGV8HDTCPUWZC2", true)] // Generated IDs are lowercase
+    [Arguments("spotify", false)]
+    [Arguments("Spotify", false)]
+    [Arguments("12345678", false)]
+    [Arguments("1210987654", false)]
+    [Arguments("7fjct5b53ypygv8hdtcpuwzc2", false)]
+    [Arguments("21geiktnqpsxb7vtwgu5oj3kq", false)]
+    [Arguments("whtyar93ro8wciwptbhwn18mh", false)]
+    [Arguments("31xprpmnul6fqtufeje253axvece", false)]
+    [Arguments("", false)]
+    public void Is_shown(string owner, bool expected)
+    {
+        OwnerName.IsShown(owner).ShouldBe(expected);
+    }
 }
 
 public class SavedAlbumTests
@@ -211,17 +226,17 @@ public class SavedAlbumTests
             Track(3, "Greatest Hits", savedEarlier, "1990"), // Same name, a different saved album
         ]));
 
-        Assert.That(albums.Select(a => (a.Name, a.ReleaseDate, a.Tracks.Count)),
-            Is.EqualTo(new[] { ("Greatest Hits", "2001", 2), ("Greatest Hits", "1990", 1) }));
-        Assert.That(albums[1].ToExportedPlaylist().Tracks.Single().Number, Is.EqualTo(1));
-        Assert.That(albums.Select(a => a.Key).Distinct().Count(), Is.EqualTo(2));
+        albums.Select(a => (a.Name, a.ReleaseDate, a.Tracks.Count)).ShouldBe([("Greatest Hits", "2001", 2), ("Greatest Hits", "1990", 1)]);
+        albums[1].ToExportedPlaylist().Tracks.ShouldHaveSingleItem().Number.ShouldBe(1);
+        albums.Select(a => a.Key).ShouldBeUnique();
     }
 }
 
 public class AppSettingsTests
 {
-    [TestCase("PlaylistsByYou", LibraryFilter.CreatedPlaylists)]
-    [TestCase("PlaylistsByOthers", LibraryFilter.SavedPlaylists)]
+    [Test]
+    [Arguments("PlaylistsByYou", LibraryFilter.CreatedPlaylists)]
+    [Arguments("PlaylistsByOthers", LibraryFilter.SavedPlaylists)]
     public void Reads_the_tab_chosen_in_0_1_0_and_keeps_the_player(string stored, LibraryFilter expected)
     {
         var path = Path.GetTempFileName();
@@ -231,9 +246,10 @@ public class AppSettingsTests
 
             var loaded = AppSettings.Load(path);
 
-            Assert.That((loaded.Filter, loaded.Player?.FolderPath), Is.EqualTo((expected, @"D:\Player")));
+            loaded.Filter.ShouldBe(expected);
+            loaded.Player.ShouldNotBeNull().FolderPath.ShouldBe(@"D:\Player");
             loaded.Save(path);
-            Assert.That(File.ReadAllText(path), Does.Contain($"\"{stored}\""));
+            File.ReadAllText(path).ShouldContain($"\"{stored}\"", Case.Sensitive);
         }
         finally
         {
@@ -254,8 +270,9 @@ public class AppSettingsTests
 
             var loaded = AppSettings.Load(path);
 
-            Assert.That((loaded.LastSelectedKey, loaded.Filter), Is.EqualTo(("k", LibraryFilter.SavedAlbums)));
-            Assert.That(loaded.Exports, Is.EqualTo(new Dictionary<string, ExportSummary> { ["p"] = summary }));
+            loaded.LastSelectedKey.ShouldBe("k");
+            loaded.Filter.ShouldBe(LibraryFilter.SavedAlbums);
+            loaded.Exports.ShouldBe(new Dictionary<string, ExportSummary> { ["p"] = summary }, ignoreOrder: true);
         }
         finally
         {
@@ -270,8 +287,8 @@ public class AppSettingsTests
         try
         {
             File.WriteAllText(path, "{ not json");
-            Assert.That(AppSettings.Load(path).Filter, Is.EqualTo(LibraryFilter.CreatedPlaylists));
-            Assert.That(AppSettings.Load(path + ".missing").LastSelectedKey, Is.Null);
+            AppSettings.Load(path).Filter.ShouldBe(LibraryFilter.CreatedPlaylists);
+            AppSettings.Load(path + ".missing").LastSelectedKey.ShouldBeNull();
         }
         finally
         {

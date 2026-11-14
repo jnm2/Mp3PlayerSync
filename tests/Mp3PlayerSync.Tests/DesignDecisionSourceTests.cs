@@ -13,7 +13,7 @@ public partial class DesignDecisionSourceTests
 
     private static string FindRepositoryRoot()
     {
-        for (var folder = new DirectoryInfo(TestContext.CurrentContext.TestDirectory); folder is not null; folder = folder.Parent)
+        for (var folder = new DirectoryInfo(AppContext.BaseDirectory); folder is not null; folder = folder.Parent)
         {
             if (File.Exists(Path.Combine(folder.FullName, "Mp3PlayerSync.slnx"))) return folder.FullName;
         }
@@ -43,7 +43,7 @@ public partial class DesignDecisionSourceTests
             .Where(l => Regex.IsMatch(l.line, @"api\.spotify\.com|accounts\.spotify\.com/api|\bBearer\b", RegexOptions.IgnoreCase))
             .Select(l => $"{Relative(l.path)}:{l.index + 1}: {l.line.Trim()}");
 
-        Assert.That(calls, Is.Empty);
+        calls.ShouldBeEmpty();
     }
 
     [Test]
@@ -54,7 +54,7 @@ public partial class DesignDecisionSourceTests
             .Where(s => Regex.IsMatch(s.literal, @"ffmpeg|avconv|--extract-audio|^""-x""$|--audio-format|--recode-video|--remux-video|--postprocessor-args|--merge-output-format", RegexOptions.IgnoreCase))
             .Select(s => $"{Relative(s.path)}: {s.literal}");
 
-        Assert.That(conversions, Is.Empty);
+        conversions.ShouldBeEmpty();
     }
 
     [Test]
@@ -69,7 +69,7 @@ public partial class DesignDecisionSourceTests
             .Where(s => Regex.IsMatch(s.text, @"browser|exportify|Mp3PlayerSync", RegexOptions.IgnoreCase))
             .Select(s => $"{Relative(s.path)}: {s.text}");
 
-        Assert.That(mentions, Is.Empty);
+        mentions.ShouldBeEmpty();
     }
 
     [Test]
@@ -84,7 +84,7 @@ public partial class DesignDecisionSourceTests
             .Where(s => Regex.IsMatch(s.literal, @"browser|exportify", RegexOptions.IgnoreCase))
             .Select(s => $"{Relative(s.path)}:{s.index + 1}: {s.literal}");
 
-        Assert.That(mentions, Is.Empty);
+        mentions.ShouldBeEmpty();
     }
 
     [Test]
@@ -92,7 +92,7 @@ public partial class DesignDecisionSourceTests
     {
         var window = XDocument.Load(Path.Combine(RepositoryRoot, @"src\Mp3PlayerSync\MainWindow.xaml")).Root!;
 
-        Assert.That((string?)window.Attribute("Title"), Is.EqualTo("MP3 Player Sync"));
+        window.Attribute("Title").ShouldNotBeNull().Value.ShouldBe("MP3 Player Sync");
     }
 
     [Test]
@@ -101,13 +101,13 @@ public partial class DesignDecisionSourceTests
         var window = XDocument.Load(Path.Combine(RepositoryRoot, @"src\Mp3PlayerSync\MainWindow.xaml")).Root!;
         var backdrop = window.Elements().SingleOrDefault(e => e.Name.LocalName == "Window.SystemBackdrop")?.Elements().SingleOrDefault();
 
-        Assert.That(backdrop?.Name.LocalName, Is.EqualTo("MicaBackdrop"));
+        backdrop.ShouldNotBeNull().Name.LocalName.ShouldBe("MicaBackdrop");
     }
 
     [Test]
     public void DEV_1_DevTools_are_only_ever_enabled_in_Debug_builds()
     {
-        var enabled = new List<string>();
+        List<string> enabled = [];
         foreach (var path in SourceFiles("*.cs"))
         {
             var debugOnly = new Stack<bool>();
@@ -125,7 +125,7 @@ public partial class DesignDecisionSourceTests
             }
         }
 
-        Assert.That(enabled, Is.Empty);
+        enabled.ShouldBeEmpty();
     }
 
     [Test]
@@ -137,7 +137,7 @@ public partial class DesignDecisionSourceTests
             .Where(l => TestOnlyCode().IsMatch(l.line))
             .Select(l => $"{Relative(l.path)}:{l.index + 1}: {l.line}");
 
-        Assert.That(testOnly, Is.Empty);
+        testOnly.ShouldBeEmpty();
     }
 
     // Fakes and test hooks, and the environment variables that the app used to read to turn them on

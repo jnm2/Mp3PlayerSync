@@ -11,7 +11,7 @@ public class HostNavigationsTests
         var navigations = new HostNavigations();
         navigations.Starting(Home);
 
-        Assert.That(navigations.IsOwn(Home), Is.True);
+        navigations.IsOwn(Home).ShouldBeTrue();
     }
 
     [Test]
@@ -21,8 +21,8 @@ public class HostNavigationsTests
 
         // The page was already going to Spotify's sign-in when the app sent it home.
         navigations.Starting(Home);
-        Assert.That(navigations.IsOwn(SignIn), Is.False);
-        Assert.That(navigations.IsOwn(Home), Is.True);
+        navigations.IsOwn(SignIn).ShouldBeFalse();
+        navigations.IsOwn(Home).ShouldBeTrue();
     }
 
     [Test]
@@ -33,7 +33,7 @@ public class HostNavigationsTests
         navigations.IsOwn(Home);
 
         // Such as Exportify going home by itself after Spotify stopped accepting its token
-        Assert.That(navigations.IsOwn(Home), Is.False);
+        navigations.IsOwn(Home).ShouldBeFalse();
     }
 
     [Test]
@@ -43,6 +43,6 @@ public class HostNavigationsTests
         navigations.Starting(Home);
         navigations.IsOwn(Home);
 
-        Assert.That(navigations.IsOwn(SignIn), Is.False);
+        navigations.IsOwn(SignIn).ShouldBeFalse();
     }
 }

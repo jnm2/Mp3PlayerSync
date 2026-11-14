@@ -14,12 +14,11 @@ public class BridgeMessageTests
               {"key":"row:1","name":"Odd","owner":"","trackCount":null,"url":null}]}
             """);
 
-        Assert.That(message.Type, Is.EqualTo(BridgeMessage.PlaylistsType));
-        Assert.That(message.Playlists, Is.EqualTo(new[]
-        {
+        message.Type.ShouldBe(BridgeMessage.PlaylistsType);
+        message.Playlists.ShouldBe([
             new PlaylistSummary("https://open.spotify.com/collection/tracks", "Liked Songs", "me", 12, "https://open.spotify.com/collection/tracks", "https://exportify.net/liked_songs.jpeg"),
             new PlaylistSummary("row:1", "Odd", "", null, null),
-        }));
+]);
     }
 
     [Test]
@@ -27,12 +26,15 @@ public class BridgeMessageTests
     {
         var message = BridgeMessage.Parse("""{"type":"state","signedIn":true,"tokenExpired":false,"signingIn":false,"playlistsReady":true,"url":"https://exportify.net/","error":""}""");
 
-        Assert.That(message is { Type: BridgeMessage.StateType, SignedIn: true, TokenExpired: false, PlaylistsReady: true }, Is.True);
+        message.Type.ShouldBe(BridgeMessage.StateType);
+        message.SignedIn.ShouldBe(true);
+        message.TokenExpired.ShouldBe(false);
+        message.PlaylistsReady.ShouldBe(true);
     }
 
     [Test]
     public void Command_json_omits_unset_fields()
     {
-        Assert.That(new BridgeCommand(BridgeCommand.Export, Key: "k").ToJson(), Is.EqualTo("""{"cmd":"export","key":"k"}"""));
+        new BridgeCommand(BridgeCommand.Export, Key: "k").ToJson().ShouldBe("""{"cmd":"export","key":"k"}""");
     }
 }

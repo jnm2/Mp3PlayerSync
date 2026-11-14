@@ -19,13 +19,13 @@ public class TrackMatcherTests
 
         var ranked = TrackMatcher.Rank(query, candidates);
 
-        Assert.That(ranked[0].Video.Id, Is.EqualTo("BaxnrepwXck"));
-        Assert.That(ranked[0].Score.IsAcceptable);
+        ranked[0].Video.Id.ShouldBe("BaxnrepwXck");
+        ranked[0].Score.IsAcceptable.ShouldBeTrue();
 
         var byId = ranked.ToDictionary(c => c.Video.Id);
-        Assert.That(byId["C4P4u0p88i0"].Score.IsAcceptable, Is.False, "Live, by a tribute band");
-        Assert.That(byId["rt7r-Zo7iJo"].Score.IsAcceptable, Is.False, "Live, with a different singer");
-        Assert.That(byId["DJxCsVcZL2I"].Score.IsAcceptable, Is.False, "Different song");
+        byId["C4P4u0p88i0"].Score.IsAcceptable.ShouldBeFalse(customMessage: "Live, by a tribute band");
+        byId["rt7r-Zo7iJo"].Score.IsAcceptable.ShouldBeFalse(customMessage: "Live, with a different singer");
+        byId["DJxCsVcZL2I"].Score.IsAcceptable.ShouldBeFalse(customMessage: "Different song");
     }
 
     [Test]
@@ -35,8 +35,8 @@ public class TrackMatcherTests
 
         var score = TrackMatcher.Score(query, Candidate("Under Pressure (Live at Wembley Stadium / July 1986)", "Queen", 237));
 
-        Assert.That(score.VersionMismatches, Is.Zero);
-        Assert.That(score.IsAcceptable);
+        score.VersionMismatches.ShouldBe(0);
+        score.IsAcceptable.ShouldBeTrue();
     }
 
     [Test]
@@ -46,8 +46,8 @@ public class TrackMatcherTests
 
         var score = TrackMatcher.Score(query, Candidate("Deja Vu (Album Version)", "Beyoncé;JAŸ-Z", 240, album: "B'Day"));
 
-        Assert.That(score.IsAcceptable, score.ToString());
-        Assert.That(score.Title, Is.EqualTo(1));
+        score.IsAcceptable.ShouldBeTrue(customMessage: score.ToString());
+        score.Title.ShouldBe(1);
     }
 
     [Test]
@@ -57,8 +57,8 @@ public class TrackMatcherTests
 
         var score = TrackMatcher.Score(Query("September", "Earth, Wind & Fire", null, 215.093), video);
 
-        Assert.That(score.Artist, Is.EqualTo(1));
-        Assert.That(score.IsAcceptable);
+        score.Artist.ShouldBe(1);
+        score.IsAcceptable.ShouldBeTrue();
     }
 
     [Test]
@@ -66,7 +66,7 @@ public class TrackMatcherTests
     {
         var score = TrackMatcher.Score(Query("Song", "Artist", null, 200), Candidate("Song", "Artist", 260));
 
-        Assert.That(score.IsAcceptable, Is.False);
+        score.IsAcceptable.ShouldBeFalse();
     }
 
     [Test]
@@ -76,7 +76,7 @@ public class TrackMatcherTests
 
         var score = TrackMatcher.Score(query, Candidate("Hotel California (Live at the Millennium Concert, 12/31/1999)", "Eagles", 417));
 
-        Assert.That(score.IsAcceptable, Is.False);
+        score.IsAcceptable.ShouldBeFalse();
     }
 
     [Test]
@@ -94,25 +94,25 @@ public class TrackMatcherTests
             Flat("Under Pressure (Single Version; 2017 Remaster)", 5),
         ]);
 
-        Assert.That(ranked.Select(c => c.Video.Title), Is.EqualTo(new[]
-        {
+        ranked.Select(c => c.Video.Title).ShouldBe([
             "Under Pressure (feat. David Bowie)",
             "Under Pressure (Single Version; 2017 Remaster)",
             "Queen & David Bowie - Under Pressure (Official Video)",
-        }));
+]);
     }
 
-    [TestCase("Song (Karaoke Version)")]
-    [TestCase("Song (Instrumental)")]
-    [TestCase("Song - Sped Up")]
-    [TestCase("Song (Acoustic)")]
-    [TestCase("Song (Remix)")]
+    [Test]
+    [Arguments("Song (Karaoke Version)")]
+    [Arguments("Song (Instrumental)")]
+    [Arguments("Song - Sped Up")]
+    [Arguments("Song (Acoustic)")]
+    [Arguments("Song (Remix)")]
     public void Rejects_other_versions(string title)
     {
         var score = TrackMatcher.Score(Query("Song", "Artist", null, 200), Candidate(title, "Artist", 200));
 
-        Assert.That(score.VersionMismatches, Is.EqualTo(1));
-        Assert.That(score.IsAcceptable, Is.False);
+        score.VersionMismatches.ShouldBe(1);
+        score.IsAcceptable.ShouldBeFalse();
     }
 
     [Test]
@@ -120,21 +120,22 @@ public class TrackMatcherTests
     {
         var score = TrackMatcher.Score(Query("Stay With Me", "Sam Smith", null, 172), Candidate("Stay", "Sam Smith", 172));
 
-        Assert.That(score.IsAcceptable, Is.False);
+        score.IsAcceptable.ShouldBeFalse();
     }
 
-    [TestCase("Song (Explicit)", true)]
-    [TestCase("Song [Explicit Version]", true)]
-    [TestCase("Song - Explicit", true)]
-    [TestCase("Album (Clean)", false)]
-    [TestCase("Song (Edited)", false)]
-    [TestCase("Song - Clean Version", false)]
-    [TestCase("Clean Bandit", null)]
-    [TestCase("Explicit Content Warning", null)]
-    [TestCase("Song", null)]
+    [Test]
+    [Arguments("Song (Explicit)", true)]
+    [Arguments("Song [Explicit Version]", true)]
+    [Arguments("Song - Explicit", true)]
+    [Arguments("Album (Clean)", false)]
+    [Arguments("Song (Edited)", false)]
+    [Arguments("Song - Clean Version", false)]
+    [Arguments("Clean Bandit", null)]
+    [Arguments("Explicit Content Warning", null)]
+    [Arguments("Song", null)]
     public void Reads_explicit_and_clean_markers(string text, bool? expected)
     {
-        Assert.That(TrackMatcher.GetExplicitMarker(text), Is.EqualTo(expected));
+        TrackMatcher.GetExplicitMarker(text).ShouldBe(expected);
     }
 
     [Test]
@@ -142,8 +143,8 @@ public class TrackMatcherTests
     {
         var track = new ExportedTrack(1, "", "Song (Clean)", ["Artist"], "", null, "", null, "", Explicit: true, "", "");
 
-        Assert.That(TrackQuery.FromExportedTrack(track).Explicit, Is.True, "Spotify's flag wins over the title marker");
-        Assert.That(TrackQuery.FromExportedTrack(track with { Explicit = null }).Explicit, Is.False);
+        TrackQuery.FromExportedTrack(track).Explicit.ShouldBe(true, customMessage: "Spotify's flag wins over the title marker");
+        TrackQuery.FromExportedTrack(track with { Explicit = null }).Explicit.ShouldBe(false);
     }
 
     [Test]
@@ -157,15 +158,15 @@ public class TrackMatcherTests
             ]},"musicCardShelfRenderer":{"badges":[{"icon":{"iconType":"MUSIC_EXPLICIT_BADGE"}}]}}}
             """;
 
-        Assert.That(YouTubeMusicSearchPage.ReadExplicitBadges(page), Is.EqualTo(new[] { ("explicit001", true), ("clean000001", false) }));
+        YouTubeMusicSearchPage.ReadExplicitBadges(page).ShouldBe([("explicit001", true), ("clean000001", false)]);
     }
 
     [Test]
     public void Search_text_drops_remaster_suffix_and_adds_artists()
     {
-        Assert.That(Query("Bohemian Rhapsody - Remastered 2011", "Queen", null, 354).SearchText, Is.EqualTo("Bohemian Rhapsody Queen"));
-        Assert.That(Query("Under Pressure", "Queen;David Bowie", null, 248).SearchText, Is.EqualTo("Under Pressure Queen David Bowie"));
-        Assert.That(Query("Song - Live", "Artist", null, 1).SearchText, Is.EqualTo("Song - Live Artist"));
+        Query("Bohemian Rhapsody - Remastered 2011", "Queen", null, 354).SearchText.ShouldBe("Bohemian Rhapsody Queen");
+        Query("Under Pressure", "Queen;David Bowie", null, 248).SearchText.ShouldBe("Under Pressure Queen David Bowie");
+        Query("Song - Live", "Artist", null, 1).SearchText.ShouldBe("Song - Live Artist");
     }
 
     [Test]
@@ -173,6 +174,6 @@ public class TrackMatcherTests
     {
         var track = new ExportedTrack(1, "spotify:track:1", "September", ["Earth, Wind & Fire"], "", TimeSpan.FromMilliseconds(215093), "", null, "", null, "", "");
 
-        Assert.That(TrackQuery.FromExportedTrack(track), Is.EqualTo(new TrackQuery("September", track.Artists, null, TimeSpan.FromMilliseconds(215093))));
+        TrackQuery.FromExportedTrack(track).ShouldBe(new TrackQuery("September", track.Artists, null, TimeSpan.FromMilliseconds(215093)));
     }
 }

@@ -13,13 +13,14 @@ public class PlaylistFoldersTests
     private static PlaylistFolderAssignment Assign(string name, params PlayerRootFolder[] folders) =>
         PlaylistFolders.Assign(MixKey, name, "me", folders);
 
-    [TestCase("https://open.spotify.com/playlist/37i9dQZF1DX?si=abc", "spotify:playlist:37i9dQZF1DX")]
-    [TestCase("https://open.spotify.com/intl-de/playlist/37i9dQZF1DX", "spotify:playlist:37i9dQZF1DX")]
-    [TestCase("https://open.spotify.com/collection/tracks", "spotify:collection:tracks")]
-    [TestCase("spotify:playlist:abc", "spotify:playlist:abc")]
+    [Test]
+    [Arguments("https://open.spotify.com/playlist/37i9dQZF1DX?si=abc", "spotify:playlist:37i9dQZF1DX")]
+    [Arguments("https://open.spotify.com/intl-de/playlist/37i9dQZF1DX", "spotify:playlist:37i9dQZF1DX")]
+    [Arguments("https://open.spotify.com/collection/tracks", "spotify:collection:tracks")]
+    [Arguments("spotify:playlist:abc", "spotify:playlist:abc")]
     public void Playlist_id_comes_from_the_link(string key, string id)
     {
-        Assert.That(PlaylistFolderMarker.PlaylistIdFromKey(key), Is.EqualTo(id));
+        PlaylistFolderMarker.PlaylistIdFromKey(key).ShouldBe(id);
     }
 
     [Test]
@@ -27,8 +28,8 @@ public class PlaylistFoldersTests
     {
         var folder = Assign("My Mix", Folder("Queen", hasSubfolders: true));
 
-        Assert.That(folder, Is.EqualTo(new PlaylistFolderAssignment("My Mix", "My Mix", new PlaylistFolderMarker("spotify:playlist:mix1", "My Mix", "me"), Exists: false)));
-        Assert.That(folder.NeedsRename, Is.False);
+        folder.ShouldBe(new PlaylistFolderAssignment("My Mix", "My Mix", new PlaylistFolderMarker("spotify:playlist:mix1", "My Mix", "me"), Exists: false));
+        folder.NeedsRename.ShouldBeFalse();
     }
 
     [Test]
@@ -36,7 +37,7 @@ public class PlaylistFoldersTests
     {
         var folder = Assign("My Mix", Folder("my mix", "spotify:playlist:other", owner: "bob"));
 
-        Assert.That(folder.CurrentRelativePath, Is.EqualTo("My Mix (me)"));
+        folder.CurrentRelativePath.ShouldBe("My Mix (me)");
     }
 
     [Test]
@@ -44,7 +45,7 @@ public class PlaylistFoldersTests
     {
         var folder = Assign("My Mix", Folder("My Mix", "spotify:playlist:other"), Folder("My Mix (2)", "spotify:playlist:third"));
 
-        Assert.That(folder.CurrentRelativePath, Is.EqualTo("My Mix (3)"));
+        folder.CurrentRelativePath.ShouldBe("My Mix (3)");
     }
 
     [Test]
@@ -52,14 +53,14 @@ public class PlaylistFoldersTests
     {
         var folder = Assign("Rock/Pop", Folder("Rock_Pop", "spotify:playlist:other"));
 
-        Assert.That(folder.CurrentRelativePath, Is.EqualTo("Rock_Pop (2)"));
+        folder.CurrentRelativePath.ShouldBe("Rock_Pop (2)");
     }
 
     [Test]
     public void Name_taken_by_a_file_or_a_folder_with_subfolders_is_not_used()
     {
-        Assert.That(PlaylistFolders.Assign(MixKey, "Notes", "me", [], rootFileNames: ["notes"]).CurrentRelativePath, Is.EqualTo("Notes (2)"));
-        Assert.That(Assign("Queen", Folder("Queen", hasSubfolders: true)).CurrentRelativePath, Is.EqualTo("Queen (2)"));
+        PlaylistFolders.Assign(MixKey, "Notes", "me", [], rootFileNames: ["notes"]).CurrentRelativePath.ShouldBe("Notes (2)");
+        Assign("Queen", Folder("Queen", hasSubfolders: true)).CurrentRelativePath.ShouldBe("Queen (2)");
     }
 
     [Test]
@@ -67,7 +68,9 @@ public class PlaylistFoldersTests
     {
         var folder = Assign("My Mix", Folder("my mix"));
 
-        Assert.That((folder.CurrentRelativePath, folder.FinalRelativePath, folder.Exists), Is.EqualTo(("my mix", "My Mix", true)));
+        folder.CurrentRelativePath.ShouldBe("my mix");
+        folder.FinalRelativePath.ShouldBe("My Mix");
+        folder.Exists.ShouldBeTrue();
     }
 
     [Test]
@@ -75,7 +78,7 @@ public class PlaylistFoldersTests
     {
         var folder = Assign("My Mix", new PlayerRootFolder("My Mix", PlaylistFolderMarker.Unreadable, false));
 
-        Assert.That(folder.CurrentRelativePath, Is.EqualTo("My Mix (2)"));
+        folder.CurrentRelativePath.ShouldBe("My Mix (2)");
     }
 
     [Test]
@@ -83,7 +86,10 @@ public class PlaylistFoldersTests
     {
         var folder = Assign("New Name", Folder("Old Name", "spotify:playlist:mix1"), Folder("New", "spotify:playlist:other"));
 
-        Assert.That((folder.CurrentRelativePath, folder.FinalRelativePath, folder.Exists, folder.NeedsRename), Is.EqualTo(("Old Name", "New Name", true, true)));
+        folder.CurrentRelativePath.ShouldBe("Old Name");
+        folder.FinalRelativePath.ShouldBe("New Name");
+        folder.Exists.ShouldBeTrue();
+        folder.NeedsRename.ShouldBeTrue();
     }
 
     [Test]
@@ -91,7 +97,7 @@ public class PlaylistFoldersTests
     {
         var folder = Assign("Taken", Folder("Old Name", "spotify:playlist:mix1"), Folder("Taken", "spotify:playlist:other"));
 
-        Assert.That(folder.FinalRelativePath, Is.EqualTo("Taken (2)"));
+        folder.FinalRelativePath.ShouldBe("Taken (2)");
     }
 
     [Test]
@@ -99,13 +105,14 @@ public class PlaylistFoldersTests
     {
         var folder = Assign("My Mix", Folder("My Mix (2)", "spotify:playlist:mix1"));
 
-        Assert.That((folder.CurrentRelativePath, folder.FinalRelativePath), Is.EqualTo(("My Mix (2)", "My Mix (2)")));
+        folder.CurrentRelativePath.ShouldBe("My Mix (2)");
+        folder.FinalRelativePath.ShouldBe("My Mix (2)");
     }
 
     [Test]
     public void Case_change_on_spotify_renames_the_folder()
     {
-        Assert.That(Assign("My Mix", Folder("my mix", "spotify:playlist:mix1")).FinalRelativePath, Is.EqualTo("My Mix"));
+        Assign("My Mix", Folder("my mix", "spotify:playlist:mix1")).FinalRelativePath.ShouldBe("My Mix");
     }
 
     [Test]
@@ -113,7 +120,7 @@ public class PlaylistFoldersTests
     {
         var folder = PlaylistFolders.Assign(MixKey, new string('n', 300), "me", [], maxRelativePathLength: 100);
 
-        Assert.That(folder.CurrentRelativePath.Length, Is.LessThanOrEqualTo(100 - 41));
+        folder.CurrentRelativePath.Length.ShouldBeLessThanOrEqualTo(100 - 41);
     }
 }
 
@@ -121,14 +128,14 @@ public class PlaylistFoldersDiskTests
 {
     private string root = null!;
 
-    [SetUp]
+    [Before(Test)]
     public void SetUp()
     {
         root = Path.Combine(Path.GetTempPath(), "Mp3PlayerSync.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
     }
 
-    [TearDown]
+    [After(Test)]
     public void TearDown()
     {
         foreach (var marker in Directory.GetFiles(root, PlaylistFolderMarker.FileName, SearchOption.AllDirectories))
@@ -144,9 +151,9 @@ public class PlaylistFoldersDiskTests
         var second = PlaylistFolders.Assign(root, "https://open.spotify.com/playlist/b", "Mix", "me");
         PlaylistFolders.Claim(root, second);
 
-        Assert.That((first.CurrentRelativePath, second.CurrentRelativePath), Is.EqualTo(("Mix", "Mix (2)")));
-        Assert.That(PlaylistFolders.Assign(root, "https://open.spotify.com/playlist/a", "Mix", "me").CurrentRelativePath, Is.EqualTo("Mix"));
-        Assert.That(PlaylistFolders.Assign(root, "https://open.spotify.com/playlist/b?si=x", "Mix", "me").CurrentRelativePath, Is.EqualTo("Mix (2)"));
+        (first.CurrentRelativePath, second.CurrentRelativePath).ShouldBe(("Mix", "Mix (2)"));
+        PlaylistFolders.Assign(root, "https://open.spotify.com/playlist/a", "Mix", "me").CurrentRelativePath.ShouldBe("Mix");
+        PlaylistFolders.Assign(root, "https://open.spotify.com/playlist/b?si=x", "Mix", "me").CurrentRelativePath.ShouldBe("Mix (2)");
     }
 
     [Test]
@@ -160,13 +167,13 @@ public class PlaylistFoldersDiskTests
 
         PlaylistFolders.Claim(root, folder);
 
-        Assert.That(File.GetAttributes(marker).HasFlag(FileAttributes.Hidden), Is.True);
-        Assert.That(AudioFileScanner.IsAudioFile(marker), Is.False);
-        Assert.That(File.GetLastWriteTimeUtc(marker), Is.EqualTo(written.AddHours(-1)), "An unchanged marker isn't rewritten.");
-        Assert.That(PlaylistFolderMarker.Read(Path.Combine(root, "Mix")), Is.EqualTo(folder.Marker));
+        File.GetAttributes(marker).HasFlag(FileAttributes.Hidden).ShouldBeTrue();
+        AudioFileScanner.IsAudioFile(marker).ShouldBeFalse();
+        File.GetLastWriteTimeUtc(marker).ShouldBe(written.AddHours(-1), customMessage: "An unchanged marker isn't rewritten.");
+        PlaylistFolderMarker.Read(Path.Combine(root, "Mix")).ShouldBe(folder.Marker);
 
         PlaylistFolders.Claim(root, folder with { Marker = folder.Marker with { Name = "Renamed" } });
-        Assert.That(PlaylistFolderMarker.Read(Path.Combine(root, "Mix"))!.Name, Is.EqualTo("Renamed"), "A hidden marker can be updated.");
+        PlaylistFolderMarker.Read(Path.Combine(root, "Mix")).ShouldNotBeNull().Name.ShouldBe("Renamed", customMessage: "A hidden marker can be updated.");
     }
 
     [Test]
@@ -177,7 +184,7 @@ public class PlaylistFoldersDiskTests
 
         var stale = new PlaylistFolderAssignment("Mix", "Mix", new PlaylistFolderMarker("spotify:playlist:a", "Mix", "me"), Exists: true);
 
-        Assert.That(() => PlaylistFolders.Claim(root, stale), Throws.InstanceOf<IOException>());
+        Should.Throw<IOException>(() => PlaylistFolders.Claim(root, stale));
     }
 
     [Test]
@@ -190,9 +197,9 @@ public class PlaylistFoldersDiskTests
         PlaylistFolders.Claim(root, folder);
         var actual = PlaylistFolders.FinishRename(root, folder);
 
-        Assert.That(actual, Is.EqualTo("New"));
-        Assert.That(File.Exists(Path.Combine(root, "New", "01. A - B.m4a")), Is.True);
-        Assert.That(PlaylistFolderMarker.Read(Path.Combine(root, "New"))!.Name, Is.EqualTo("New"));
+        actual.ShouldBe("New");
+        File.Exists(Path.Combine(root, "New", "01. A - B.m4a")).ShouldBeTrue();
+        PlaylistFolderMarker.Read(Path.Combine(root, "New")).ShouldNotBeNull().Name.ShouldBe("New");
     }
 
     [Test]
@@ -202,8 +209,8 @@ public class PlaylistFoldersDiskTests
 
         var folder = PlaylistFolders.Assign(root, "https://open.spotify.com/playlist/a", "Mix", "me");
 
-        Assert.That(PlaylistFolders.FinishRename(root, folder), Is.EqualTo("Mix"));
-        Assert.That(Directory.GetDirectories(root).Select(Path.GetFileName), Is.EqualTo(new[] { "Mix" }));
+        PlaylistFolders.FinishRename(root, folder).ShouldBe("Mix");
+        Directory.GetDirectories(root).Select(Path.GetFileName).ShouldBe(["Mix"]);
     }
 
     [Test]
@@ -213,8 +220,8 @@ public class PlaylistFoldersDiskTests
         var folder = PlaylistFolders.Assign(root, "https://open.spotify.com/playlist/a", "New", "me");
         Directory.CreateDirectory(Path.Combine(root, "New"));
 
-        Assert.That(PlaylistFolders.FinishRename(root, folder), Is.EqualTo("Old"));
-        Assert.That(Directory.Exists(Path.Combine(root, "Old")), Is.True);
+        PlaylistFolders.FinishRename(root, folder).ShouldBe("Old");
+        Directory.Exists(Path.Combine(root, "Old")).ShouldBeTrue();
     }
 
     [Test]
@@ -226,6 +233,6 @@ public class PlaylistFoldersDiskTests
         var folder = PlaylistFolders.Assign(root, "https://open.spotify.com/playlist/a", "Mix", "me");
         PlaylistPlanner.Plan(folder, [PlaylistPlannerTests.Song("A")], root, []);
 
-        Assert.That(Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories), Is.EqualTo(before));
+        Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories).ShouldBe(before);
     }
 }

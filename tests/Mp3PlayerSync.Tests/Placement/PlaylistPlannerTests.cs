@@ -28,22 +28,21 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("Under Pressure", "Queen"), Song("Heroes", "David Bowie")], []);
 
-        Assert.That(plan.FolderRelativePath, Is.EqualTo("My Mix"));
-        Assert.That(plan.Tracks.Select(t => (t.Position, t.State, t.TargetRelativePath)), Is.EqualTo(new[]
-        {
+        plan.FolderRelativePath.ShouldBe("My Mix");
+        plan.Tracks.Select(t => (t.Position, t.State, t.TargetRelativePath)).ShouldBe([
             (1, PlaylistTrackState.Download, @"My Mix\01. Queen - Under Pressure.m4a"),
             (2, PlaylistTrackState.Download, @"My Mix\02. David Bowie - Heroes.m4a"),
-        }));
-        Assert.That(plan.Downloads.Count(), Is.EqualTo(2));
-        Assert.That(plan.Renames, Is.Empty);
-        Assert.That(plan.PlayerOnlyFiles, Is.Empty);
+]);
+        plan.Downloads.Count().ShouldBe(2);
+        plan.Renames.ShouldBeEmpty();
+        plan.PlayerOnlyFiles.ShouldBeEmpty();
     }
 
     [Test]
     public void Folder_name_is_sanitized()
     {
-        Assert.That(PlaylistPlanner.FolderFor("Rock/Pop: Best of..."), Is.EqualTo("Rock_Pop_ Best of"));
-        Assert.That(PlaylistPlanner.FolderFor("  "), Is.EqualTo("Playlist"));
+        PlaylistPlanner.FolderFor("Rock/Pop: Best of...").ShouldBe("Rock_Pop_ Best of");
+        PlaylistPlanner.FolderFor("  ").ShouldBe("Playlist");
     }
 
     [Test]
@@ -53,9 +52,9 @@ public class PlaylistPlannerTests
             [Song("A", isrc: "X1"), Song("B")],
             [File(@"My Mix\01. Queen - A.m4a", "A", isrc: "X1"), File(@"My Mix\02. Queen - B.m4a", "B")]);
 
-        Assert.That(plan.Tracks.Select(t => t.State), Is.All.EqualTo(PlaylistTrackState.InPlace));
-        Assert.That(plan.Tracks[0].CurrentRelativePath, Is.EqualTo(@"My Mix\01. Queen - A.m4a"));
-        Assert.That(plan.Renames, Is.Empty);
+        plan.Tracks.Select(t => t.State).ShouldAllBe(item => item == PlaylistTrackState.InPlace);
+        plan.Tracks[0].CurrentRelativePath.ShouldBe(@"My Mix\01. Queen - A.m4a");
+        plan.Renames.ShouldBeEmpty();
     }
 
     [Test]
@@ -63,12 +62,11 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("B"), Song("A")], [File(@"My Mix\01. Queen - A.m4a", "A"), File(@"My Mix\02. Queen - B.m4a", "B")]);
 
-        Assert.That(plan.Tracks.Select(t => t.State), Is.All.EqualTo(PlaylistTrackState.Renumber));
-        Assert.That(Renames(plan), Is.EquivalentTo(new[]
-        {
+        plan.Tracks.Select(t => t.State).ShouldAllBe(item => item == PlaylistTrackState.Renumber);
+        Renames(plan).ShouldBe([
             (@"My Mix\02. Queen - B.m4a", @"My Mix\01. Queen - B.m4a"),
             (@"My Mix\01. Queen - A.m4a", @"My Mix\02. Queen - A.m4a"),
-        }));
+], ignoreOrder: true);
     }
 
     [Test]
@@ -76,13 +74,12 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("A"), Song("New"), Song("B")], [File(@"My Mix\01. Queen - A.m4a", "A"), File(@"My Mix\02. Queen - B.m4a", "B")]);
 
-        Assert.That(plan.Tracks.Select(t => (t.State, t.TargetRelativePath)), Is.EqualTo(new[]
-        {
+        plan.Tracks.Select(t => (t.State, t.TargetRelativePath)).ShouldBe([
             (PlaylistTrackState.InPlace, @"My Mix\01. Queen - A.m4a"),
             (PlaylistTrackState.Download, @"My Mix\02. Queen - New.m4a"),
             (PlaylistTrackState.Renumber, @"My Mix\03. Queen - B.m4a"),
-        }));
-        Assert.That(Renames(plan), Is.EqualTo(new[] { (@"My Mix\02. Queen - B.m4a", @"My Mix\03. Queen - B.m4a") }));
+]);
+        Renames(plan).ShouldBe([(@"My Mix\02. Queen - B.m4a", @"My Mix\03. Queen - B.m4a")]);
     }
 
     [Test]
@@ -90,11 +87,10 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("New"), Song("A")], [File(@"My Mix\01. my own name.mp3", "A"), File(@"My Mix\untitled.mp3", "New")]);
 
-        Assert.That(Renames(plan), Is.EquivalentTo(new[]
-        {
+        Renames(plan).ShouldBe([
             (@"My Mix\untitled.mp3", @"My Mix\01. untitled.mp3"),
             (@"My Mix\01. my own name.mp3", @"My Mix\02. my own name.mp3"),
-        }));
+], ignoreOrder: true);
     }
 
     [Test]
@@ -106,12 +102,12 @@ public class PlaylistPlannerTests
 
         var plan = Plan(tracks, files);
 
-        Assert.That(plan.Tracks.Take(99).Select(t => t.State), Is.All.EqualTo(PlaylistTrackState.Renumber));
-        Assert.That(plan.Tracks[0].TargetRelativePath, Is.EqualTo(@"My Mix\001. Queen - Song 1.m4a"));
-        Assert.That(plan.Tracks[98].TargetRelativePath, Is.EqualTo(@"My Mix\099. Queen - Song 99.m4a"));
-        Assert.That(plan.Tracks[99].TargetRelativePath, Is.EqualTo(@"My Mix\100. Queen - Song 100.m4a"));
-        Assert.That(plan.PlayerOnlyFiles.Single().TargetRelativePath, Is.EqualTo(@"My Mix\050. Old - Gone.m4a"), "Player-only files are widened too.");
-        Assert.That(plan.Renames, Has.Count.EqualTo(100));
+        plan.Tracks.Take(99).Select(t => t.State).ShouldAllBe(item => item == PlaylistTrackState.Renumber);
+        plan.Tracks[0].TargetRelativePath.ShouldBe(@"My Mix\001. Queen - Song 1.m4a");
+        plan.Tracks[98].TargetRelativePath.ShouldBe(@"My Mix\099. Queen - Song 99.m4a");
+        plan.Tracks[99].TargetRelativePath.ShouldBe(@"My Mix\100. Queen - Song 100.m4a");
+        plan.PlayerOnlyFiles.ShouldHaveSingleItem().TargetRelativePath.ShouldBe(@"My Mix\050. Old - Gone.m4a", customMessage: "Player-only files are widened too.");
+        plan.Renames.Count.ShouldBe(100);
     }
 
     [Test]
@@ -119,7 +115,7 @@ public class PlaylistPlannerTests
     {
         var tracks = Enumerable.Range(1, 99).Select(i => Song($"Song {i}")).ToList();
 
-        Assert.That(Plan(tracks, []).Tracks[98].TargetRelativePath, Is.EqualTo(@"My Mix\99. Queen - Song 99.m4a"));
+        Plan(tracks, []).Tracks[98].TargetRelativePath.ShouldBe(@"My Mix\99. Queen - Song 99.m4a");
     }
 
     [Test]
@@ -127,7 +123,7 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("A")], [File(@"My Mix\001. Queen - A.m4a", "A")]);
 
-        Assert.That(Renames(plan), Is.EqualTo(new[] { (@"My Mix\001. Queen - A.m4a", @"My Mix\01. Queen - A.m4a") }));
+        Renames(plan).ShouldBe([(@"My Mix\001. Queen - A.m4a", @"My Mix\01. Queen - A.m4a")]);
     }
 
     [Test]
@@ -138,15 +134,14 @@ public class PlaylistPlannerTests
             [Song("A"), Song("B")],
             [File(@"My Mix\01. Queen - A.m4a", "A"), gone, File(@"My Mix\03. Queen - B.m4a", "B"), File(@"My Mix\notes.mp3", "Notes", "Me")]);
 
-        Assert.That(plan.PlayerOnlyFiles.Select(f => (f.RelativePath, f.TargetRelativePath, f.AfterPosition, f.Delete)), Is.EqualTo(new[]
-        {
+        plan.PlayerOnlyFiles.Select(f => (f.RelativePath, f.TargetRelativePath, f.AfterPosition, f.Delete)).ShouldBe([
             (@"My Mix\02. Old - Gone.m4a", @"My Mix\02. Old - Gone.m4a", 1, false),
             (@"My Mix\notes.mp3", @"My Mix\notes.mp3", 2, false),
-        }));
-        Assert.That(plan.PlayerOnlyFiles[0].File, Is.SameAs(gone));
-        Assert.That(plan.Rows.Select(r => r.Track?.Track.Title ?? r.PlayerOnlyFile!.File.Tags.Title), Is.EqualTo(new[] { "A", "Gone", "B", "Notes" }));
-        Assert.That(Renames(plan), Is.EqualTo(new[] { (@"My Mix\03. Queen - B.m4a", @"My Mix\02. Queen - B.m4a") }));
-        Assert.That(plan.Deletions, Is.Empty, "Nothing is deleted unless the user selects it.");
+]);
+        plan.PlayerOnlyFiles[0].File.ShouldBeSameAs(gone);
+        plan.Rows.Select(r => r.Track?.Track.Title ?? r.PlayerOnlyFile!.File.Tags.Title).ShouldBe(["A", "Gone", "B", "Notes"]);
+        Renames(plan).ShouldBe([(@"My Mix\03. Queen - B.m4a", @"My Mix\02. Queen - B.m4a")]);
+        plan.Deletions.ShouldBeEmpty(customMessage: "Nothing is deleted unless the user selects it.");
     }
 
     [Test]
@@ -154,8 +149,8 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("A")], [File(@"My Mix\01. Old - Gone.m4a", "Gone", "Old"), File(@"My Mix\02. Queen - A.m4a", "A")]);
 
-        Assert.That(plan.PlayerOnlyFiles.Single().AfterPosition, Is.Zero);
-        Assert.That(plan.Rows[0].PlayerOnlyFile, Is.Not.Null);
+        plan.PlayerOnlyFiles.ShouldHaveSingleItem().AfterPosition.ShouldBe(0);
+        plan.Rows[0].PlayerOnlyFile.ShouldNotBeNull();
     }
 
     [Test]
@@ -166,8 +161,8 @@ public class PlaylistPlannerTests
             [File(@"My Mix\01. Queen - A.m4a", "A"), File(@"My Mix\02. Old - Gone.m4a", "Gone", "Old"), File(@"My Mix\03. Old - Kept.m4a", "Kept", "Old")],
             cleanup: [@"my mix/02. Old - Gone.m4a", @"My Mix\01. Queen - A.m4a", @"Elsewhere.m4a"]);
 
-        Assert.That(plan.Deletions.Select(f => f.RelativePath), Is.EqualTo(new[] { @"My Mix\02. Old - Gone.m4a" }));
-        Assert.That(plan.Tracks.Single().State, Is.EqualTo(PlaylistTrackState.InPlace), "A playlist track is never deleted, even if selected.");
+        plan.Deletions.Select(f => f.RelativePath).ShouldBe([@"My Mix\02. Old - Gone.m4a"]);
+        plan.Tracks.ShouldHaveSingleItem().State.ShouldBe(PlaylistTrackState.InPlace, customMessage: "A playlist track is never deleted, even if selected.");
     }
 
     [Test]
@@ -177,12 +172,11 @@ public class PlaylistPlannerTests
             [Song("Under Pressure", isrc: "GB1"), Song("Heroes", "David Bowie")],
             [File(@"Queen\Hot Space (1982)\11. Under Pressure.mp3", "Under Pressure", isrc: "GB1"), File(@"Other Mix\01. David Bowie - Heroes.m4a", "Heroes", "David Bowie")]);
 
-        Assert.That(plan.Tracks.Select(t => (t.State, t.CopySourceRelativePath, t.TargetRelativePath)), Is.EqualTo(new[]
-        {
+        plan.Tracks.Select(t => (t.State, t.CopySourceRelativePath, t.TargetRelativePath)).ShouldBe([
             (PlaylistTrackState.CopyFromPlayer, @"Queen\Hot Space (1982)\11. Under Pressure.mp3", @"My Mix\01. Queen - Under Pressure.mp3"),
             (PlaylistTrackState.CopyFromPlayer, @"Other Mix\01. David Bowie - Heroes.m4a", @"My Mix\02. David Bowie - Heroes.m4a"),
-        }));
-        Assert.That(plan.PlayerOnlyFiles, Is.Empty, "Files outside the folder are never player-only.");
+]);
+        plan.PlayerOnlyFiles.ShouldBeEmpty(customMessage: "Files outside the folder are never player-only.");
     }
 
     [Test]
@@ -190,7 +184,7 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("Heroes", "David Bowie")], [File(@"Heroes.m4a", "Heroes", "Someone Else")]);
 
-        Assert.That(plan.Tracks.Single().State, Is.EqualTo(PlaylistTrackState.Download));
+        plan.Tracks.ShouldHaveSingleItem().State.ShouldBe(PlaylistTrackState.Download);
     }
 
     [Test]
@@ -198,12 +192,11 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("New"), Song("A"), Song("A")], [File(@"My Mix\01. Queen - A.m4a", "A")]);
 
-        Assert.That(plan.Tracks.Select(t => (t.State, t.TargetRelativePath, t.CopySourceRelativePath)), Is.EqualTo(new (PlaylistTrackState, string, string?)[]
-        {
+        plan.Tracks.Select(t => (t.State, t.TargetRelativePath, t.CopySourceRelativePath)).ShouldBe([
             (PlaylistTrackState.Download, @"My Mix\01. Queen - New.m4a", null),
             (PlaylistTrackState.Renumber, @"My Mix\02. Queen - A.m4a", null),
             (PlaylistTrackState.CopyFromPlayer, @"My Mix\03. Queen - A.m4a", @"My Mix\02. Queen - A.m4a"),
-        }));
+]);
     }
 
     [Test]
@@ -213,12 +206,11 @@ public class PlaylistPlannerTests
             [Song("A"), Song("B")],
             [File(@"My Mix\~mps-0a1b2c 02. Queen - A.m4a", "A"), File(@"My Mix\02. Queen - B.m4a", "B"), File(@"My Mix\~mps-ffffff 07. Old - Gone.m4a", "Gone", "Old")]);
 
-        Assert.That(Renames(plan), Is.EquivalentTo(new[]
-        {
+        Renames(plan).ShouldBe([
             (@"My Mix\~mps-0a1b2c 02. Queen - A.m4a", @"My Mix\01. Queen - A.m4a"),
             (@"My Mix\~mps-ffffff 07. Old - Gone.m4a", @"My Mix\07. Old - Gone.m4a"),
-        }));
-        Assert.That(plan.Tracks[1].State, Is.EqualTo(PlaylistTrackState.InPlace));
+], ignoreOrder: true);
+        plan.Tracks[1].State.ShouldBe(PlaylistTrackState.InPlace);
     }
 
     [Test]
@@ -226,7 +218,7 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("A")], [File(@"My Mix\01. Queen - A.m4a", "Not A", "Someone")]);
 
-        Assert.That(plan.Tracks.Single().TargetRelativePath, Is.EqualTo(@"My Mix\01. Queen - A (2).m4a"));
+        plan.Tracks.ShouldHaveSingleItem().TargetRelativePath.ShouldBe(@"My Mix\01. Queen - A (2).m4a");
     }
 
     [Test]
@@ -234,39 +226,42 @@ public class PlaylistPlannerTests
     {
         var plan = Plan([Song("A")], [File(@"My Mix\Sub\01. Queen - X.m4a", "X"), new IndexedFile(@"F:\My Mix\01. Queen - Y.m4a", 1, DateTime.UnixEpoch, AudioTags.Empty, false)]);
 
-        Assert.That(plan.PlayerOnlyFiles, Is.Empty);
-        Assert.That(plan.Tracks.Single().State, Is.EqualTo(PlaylistTrackState.Download));
+        plan.PlayerOnlyFiles.ShouldBeEmpty();
+        plan.Tracks.ShouldHaveSingleItem().State.ShouldBe(PlaylistTrackState.Download);
     }
 
-    [TestCase(LibraryItemKind.SavedAlbum, true)]
-    [TestCase(LibraryItemKind.AlbumPlaylist, true)]
-    [TestCase(LibraryItemKind.Playlist, false)]
-    [TestCase(LibraryItemKind.LikedSongs, false)]
+    [Test]
+    [Arguments(LibraryItemKind.SavedAlbum, true)]
+    [Arguments(LibraryItemKind.AlbumPlaylist, true)]
+    [Arguments(LibraryItemKind.Playlist, false)]
+    [Arguments(LibraryItemKind.LikedSongs, false)]
     public void Albums_use_the_album_layout_and_playlists_the_playlist_layout(LibraryItemKind kind, bool album)
     {
-        Assert.That(PlacementPlanner.UsesAlbumLayout(kind), Is.EqualTo(album));
+        PlacementPlanner.UsesAlbumLayout(kind).ShouldBe(album);
     }
 }
 
 public class TrackNumberingTests
 {
-    [TestCase(0, 2)]
-    [TestCase(99, 2)]
-    [TestCase(100, 3)]
-    [TestCase(999, 3)]
-    [TestCase(1000, 4)]
+    [Test]
+    [Arguments(0, 2)]
+    [Arguments(99, 2)]
+    [Arguments(100, 3)]
+    [Arguments(999, 3)]
+    [Arguments(1000, 4)]
     public void Width_grows_with_the_highest_number(int max, int width)
     {
-        Assert.That(TrackNumbering.WidthFor(max), Is.EqualTo(width));
+        TrackNumbering.WidthFor(max).ShouldBe(width);
     }
 
-    [TestCase("07. Queen - A.m4a", 7, 2, "Queen - A.m4a")]
-    [TestCase("~mps-a1b2c3 107. Queen - A.m4a", 107, 3, "Queen - A.m4a")]
-    [TestCase("99 Luftballons.mp3", null, 0, "99 Luftballons.mp3")]
-    [TestCase("~mps-a1b2c3 untitled.mp3", null, 0, "untitled.mp3")]
+    [Test]
+    [Arguments("07. Queen - A.m4a", 7, 2, "Queen - A.m4a")]
+    [Arguments("~mps-a1b2c3 107. Queen - A.m4a", 107, 3, "Queen - A.m4a")]
+    [Arguments("99 Luftballons.mp3", null, 0, "99 Luftballons.mp3")]
+    [Arguments("~mps-a1b2c3 untitled.mp3", null, 0, "untitled.mp3")]
     public void Parses_number_prefix(string name, int? number, int digits, string rest)
     {
-        Assert.That(TrackNumbering.Parse(name), Is.EqualTo(new NumberedFileName(number, digits, rest)));
+        TrackNumbering.Parse(name).ShouldBe(new NumberedFileName(number, digits, rest));
     }
 
     [Test]
@@ -274,8 +269,8 @@ public class TrackNumberingTests
     {
         var parked = TrackNumbering.AddTemporaryPrefix("05. A.m4a");
 
-        Assert.That(TrackNumbering.HasTemporaryPrefix(parked), Is.True);
-        Assert.That(TrackNumbering.StripTemporaryPrefix(parked), Is.EqualTo("05. A.m4a"));
-        Assert.That(TrackNumbering.WithNumber(parked, 6, 3), Is.EqualTo("006. A.m4a"));
+        TrackNumbering.HasTemporaryPrefix(parked).ShouldBeTrue();
+        TrackNumbering.StripTemporaryPrefix(parked).ShouldBe("05. A.m4a");
+        TrackNumbering.WithNumber(parked, 6, 3).ShouldBe("006. A.m4a");
     }
 }

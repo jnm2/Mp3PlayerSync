@@ -61,9 +61,9 @@ Requires the [.NET 11 SDK](https://dotnet.microsoft.com/download).
 dotnet run --project src\Mp3PlayerSync
 ```
 
-Unit tests: `dotnet test tests\Mp3PlayerSync.Tests`. End-to-end tests run on a hidden desktop:
-`dotnet build Mp3PlayerSync.slnx`, then `pwsh tests\Invoke-EndToEnd.ps1`. The screenshots above are generated
-from a made-up library by `pwsh tests\Update-ReadmeScreenshots.ps1`.
+Unit tests ([TUnit](https://tunit.dev) and [Shouldly](https://docs.shouldly.org)): `dotnet test tests\Mp3PlayerSync.Tests`.
+End-to-end tests run on a hidden desktop: `dotnet build Mp3PlayerSync.slnx`, then `pwsh tests\Invoke-EndToEnd.ps1`. The
+screenshots above are generated from a made-up library by `pwsh tests\Update-ReadmeScreenshots.ps1`.
 
 To release, push a tag such as `v0.1.1`, or `v0.2.0-beta.1` for a prerelease. The Build workflow then publishes the exes
 to a GitHub release with exactly that version. Nothing needs to be bumped afterwards, because every other build bases its

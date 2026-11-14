@@ -7,17 +7,21 @@ public class PlayersTests
     private static DriveCandidate Drive(string root, DriveType type, StorageBus bus, string label = "", string? volumeId = null, uint? serial = null, bool system = false) =>
         new(root, label, type, bus, system, volumeId ?? $@"\\?\Volume{{{root[0]}}}\", serial, 32L << 30, 12L << 30);
 
-    [TestCase(DriveType.Removable, StorageBus.Usb, false, ExpectedResult = true, Description = "USB stick or player")]
-    [TestCase(DriveType.Removable, StorageBus.SecureDigital, false, ExpectedResult = true, Description = "SD card")]
-    [TestCase(DriveType.Removable, StorageBus.Unknown, false, ExpectedResult = true)]
-    [TestCase(DriveType.Fixed, StorageBus.Usb, false, ExpectedResult = true, Description = "Player that reports itself as fixed")]
-    [TestCase(DriveType.Fixed, StorageBus.Mmc, false, ExpectedResult = true)]
-    [TestCase(DriveType.Fixed, StorageBus.Other, false, ExpectedResult = false, Description = "Internal SATA or NVMe disk")]
-    [TestCase(DriveType.Fixed, StorageBus.Unknown, false, ExpectedResult = false)]
-    [TestCase(DriveType.Network, StorageBus.Unknown, false, ExpectedResult = false)]
-    [TestCase(DriveType.CDRom, StorageBus.Other, false, ExpectedResult = false)]
-    [TestCase(DriveType.Removable, StorageBus.Usb, true, ExpectedResult = false, Description = "Windows running from USB")]
-    public bool Is_player(DriveType type, StorageBus bus, bool system) => Players.IsPlayer(Drive("E:\\", type, bus, system: system));
+    [Test]
+    [Arguments(DriveType.Removable, StorageBus.Usb, false, true)] // USB stick or player
+    [Arguments(DriveType.Removable, StorageBus.SecureDigital, false, true)] // SD card
+    [Arguments(DriveType.Removable, StorageBus.Unknown, false, true)]
+    [Arguments(DriveType.Fixed, StorageBus.Usb, false, true)] // Player that reports itself as fixed
+    [Arguments(DriveType.Fixed, StorageBus.Mmc, false, true)]
+    [Arguments(DriveType.Fixed, StorageBus.Other, false, false)] // Internal SATA or NVMe disk
+    [Arguments(DriveType.Fixed, StorageBus.Unknown, false, false)]
+    [Arguments(DriveType.Network, StorageBus.Unknown, false, false)]
+    [Arguments(DriveType.CDRom, StorageBus.Other, false, false)]
+    [Arguments(DriveType.Removable, StorageBus.Usb, true, false)] // Windows running from USB
+    public void Is_player(DriveType type, StorageBus bus, bool system, bool expected)
+    {
+        Players.IsPlayer(Drive("E:\\", type, bus, system: system)).ShouldBe(expected);
+    }
 
     [Test]
     public void Offers_player_drives_then_other_folder()
@@ -30,14 +34,13 @@ public class PlayersTests
             ],
             remembered: null, folderExists: _ => true);
 
-        Assert.That(options.Select(o => (o.Kind, o.Title, o.Subtitle)), Is.EqualTo(new[]
-        {
+        options.Select(o => (o.Kind, o.Title, o.Subtitle)).ShouldBe([
             (PlayerOptionKind.Drive, "SANSA CLIP", "Drive E:"),
             (PlayerOptionKind.Drive, "Memory card", "Drive F:"),
             (PlayerOptionKind.OtherFolder, "Other folder", "Choose any folder"),
-        }));
-        Assert.That(options[0].Detail, Is.EqualTo("12 GB free of 32 GB"));
-        Assert.That(remembered, Is.Null);
+]);
+        options[0].Detail.ShouldBe("12 GB free of 32 GB");
+        remembered.ShouldBeNull();
     }
 
     [Test]
@@ -49,9 +52,9 @@ public class PlayersTests
             [Drive("E:\\", DriveType.Removable, StorageBus.Usb, volumeId: "vol-2"), Drive("G:\\", DriveType.Removable, StorageBus.Usb, volumeId: "VOL-1")],
             chosen, _ => true);
 
-        Assert.That(chosen, Is.EqualTo(new PlayerChoice("vol-1", 7, "")));
-        Assert.That(remembered?.Drive?.RootPath, Is.EqualTo("G:\\"));
-        Assert.That(options, Does.Contain(remembered));
+        chosen.ShouldBe(new PlayerChoice("vol-1", 7, ""));
+        remembered.ShouldNotBeNull().Drive.ShouldNotBeNull().RootPath.ShouldBe("G:\\");
+        options.ShouldContain(remembered);
     }
 
     [Test]
@@ -61,7 +64,7 @@ public class PlayersTests
             [Drive("E:\\", DriveType.Removable, StorageBus.Usb, label: "CARD", volumeId: "elsewhere", serial: 42)],
             new PlayerChoice("vol-1", 42, "CARD"), _ => true);
 
-        Assert.That(remembered?.Drive?.RootPath, Is.EqualTo("E:\\"));
+        remembered.ShouldNotBeNull().Drive.ShouldNotBeNull().RootPath.ShouldBe("E:\\");
     }
 
     [Test]
@@ -71,7 +74,7 @@ public class PlayersTests
             [Drive("E:\\", DriveType.Removable, StorageBus.Usb, volumeId: "vol-2", serial: 1)],
             new PlayerChoice("vol-1", 42, "CARD"), _ => true);
 
-        Assert.That(remembered, Is.Null);
+        remembered.ShouldBeNull();
     }
 
     [Test]
@@ -80,12 +83,12 @@ public class PlayersTests
         var choice = new PlayerChoice(FolderPath: @"D:\Music\Player\");
 
         var (options, remembered) = Players.BuildOptions([], choice, _ => true);
-        Assert.That(options.Select(o => o.Title), Is.EqualTo(new[] { "Player", "Other folder" }));
-        Assert.That(remembered, Is.SameAs(options[0]));
-        Assert.That(Players.ChoiceFor(options[0]), Is.EqualTo(choice));
+        options.Select(o => o.Title).ShouldBe(["Player", "Other folder"]);
+        remembered.ShouldBeSameAs(options[0]);
+        Players.ChoiceFor(options[0]).ShouldBe(choice);
 
         var (withoutFolder, none) = Players.BuildOptions([], choice, _ => false);
-        Assert.That((withoutFolder.Count, none), Is.EqualTo((1, (PlayerOption?)null)));
+        (withoutFolder.Count, none).ShouldBe((1, (PlayerOption?)null));
     }
 
     [Test]
@@ -95,10 +98,11 @@ public class PlayersTests
             [Drive("E:\\", DriveType.Removable, StorageBus.Usb, label: "SANDISK", volumeId: "vol-1")],
             new PlayerChoice(FolderPath: @"E:\"), _ => true);
 
-        Assert.That(options.Select(o => o.Kind), Is.EqualTo(new[] { PlayerOptionKind.Drive, PlayerOptionKind.OtherFolder }));
-        Assert.That(remembered, Is.SameAs(options[0]));
-        Assert.That(Players.ChoiceFor(remembered!).VolumeId, Is.EqualTo("vol-1"));
-        Assert.That(remembered!.DisplayName, Is.EqualTo("SANDISK (E:)"));
+        options.Select(o => o.Kind).ShouldBe([PlayerOptionKind.Drive, PlayerOptionKind.OtherFolder]);
+        var tile = remembered.ShouldNotBeNull();
+        tile.ShouldBeSameAs(options[0]);
+        Players.ChoiceFor(tile).VolumeId.ShouldBe("vol-1");
+        tile.DisplayName.ShouldBe("SANDISK (E:)");
     }
 
     [Test]
@@ -106,31 +110,37 @@ public class PlayersTests
     {
         var (options, remembered) = Players.BuildOptions([], new PlayerChoice(FolderPath: @"F:\"), _ => true);
 
-        Assert.That((remembered?.Kind, remembered?.Title, remembered?.Subtitle), Is.EqualTo((PlayerOptionKind.Folder, @"F:\", "Recent folder")));
-        Assert.That(remembered!.DisplayName, Is.EqualTo(@"Folder (F:\)"));
-        Assert.That(options, Has.Count.EqualTo(2));
+        remembered.ShouldNotBeNull();
+        remembered.Kind.ShouldBe(PlayerOptionKind.Folder);
+        remembered.Title.ShouldBe(@"F:\");
+        remembered.Subtitle.ShouldBe("Recent folder");
+        remembered.DisplayName.ShouldBe(@"Folder (F:\)");
+        options.Count.ShouldBe(2);
     }
 
     [Test]
     public void Folder_dialog_opens_in_the_player_folder_then_the_last_picked_one()
     {
-        var exists = new HashSet<string>([@"D:\Player", @"D:\Picked"]).Contains;
+        HashSet<string> existing = [@"D:\Player", @"D:\Picked"];
+        var exists = existing.Contains;
 
-        Assert.That(Players.DialogStartFolder(@"D:\Player", @"D:\Picked", exists), Is.EqualTo(@"D:\Player"));
-        Assert.That(Players.DialogStartFolder(null, @"D:\Picked", exists), Is.EqualTo(@"D:\Picked"));
-        Assert.That(Players.DialogStartFolder(@"D:\Gone", @"D:\Picked", exists), Is.EqualTo(@"D:\Picked"));
-        Assert.That(Players.DialogStartFolder(@"D:\Gone", null, exists), Is.Null);
+        Players.DialogStartFolder(@"D:\Player", @"D:\Picked", exists).ShouldBe(@"D:\Player");
+        Players.DialogStartFolder(null, @"D:\Picked", exists).ShouldBe(@"D:\Picked");
+        Players.DialogStartFolder(@"D:\Gone", @"D:\Picked", exists).ShouldBe(@"D:\Picked");
+        Players.DialogStartFolder(@"D:\Gone", null, exists).ShouldBeNull();
     }
 
     [Test]
     public void Long_folder_subtitles_are_shortened_in_the_middle_with_the_full_path_as_a_tooltip()
     {
         var longFolder = Players.ForFolder(@"C:\Users\someone\OneDrive\Documents\Music\Players\mp3player", []);
-        Assert.That(longFolder.ShortSubtitle, Does.StartWith(@"C:\…\").And.EndWith(@"\mp3player"));
-        Assert.That(longFolder.SubtitleToolTip, Is.EqualTo(longFolder.FolderPath));
+        longFolder.ShortSubtitle.ShouldStartWith(@"C:\…\", Case.Sensitive);
+        longFolder.ShortSubtitle.ShouldEndWith(@"\mp3player", Case.Sensitive);
+        longFolder.SubtitleToolTip.ShouldBe(longFolder.FolderPath);
 
         var shortFolder = Players.ForFolder(@"D:\Music\Player", []);
-        Assert.That((shortFolder.ShortSubtitle, shortFolder.SubtitleToolTip), Is.EqualTo((@"D:\Music\Player", (string?)null)));
+        shortFolder.ShortSubtitle.ShouldBe(@"D:\Music\Player");
+        shortFolder.SubtitleToolTip.ShouldBeNull();
     }
 
     [Test]
@@ -138,14 +148,17 @@ public class PlayersTests
     {
         var option = Players.ForFolder(@"C:\Users\me\Desktop\mp3player", []);
 
-        Assert.That((option.Title, option.Subtitle, option.DisplayName), Is.EqualTo(("mp3player", @"C:\Users\me\Desktop\mp3player", @"Folder (C:\Users\me\Desktop\mp3player)")));
+        option.Title.ShouldBe("mp3player");
+        option.Subtitle.ShouldBe(@"C:\Users\me\Desktop\mp3player");
+        option.DisplayName.ShouldBe(@"Folder (C:\Users\me\Desktop\mp3player)");
     }
 
-    [TestCase(@"D:\Music\Player")]
-    [TestCase(@"E:\", Description = "Root of a player drive")]
-    [TestCase(@"F:\", Description = "Root of another drive")]
-    [TestCase(@"\\server\share", Description = "Root of a network share")]
-    [TestCase(@"\\server\share\Player")]
+    [Test]
+    [Arguments(@"D:\Music\Player")]
+    [Arguments(@"E:\")] // Root of a player drive
+    [Arguments(@"F:\")] // Root of another drive
+    [Arguments(@"\\server\share")] // Root of a network share
+    [Arguments(@"\\server\share\Player")]
     public void No_tile_shows_the_same_text_twice(string rememberedFolder)
     {
         // TEXT-13 in docs/design-decisions.md
@@ -153,56 +166,60 @@ public class PlayersTests
             [Drive("E:\\", DriveType.Removable, StorageBus.Usb, label: "SANDISK"), Drive("G:\\", DriveType.Removable, StorageBus.SecureDigital)],
             new PlayerChoice(FolderPath: rememberedFolder), _ => true);
 
-        Assert.Multiple(() =>
-        {
-            foreach (var option in options)
-            {
-                var texts = new[] { option.Title, option.Subtitle, option.Detail }.Where(t => t.Length > 0).ToList();
-                Assert.That(texts, Is.Unique, $"Tile '{option.Title}'");
-            }
-        });
+        options.ShouldAllBe(option => ShownTexts(option).Distinct().Count() == ShownTexts(option).Count);
     }
 
-    [TestCase(100L, 50L, ExpectedResult = false)]
-    [TestCase(100L, 11L, ExpectedResult = false)]
-    [TestCase(100L, 10L, ExpectedResult = true, Description = "90% used")]
-    [TestCase(100L, 0L, ExpectedResult = true)]
-    public bool Drive_is_nearly_full_from_90_percent_used(long total, long free)
+    private static List<string> ShownTexts(PlayerOption option)
+    {
+        string[] texts = [option.Title, option.Subtitle, option.Detail];
+        return [.. texts.Where(t => t.Length > 0)];
+    }
+
+    [Test]
+    [Arguments(100L, 50L, false)]
+    [Arguments(100L, 11L, false)]
+    [Arguments(100L, 10L, true)] // 90% used
+    [Arguments(100L, 0L, true)]
+    public void Drive_is_nearly_full_from_90_percent_used(long total, long free, bool expected)
     {
         var option = new PlayerOption(PlayerOptionKind.Drive, "Player", "", "", Drive("E:\\", DriveType.Removable, StorageBus.Usb) with { TotalBytes = total, FreeBytes = free });
-        Assert.That(option.UsedFraction, Is.EqualTo((total - free) / (double)total));
-        return option.IsNearlyFull;
+        option.UsedFraction.ShouldBe((total - free) / (double)total);
+        option.IsNearlyFull.ShouldBe(expected);
     }
 
     [Test]
     public void Usage_is_only_shown_for_drives_of_known_size()
     {
         var drive = Drive("E:\\", DriveType.Removable, StorageBus.Usb);
-        Assert.That(new PlayerOption(PlayerOptionKind.Drive, "Player", "", "", drive).ShowsUsage, Is.True);
-        Assert.That(new PlayerOption(PlayerOptionKind.Drive, "Player", "", "", drive with { TotalBytes = 0 }).ShowsUsage, Is.False);
-        Assert.That(new PlayerOption(PlayerOptionKind.Folder, "Player", "", "", FolderPath: @"D:\Music").ShowsUsage, Is.False);
+        new PlayerOption(PlayerOptionKind.Drive, "Player", "", "", drive).ShowsUsage.ShouldBeTrue();
+        new PlayerOption(PlayerOptionKind.Drive, "Player", "", "", drive with { TotalBytes = 0 }).ShowsUsage.ShouldBeFalse();
+        new PlayerOption(PlayerOptionKind.Folder, "Player", "", "", FolderPath: @"D:\Music").ShowsUsage.ShouldBeFalse();
     }
 
-    [TestCase(@"C:\Users\me\Desktop\mp3player", ExpectedResult = @"C:\Users\me\Desktop\mp3player", Description = "Short enough")]
-    [TestCase(@"C:\Users\me\AppData\Local\Temp\Mp3PlayerSyncE2E-22808\E2E Player", ExpectedResult = @"C:\…\Mp3PlayerSyncE2E-22808\E2E Player")]
-    [TestCase(@"C:\Users\me\AppData\Local\Temp\A very long folder name for the player", ExpectedResult = @"C:\…\A very long folder name for the player", Description = "The last folder is always kept")]
-    [TestCase(@"D:\A folder name that is far too long to fit", ExpectedResult = @"D:\A folder name that is far too long to fit", Description = "Nothing to leave out")]
-    [TestCase(@"\\server\share\music\players\sandisk\clip sport", ExpectedResult = @"\\server\share\…\sandisk\clip sport")]
-    public string ShortenPath_keeps_the_drive_and_the_last_folders(string path) => Players.ShortenPath(path);
+    [Test]
+    [Arguments(@"C:\Users\me\Desktop\mp3player", @"C:\Users\me\Desktop\mp3player")] // Short enough
+    [Arguments(@"C:\Users\me\AppData\Local\Temp\Mp3PlayerSyncE2E-22808\E2E Player", @"C:\…\Mp3PlayerSyncE2E-22808\E2E Player")]
+    [Arguments(@"C:\Users\me\AppData\Local\Temp\A very long folder name for the player", @"C:\…\A very long folder name for the player")] // The last folder is always kept
+    [Arguments(@"D:\A folder name that is far too long to fit", @"D:\A folder name that is far too long to fit")] // Nothing to leave out
+    [Arguments(@"\\server\share\music\players\sandisk\clip sport", @"\\server\share\…\sandisk\clip sport")]
+    public void ShortenPath_keeps_the_drive_and_the_last_folders(string path, string expected)
+    {
+        Players.ShortenPath(path).ShouldBe(expected);
+    }
 
     [Test]
     public void ShortDisplayName_shortens_only_folders()
     {
         var folder = Players.ForFolder(@"C:\Users\me\AppData\Local\Temp\Mp3PlayerSyncE2E-22808\E2E Player", []);
-        Assert.That(folder.ShortDisplayName, Is.EqualTo(@"Folder (C:\…\Mp3PlayerSyncE2E-22808\E2E Player)"));
+        folder.ShortDisplayName.ShouldBe(@"Folder (C:\…\Mp3PlayerSyncE2E-22808\E2E Player)");
         var drive = new PlayerOption(PlayerOptionKind.Drive, "SANDISK", "", "", Drive(@"E:\", DriveType.Removable, StorageBus.Usb));
-        Assert.That(drive.ShortDisplayName, Is.EqualTo(drive.DisplayName));
+        drive.ShortDisplayName.ShouldBe(drive.DisplayName);
     }
 
     [Test]
     public void A_locked_card_says_so()
     {
         var (options, _) = Players.BuildOptions([Drive("E:\\", DriveType.Removable, StorageBus.SecureDigital) with { IsWriteProtected = true }], null, _ => false);
-        Assert.That(options[0].Detail, Is.EqualTo("This card is locked"));
+        options[0].Detail.ShouldBe("This card is locked");
     }
 }

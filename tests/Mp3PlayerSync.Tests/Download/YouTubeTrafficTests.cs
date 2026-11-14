@@ -7,6 +7,8 @@ namespace Mp3PlayerSync.Tests.Download;
 /// Deterministic: the pacer's decisions are taken synchronously on a fake clock, and the check after a cool-down
 /// completes synchronously, so nothing depends on real time or thread scheduling.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "TUnit0018:Test methods should not assign instance data",
+    Justification = "Tests set what the check returns for themselves; TUnit makes a new instance for each test, so it doesn't carry over.")]
 public class YouTubeTrafficTests
 {
     private static readonly DateTimeOffset Start = new(2026, 11, 13, 12, 0, 0, TimeSpan.Zero);
@@ -18,7 +20,7 @@ public class YouTubeTrafficTests
     private Func<Task<bool>> check = null!;
     private readonly List<YouTubeTraffic> created = [];
 
-    [SetUp]
+    [Before(Test)]
     public void SetUp()
     {
         clock = new FakeTimeProvider(Start);
@@ -28,7 +30,7 @@ public class YouTubeTrafficTests
         check = () => Task.FromResult(true);
     }
 
-    [TearDown]
+    [After(Test)]
     public void TearDown()
     {
         foreach (var traffic in created) traffic.Dispose();
@@ -48,19 +50,20 @@ public class YouTubeTrafficTests
     private static YtDlpException Forbidden() => new("ERROR: unable to download video data: HTTP Error 403: Forbidden", 1);
 
     private static void Take(YouTubeTraffic traffic, int requests = 1) =>
-        Assert.That(traffic.TryTakeTurn(requests), Is.EqualTo(new YouTubeTraffic.Turn(true, false, TimeSpan.Zero)));
+        traffic.TryTakeTurn(requests).ShouldBe(new YouTubeTraffic.Turn(true, false, TimeSpan.Zero));
 
     private static TimeSpan WaitBefore(YouTubeTraffic traffic, int requests = 1)
     {
         var turn = traffic.TryTakeTurn(requests);
-        Assert.That((turn.Granted, turn.NeedsCheck), Is.EqualTo((false, false)));
+        turn.Granted.ShouldBeFalse();
+        turn.NeedsCheck.ShouldBeFalse();
         return turn.Wait;
     }
 
     private static void AssertNeedsCheck(YouTubeTraffic traffic) =>
-        Assert.That(traffic.TryTakeTurn(1), Is.EqualTo(new YouTubeTraffic.Turn(false, true, TimeSpan.Zero)));
+        traffic.TryTakeTurn(1).ShouldBe(new YouTubeTraffic.Turn(false, true, TimeSpan.Zero));
 
-    private static void Trip(YouTubeTraffic traffic) => Assert.That(traffic.NotePushBack(Throttled()), Is.True);
+    private static void Trip(YouTubeTraffic traffic) => traffic.NotePushBack(Throttled()).ShouldBeTrue();
 
     private double MinutesLeft(YouTubeTraffic traffic, TimeProvider? time = null) =>
         traffic.BusyUntil is { } until ? (until - (time ?? clock).GetUtcNow()).TotalMinutes : 0;
@@ -68,7 +71,7 @@ public class YouTubeTrafficTests
     /// <summary>Lets the cool-down end and YouTube be checked, as the next request would.</summary>
     private async Task EndCooldownAsync(YouTubeTraffic traffic)
     {
-        clock.Advance(traffic.BusyUntil!.Value - clock.GetUtcNow());
+        clock.Advance(traffic.BusyUntil.ShouldNotBeNull() - clock.GetUtcNow());
         AssertNeedsCheck(traffic);
         await traffic.CheckAsync();
     }
@@ -79,9 +82,9 @@ public class YouTubeTrafficTests
         var traffic = Create();
         for (var i = 0; i < 40; i++) Take(traffic);
 
-        Assert.That(WaitBefore(traffic), Is.EqualTo(TimeSpan.FromMinutes(1)));
+        WaitBefore(traffic).ShouldBe(TimeSpan.FromMinutes(1));
         clock.Advance(TimeSpan.FromSeconds(59));
-        Assert.That(WaitBefore(traffic), Is.EqualTo(TimeSpan.FromSeconds(1)));
+        WaitBefore(traffic).ShouldBe(TimeSpan.FromSeconds(1));
         clock.Advance(TimeSpan.FromSeconds(1));
         Take(traffic);
     }
@@ -90,21 +93,22 @@ public class YouTubeTrafficTests
     public void Stays_within_250_requests_in_10_minutes_and_1000_in_an_hour()
     {
         var traffic = Create();
-        var sent = new List<DateTimeOffset>();
+        List<DateTimeOffset> sent = [];
         for (var i = 0; i < 30; i++)
         {
             while (traffic.TryTakeTurn(40) is { Granted: false } turn) clock.Advance(turn.Wait);
             sent.Add(clock.GetUtcNow());
         }
 
-        foreach (var at in sent)
-        {
-            Assert.That(sent.Count(s => s > at - TimeSpan.FromMinutes(1) && s <= at) * 40, Is.LessThanOrEqualTo(40));
-            Assert.That(sent.Count(s => s > at - TimeSpan.FromMinutes(10) && s <= at) * 40, Is.LessThanOrEqualTo(250));
-            Assert.That(sent.Count(s => s > at - TimeSpan.FromHours(1) && s <= at) * 40, Is.LessThanOrEqualTo(1000));
-        }
-        Assert.That(sent[^1] - sent[0], Is.GreaterThanOrEqualTo(TimeSpan.FromHours(1)), "1,200 requests take over an hour.");
+        sent.ShouldAllBe(at => RequestsWithin(sent, at, TimeSpan.FromMinutes(1)) <= 40);
+        sent.ShouldAllBe(at => RequestsWithin(sent, at, TimeSpan.FromMinutes(10)) <= 250);
+        sent.ShouldAllBe(at => RequestsWithin(sent, at, TimeSpan.FromHours(1)) <= 1000);
+        (sent[^1] - sent[0]).ShouldBeGreaterThanOrEqualTo(TimeSpan.FromHours(1), customMessage: "1,200 requests take over an hour.");
     }
+
+    /// <summary>How many requests were sent in the window up to and including <paramref name="at"/>, 40 at a time.</summary>
+    private static int RequestsWithin(List<DateTimeOffset> sent, DateTimeOffset at, TimeSpan window) =>
+        sent.Count(s => s > at - window && s <= at) * 40;
 
     [Test]
     public async Task Throttling_stops_all_requests_until_the_cool_down_and_a_clean_check()
@@ -114,21 +118,21 @@ public class YouTubeTrafficTests
         traffic.BusyChanged += (_, _) => busyChanges++;
 
         Trip(traffic);
-        Assert.That(traffic.BusyText, Is.EqualTo("YouTube is busy; continuing in 60 min"));
-        Assert.That(WaitBefore(traffic), Is.EqualTo(TimeSpan.FromMinutes(60)));
+        traffic.BusyText.ShouldBe("YouTube is busy; continuing in 60 min");
+        WaitBefore(traffic).ShouldBe(TimeSpan.FromMinutes(60));
 
         clock.Advance(TimeSpan.FromMinutes(59.5));
-        Assert.That(traffic.BusyText, Is.EqualTo("YouTube is busy; continuing in 1 min"));
-        Assert.That(WaitBefore(traffic), Is.EqualTo(TimeSpan.FromMinutes(0.5)));
-        Assert.That(checks, Is.Zero);
+        traffic.BusyText.ShouldBe("YouTube is busy; continuing in 1 min");
+        WaitBefore(traffic).ShouldBe(TimeSpan.FromMinutes(0.5));
+        checks.ShouldBe(0);
 
         clock.Advance(TimeSpan.FromMinutes(0.5));
-        Assert.That(busyChanges, Is.EqualTo(2), "Raised when the cool-down starts and ends.");
-        Assert.That(traffic.BusyText, Is.Null);
+        busyChanges.ShouldBe(2, customMessage: "Raised when the cool-down starts and ends.");
+        traffic.BusyText.ShouldBeNull();
         AssertNeedsCheck(traffic);
 
         await traffic.CheckAsync();
-        Assert.That(checks, Is.EqualTo(1));
+        checks.ShouldBe(1);
         Take(traffic);
     }
 
@@ -141,15 +145,15 @@ public class YouTubeTrafficTests
 
         foreach (var minutes in (int[])[60, 120, 240, 240])
         {
-            Assert.That(MinutesLeft(traffic), Is.EqualTo(minutes));
+            MinutesLeft(traffic).ShouldBe(minutes);
             await EndCooldownAsync(traffic);
         }
 
-        Assert.That(MinutesLeft(traffic), Is.EqualTo(240));
+        MinutesLeft(traffic).ShouldBe(240);
         check = () => Task.FromResult(true);
         await EndCooldownAsync(traffic);
         Take(traffic);
-        Assert.That(checks, Is.EqualTo(5));
+        checks.ShouldBe(5);
     }
 
     [Test]
@@ -161,13 +165,13 @@ public class YouTubeTrafficTests
         Take(traffic);
 
         Trip(traffic);
-        Assert.That(MinutesLeft(traffic), Is.EqualTo(120), "Soon after the last one, it's longer.");
+        MinutesLeft(traffic).ShouldBe(120, customMessage: "Soon after the last one, it's longer.");
         await EndCooldownAsync(traffic);
         Take(traffic);
 
         clock.Advance(TimeSpan.FromHours(24));
         Trip(traffic);
-        Assert.That(MinutesLeft(traffic), Is.EqualTo(60));
+        MinutesLeft(traffic).ShouldBe(60);
     }
 
     [Test]
@@ -179,7 +183,7 @@ public class YouTubeTrafficTests
 
         // The check's 4 count towards the 20 a minute.
         for (var i = 0; i < 16; i++) Take(traffic);
-        Assert.That(WaitBefore(traffic), Is.EqualTo(TimeSpan.FromMinutes(1)));
+        WaitBefore(traffic).ShouldBe(TimeSpan.FromMinutes(1));
 
         clock.Advance(TimeSpan.FromHours(1));
         for (var i = 0; i < 40; i++) Take(traffic);
@@ -193,40 +197,40 @@ public class YouTubeTrafficTests
         Trip(traffic);
         await EndCooldownAsync(traffic);
 
-        Assert.That(traffic.BusyText, Is.Null);
-        Assert.That(WaitBefore(traffic), Is.EqualTo(TimeSpan.FromMinutes(1)));
+        traffic.BusyText.ShouldBeNull();
+        WaitBefore(traffic).ShouldBe(TimeSpan.FromMinutes(1));
 
         check = () => Task.FromResult(true);
         clock.Advance(TimeSpan.FromMinutes(1));
         AssertNeedsCheck(traffic);
         await traffic.CheckAsync();
         Take(traffic);
-        Assert.That(checks, Is.EqualTo(2));
+        checks.ShouldBe(2);
     }
 
     [Test]
-    public void A_lone_403_is_passed_on_but_three_in_5_minutes_stop_requests()
+    public async Task A_lone_403_is_passed_on_but_three_in_5_minutes_stop_requests()
     {
         var traffic = Create();
-        Assert.ThrowsAsync<YtDlpException>(() => traffic.SendAsync(1, _ => throw Forbidden(), CancellationToken.None));
-        Assert.That(traffic.BusyUntil, Is.Null);
+        await Should.ThrowAsync<YtDlpException>(() => traffic.SendAsync(1, _ => throw Forbidden(), CancellationToken.None));
+        traffic.BusyUntil.ShouldBeNull();
 
         clock.Advance(TimeSpan.FromMinutes(4));
-        Assert.That(traffic.NotePushBack(Forbidden()), Is.False);
+        traffic.NotePushBack(Forbidden()).ShouldBeFalse();
         clock.Advance(TimeSpan.FromMinutes(2)); // The first has dropped out of the last 5 minutes.
-        Assert.That(traffic.NotePushBack(Forbidden()), Is.False);
-        Assert.That(traffic.BusyUntil, Is.Null);
+        traffic.NotePushBack(Forbidden()).ShouldBeFalse();
+        traffic.BusyUntil.ShouldBeNull();
 
-        Assert.That(traffic.NotePushBack(Forbidden()), Is.True);
-        Assert.That(MinutesLeft(traffic), Is.EqualTo(60));
+        traffic.NotePushBack(Forbidden()).ShouldBeTrue();
+        MinutesLeft(traffic).ShouldBe(60);
     }
 
     [Test]
     public void Other_failures_are_passed_on_without_stopping_requests()
     {
         var traffic = Create();
-        Assert.That(traffic.NotePushBack(new YtDlpException("ERROR: [youtube] abc: Video unavailable", 1)), Is.False);
-        Assert.That(traffic.NotePushBack(new IOException()), Is.False);
+        traffic.NotePushBack(new YtDlpException("ERROR: [youtube] abc: Video unavailable", 1)).ShouldBeFalse();
+        traffic.NotePushBack(new IOException()).ShouldBeFalse();
         Take(traffic);
     }
 
@@ -239,12 +243,12 @@ public class YouTubeTrafficTests
         clock.Advance(TimeSpan.FromMinutes(10));
 
         var after = Create();
-        Assert.That(after.BusyText, Is.EqualTo("YouTube is busy; continuing in 50 min"));
-        Assert.That(WaitBefore(after), Is.EqualTo(TimeSpan.FromMinutes(50)));
+        after.BusyText.ShouldBe("YouTube is busy; continuing in 50 min");
+        WaitBefore(after).ShouldBe(TimeSpan.FromMinutes(50));
 
         await EndCooldownAsync(after);
         Take(after);
-        Assert.That(checks, Is.EqualTo(1), "YouTube is checked before anything else is sent.");
+        checks.ShouldBe(1, customMessage: "YouTube is checked before anything else is sent.");
     }
 
     [Test]
@@ -255,7 +259,7 @@ public class YouTubeTrafficTests
         before.Dispose();
 
         var after = Create();
-        Assert.That(WaitBefore(after), Is.EqualTo(TimeSpan.FromMinutes(1)));
+        WaitBefore(after).ShouldBe(TimeSpan.FromMinutes(1));
         clock.Advance(TimeSpan.FromMinutes(1));
         Take(after);
     }
@@ -270,7 +274,7 @@ public class YouTubeTrafficTests
 
         var after = Create();
         Trip(after);
-        Assert.That(MinutesLeft(after), Is.EqualTo(120));
+        MinutesLeft(after).ShouldBe(120);
     }
 
     [Test]
@@ -281,7 +285,7 @@ public class YouTubeTrafficTests
         before.Dispose();
 
         var earlier = new FakeTimeProvider(Start - TimeSpan.FromDays(2));
-        Assert.That(MinutesLeft(Create(earlier), earlier), Is.EqualTo(60), "Capped at the cool-down's length.");
+        MinutesLeft(Create(earlier), earlier).ShouldBe(60, customMessage: "Capped at the cool-down's length.");
     }
 
     [Test]
@@ -293,7 +297,7 @@ public class YouTubeTrafficTests
 
         var earlier = new FakeTimeProvider(Start - TimeSpan.FromDays(2));
         var after = Create(earlier);
-        Assert.That(WaitBefore(after), Is.EqualTo(TimeSpan.FromMinutes(1)));
+        WaitBefore(after).ShouldBe(TimeSpan.FromMinutes(1));
         earlier.Advance(TimeSpan.FromMinutes(1));
         Take(after);
     }
@@ -304,7 +308,7 @@ public class YouTubeTrafficTests
         Directory.CreateDirectory(directory);
         File.WriteAllText(statePath, $$"""{ "level": 0, "busyUntil": "{{Start.AddDays(10):O}}", "needsCheck": true }""");
 
-        Assert.That(Create().BusyUntil, Is.EqualTo(Start + TimeSpan.FromMinutes(60)));
+        Create().BusyUntil.ShouldBe(Start + TimeSpan.FromMinutes(60));
     }
 
     [Test]
@@ -314,7 +318,7 @@ public class YouTubeTrafficTests
         File.WriteAllText(statePath, "{ not json");
 
         var traffic = Create();
-        Assert.That(traffic.BusyUntil, Is.Null);
+        traffic.BusyUntil.ShouldBeNull();
         Take(traffic);
     }
 }
