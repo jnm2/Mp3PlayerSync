@@ -245,9 +245,10 @@ jobs:
           tests\Test-PublishedExe.ps1 -Runtime win-${{ matrix.arch }} -Desktop Current -ScreenshotFolder "$PWD\logs\screenshots" -BinlogFolder logs *>&1 | Tee-Object logs\e2e.log
           exit $LASTEXITCODE
 
-      # After the publishes in the tests, which bring the target architecture's runtime packs.
+      # After the publishes in the tests, which bring the target architecture's runtime packs. Arm64's only: x64's is the
+      # build job's.
       - name: Save NuGet package cache
-        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && steps.nuget-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && matrix.arch == 'arm64' && github.ref == 'refs/heads/main' && steps.nuget-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v6
         with:
           path: ${{ env.NUGET_PACKAGES }}
