@@ -184,7 +184,7 @@
 
     window.fetch = async (input, init) => {
         const url = new URL(typeof input === 'string' ? input : input.url, location.href);
-        navigator.sendBeacon('/api-log', url.pathname + url.search); // For the tests: see Start-MockExportify.ps1
+        navigator.sendBeacon('/api-log', url.pathname + url.search); // For the tests: see tests\Mp3PlayerSync.MockExportify
         const response = route(url, (init?.method ?? 'GET').toUpperCase(), init);
         if (!response) throw new TypeError('The mock only serves Spotify requests: ' + url);
 

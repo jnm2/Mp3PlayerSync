@@ -13,7 +13,7 @@
 		// Like accounts.spotify.com, return straight to Exportify when there is already a Spotify session.
 		if (document.cookie.includes('mock_spotify_session=1')) returnToExportify()
 		// Test switch: ?auto signs in by itself after a moment, standing in for the user, unless a test holds it
-		// (Start-MockExportify.ps1's sign-in-hold) until it has seen the sign-in screen.
+		// (the mock server's sign-in-hold) until it has seen the sign-in screen.
 		else if (new URLSearchParams(location.search).has('auto')) setTimeout(async function signInWhenReleased() {
 			const hold = await fetch('/sign-in-hold', { cache: 'no-store' }).then(r => r.text()).catch(() => 'released')
 			if (hold === 'held') setTimeout(signInWhenReleased, 200)
