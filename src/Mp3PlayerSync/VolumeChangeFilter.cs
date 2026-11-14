@@ -4,6 +4,7 @@ namespace Mp3PlayerSync;
 /// Picks out the volume watcher's events that are changes. On starting, the watcher reports every volume that's
 /// already there as added, until it says enumeration is complete; those aren't changes.
 /// </summary>
+/// <remarks>Safe to call from several threads at once, in which case <c>changed</c> can run on several at once too.</remarks>
 internal sealed class VolumeChangeFilter(Action changed)
 {
     private volatile bool enumerated;
