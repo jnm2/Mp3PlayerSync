@@ -54,7 +54,7 @@ public sealed class AppUnderTest : IAsyncDisposable
         {
             // Such as a message box from the Windows App SDK's bootstrapper, when its runtime isn't installed
             var others = automation.GetDesktop().FindAllChildren(c => c.ByProcessId(process.Id))
-                .Select(w => $"'{w.Name}' ({w.ClassName})").ToList();
+                .Select(w => $"'{w.Properties.Name.ValueOrDefault}' ({w.Properties.ClassName.ValueOrDefault})").ToList();
             if (!process.HasExited) process.Kill();
             process.Dispose();
             throw new TimeoutException($"{exception.Message}. The app's other windows: {(others.Count > 0 ? string.Join(", ", others) : "none")}", exception);
@@ -70,11 +70,11 @@ public sealed class AppUnderTest : IAsyncDisposable
     public AutomationElement? FindById(string automationId) => Window.FindFirstDescendant(c => c.ByAutomationId(automationId));
 
     /// <summary>The text of the element with <paramref name="automationId"/>, or null when it isn't shown.</summary>
-    public string? Text(string automationId) => FindById(automationId)?.Name;
+    public string? Text(string automationId) => FindById(automationId)?.Properties.Name.ValueOrDefault;
 
     /// <summary>Every text in the window, a line each.</summary>
     public string AllText() =>
-        string.Join('\n', Window.FindAllDescendants(c => c.ByControlType(ControlType.Text)).Select(e => e.Name));
+        string.Join('\n', Window.FindAllDescendants(c => c.ByControlType(ControlType.Text)).Select(e => e.Properties.Name.ValueOrDefault));
 
     /// <summary>
     /// The page called <paramref name="title"/> in the window's WebView2, or null when it isn't shown. UI Automation

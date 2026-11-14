@@ -35,13 +35,13 @@ public sealed class SmokeTests(RunContext run)
 
         await Wait.UntilAsync(() => app.FindById("SignInTitle"), "the sign-in screen", TimeSpan.FromSeconds(60), app, cancellationToken);
         var page = await Wait.UntilAsync(() => app.FindWebPage("Spotify login (mock)"), "Spotify's sign-in page in the window", TimeSpan.FromSeconds(60), app, cancellationToken);
-        page.FindAllDescendants(c => c.ByControlType(ControlType.Hyperlink)).Select(link => link.Name)
+        page.FindAllDescendants(c => c.ByControlType(ControlType.Hyperlink)).Select(link => link.Properties.Name.ValueOrDefault)
             .ShouldBe(["Sign up for Spotify", "Help"], ignoreOrder: true);
 
         run.Mock.SignInHeld = false;
         await Wait.UntilAsync(() => app.FindById("LibraryGridView"), "the library after signing in", TimeSpan.FromSeconds(60), app, cancellationToken);
         app.ShouldSatisfyAllConditions(
-            () => app.Window.Name.ShouldBe("MP3 Player Sync"),
+            () => app.Window.Properties.Name.ValueOrDefault.ShouldBe("MP3 Player Sync"),
             () => app.FindById("SignInTitle").ShouldBeNull(),
             () => app.FindWebPage("Spotify login (mock)").ShouldBeNull());
 
