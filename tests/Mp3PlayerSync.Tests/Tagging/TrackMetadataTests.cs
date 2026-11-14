@@ -7,7 +7,7 @@ namespace Mp3PlayerSync.Tests.Tagging;
 public class TrackMetadataTests
 {
     [Test]
-    public void Maps_exportify_net_row()
+    public async Task Maps_exportify_net_row()
     {
         const string csv =
             "Track URI,ISRC,Track Name,Album Name,Artist Name(s),Release Date,Duration (ms),Popularity,Explicit,Added By,Added At,Genres,Record Label,Danceability,Energy,Key,Loudness,Mode,Speechiness,Acousticness,Instrumentalness,Liveness,Valence,Tempo,Time Signature\n" +
@@ -15,28 +15,28 @@ public class TrackMetadataTests
 
         var metadata = TrackMetadata.FromExportedTrack(ExportifyCsv.Parse(csv).Tracks.Single());
 
-        Assert.Multiple(() =>
+        using (Assert.Multiple())
         {
-            Assert.That(metadata.Title, Is.EqualTo("Under Pressure"));
-            Assert.That(metadata.Artists, Is.EqualTo(new[] { "Queen", "David Bowie" }));
-            Assert.That(metadata.AlbumArtists, Is.Empty, "One track can't tell its album's artist.");
-            Assert.That(metadata.Album, Is.EqualTo("Hot Space"));
-            Assert.That(metadata.Year, Is.EqualTo(1982));
-            Assert.That(metadata.NormalizedReleaseDate, Is.EqualTo("1982-05-21"));
-            Assert.That(metadata.TrackNumber, Is.Null);
-            Assert.That(metadata.DiscNumber, Is.Null);
-            Assert.That(metadata.Genres, Is.EqualTo(new[] { "glam rock", "classic rock", "rock" }));
-            Assert.That(metadata.Isrc, Is.EqualTo("USRC2"));
-            Assert.That(metadata.Label, Is.EqualTo("EMI"));
-            Assert.That(metadata.Explicit, Is.True);
-            Assert.That(metadata.BeatsPerMinute, Is.EqualTo(113));
-            Assert.That(metadata.InitialKey, Is.EqualTo("Am"));
-            Assert.That(metadata.AlbumImageUrl, Is.Empty);
-        });
+            await Assert.That(metadata.Title).IsEqualTo("Under Pressure");
+            await Assert.That(metadata.Artists).IsEquivalentTo(new[] { "Queen", "David Bowie" }, CollectionOrdering.Matching);
+            await Assert.That(metadata.AlbumArtists).IsEmpty().Because("One track can't tell its album's artist.");
+            await Assert.That(metadata.Album).IsEqualTo("Hot Space");
+            await Assert.That(metadata.Year).IsEqualTo(1982);
+            await Assert.That(metadata.NormalizedReleaseDate).IsEqualTo("1982-05-21");
+            await Assert.That(metadata.TrackNumber).IsNull();
+            await Assert.That(metadata.DiscNumber).IsNull();
+            await Assert.That(metadata.Genres).IsEquivalentTo(new[] { "glam rock", "classic rock", "rock" }, CollectionOrdering.Matching);
+            await Assert.That(metadata.Isrc).IsEqualTo("USRC2");
+            await Assert.That(metadata.Label).IsEqualTo("EMI");
+            await Assert.That(metadata.Explicit).IsTrue();
+            await Assert.That(metadata.BeatsPerMinute).IsEqualTo(113);
+            await Assert.That(metadata.InitialKey).IsEqualTo("Am");
+            await Assert.That(metadata.AlbumImageUrl).IsEmpty();
+        }
     }
 
     [Test]
-    public void Maps_exportify_app_row_with_album_and_audio_features_data()
+    public async Task Maps_exportify_app_row_with_album_and_audio_features_data()
     {
         const string csv =
             "\"Track URI\",\"Track Name\",\"Artist URI(s)\",\"Artist Name(s)\",\"Album URI\",\"Album Name\",\"Album Artist URI(s)\",\"Album Artist Name(s)\",\"Album Release Date\",\"Album Image URL\",\"Disc Number\",\"Track Number\",\"Track Duration (ms)\",\"Track Preview URL\",\"Explicit\",\"Popularity\",\"ISRC\",\"Added By\",\"Added At\",\"Artist Genres\",\"Key\",\"Mode\",\"Tempo\",\"Album Genres\",\"Label\",\"Copyrights\"\n" +
@@ -44,25 +44,25 @@ public class TrackMetadataTests
 
         var metadata = TrackMetadata.FromExportedTrack(ExportifyCsv.Parse(csv).Tracks.Single());
 
-        Assert.Multiple(() =>
+        using (Assert.Multiple())
         {
-            Assert.That(metadata.AlbumArtists, Is.EqualTo(new[] { "Earth, Wind & Fire", "Various" }));
-            Assert.That(metadata.PrimaryAlbumArtist, Is.EqualTo("Earth, Wind & Fire"));
-            Assert.That(metadata.NormalizedReleaseDate, Is.EqualTo("1979-06"));
-            Assert.That(metadata.AlbumImageUrl, Is.EqualTo("https://i.scdn.co/image/abc"));
-            Assert.That(metadata.DiscNumber, Is.EqualTo(2));
-            Assert.That(metadata.TrackNumber, Is.EqualTo(7));
-            Assert.That(metadata.Explicit, Is.False);
-            Assert.That(metadata.Genres, Is.EqualTo(new[] { "funk", "disco" }), "Duplicates across artist and album genres are dropped.");
-            Assert.That(metadata.InitialKey, Is.EqualTo("C#"));
-            Assert.That(metadata.BeatsPerMinute, Is.EqualTo(120));
-            Assert.That(metadata.Label, Is.EqualTo("Columbia"));
-            Assert.That(metadata.Copyright, Is.EqualTo("C 1979 Columbia, P 1979 Columbia"));
-        });
+            await Assert.That(metadata.AlbumArtists).IsEquivalentTo(new[] { "Earth, Wind & Fire", "Various" }, CollectionOrdering.Matching);
+            await Assert.That(metadata.PrimaryAlbumArtist).IsEqualTo("Earth, Wind & Fire");
+            await Assert.That(metadata.NormalizedReleaseDate).IsEqualTo("1979-06");
+            await Assert.That(metadata.AlbumImageUrl).IsEqualTo("https://i.scdn.co/image/abc");
+            await Assert.That(metadata.DiscNumber).IsEqualTo(2);
+            await Assert.That(metadata.TrackNumber).IsEqualTo(7);
+            await Assert.That(metadata.Explicit).IsFalse();
+            await Assert.That(metadata.Genres).IsEquivalentTo(new[] { "funk", "disco" }, CollectionOrdering.Matching).Because("Duplicates across artist and album genres are dropped.");
+            await Assert.That(metadata.InitialKey).IsEqualTo("C#");
+            await Assert.That(metadata.BeatsPerMinute).IsEqualTo(120);
+            await Assert.That(metadata.Label).IsEqualTo("Columbia");
+            await Assert.That(metadata.Copyright).IsEqualTo("C 1979 Columbia, P 1979 Columbia");
+        }
     }
 
     [Test]
-    public void Album_tracks_are_numbered_by_their_spotify_album_order()
+    public async Task Album_tracks_are_numbered_by_their_spotify_album_order()
     {
         const string csv =
             "Track URI,ISRC,Track Name,Album Name,Artist Name(s),Release Date,Duration (ms)\n" +
@@ -72,11 +72,11 @@ public class TrackMetadataTests
 
         var metadata = TrackMetadata.FromAlbum(ExportifyCsv.Parse(csv).Tracks);
 
-        Assert.That(metadata.Select(m => (m.Title, m.TrackNumber)), Is.EqualTo(new[] { ("First", (int?)1), ("Second", 2), ("Third", 3) }));
+        await Assert.That(metadata.Select(m => (m.Title, m.TrackNumber))).IsEquivalentTo(new[] { ("First", (int?)1), ("Second", 2), ("Third", 3) }, CollectionOrdering.Matching);
     }
 
     [Test]
-    public void Track_number_column_wins_over_album_order_and_playlist_tracks_have_none()
+    public async Task Track_number_column_wins_over_album_order_and_playlist_tracks_have_none()
     {
         const string csv =
             "Track URI,Track Name,Artist Name(s),Album Name,Track Number,Track Duration (ms)\n" +
@@ -84,8 +84,8 @@ public class TrackMetadataTests
             "spotify:track:2,Other,A,Album,,1\n";
         var tracks = ExportifyCsv.Parse(csv).Tracks;
 
-        Assert.That(TrackMetadata.FromAlbum(tracks).Select(m => m.TrackNumber), Is.EqualTo(new int?[] { 7, 2 }));
-        Assert.That(TrackMetadata.FromExportedTrack(tracks[1]).TrackNumber, Is.Null);
+        await Assert.That(TrackMetadata.FromAlbum(tracks).Select(m => m.TrackNumber)).IsEquivalentTo(new int?[] { 7, 2 }, CollectionOrdering.Matching);
+        await Assert.That(TrackMetadata.FromExportedTrack(tracks[1]).TrackNumber).IsNull();
     }
 
     private static IReadOnlyList<ExportedTrack> Album(params string[] artistCredits)
@@ -96,59 +96,60 @@ public class TrackMetadataTests
     }
 
     [Test]
-    public void Compilation_gets_various_artists_on_every_track()
+    public async Task Compilation_gets_various_artists_on_every_track()
     {
         var metadata = TrackMetadata.FromAlbum(Album("Blue Swede", "Redbone", "Raspberries"));
 
-        Assert.That(metadata.Select(m => m.AlbumArtists), Is.All.EqualTo(new[] { "Various Artists" }));
+        await Assert.That(metadata.Select(m => m.AlbumArtists)).All(artists => artists.SequenceEqual(["Various Artists"]));
     }
 
     [Test]
-    public void Soundtrack_by_a_composer_with_guest_tracks_gets_the_composer()
+    public async Task Soundtrack_by_a_composer_with_guest_tracks_gets_the_composer()
     {
         var metadata = TrackMetadata.FromAlbum(Album("Hans Zimmer", "Hans Zimmer;Lisa Gerrard", "Lisa Gerrard;Hans Zimmer"));
 
-        Assert.That(metadata.Select(m => m.AlbumArtists), Is.All.EqualTo(new[] { "Hans Zimmer" }));
+        await Assert.That(metadata.Select(m => m.AlbumArtists)).All(artists => artists.SequenceEqual(["Hans Zimmer"]));
     }
 
     [Test]
-    public void Guest_first_track_stays_with_the_albums_artist()
+    public async Task Guest_first_track_stays_with_the_albums_artist()
     {
         var metadata = TrackMetadata.FromAlbum(Album("Queen", "David Bowie;Queen", "QUEEN"));
 
-        Assert.That(metadata.Select(m => m.AlbumArtists), Is.All.EqualTo(new[] { "Queen" }));
-        Assert.That(metadata[1].Artists, Is.EqualTo(new[] { "David Bowie", "Queen" }), "Track artists are unchanged.");
+        await Assert.That(metadata.Select(m => m.AlbumArtists)).All(artists => artists.SequenceEqual(["Queen"]));
+        await Assert.That(metadata[1].Artists).IsEquivalentTo(new[] { "David Bowie", "Queen" }, CollectionOrdering.Matching).Because("Track artists are unchanged.");
     }
 
     [Test]
-    public void Album_artist_column_wins_over_the_derived_one()
+    public async Task Album_artist_column_wins_over_the_derived_one()
     {
         const string csv =
             "Track URI,Track Name,Artist Name(s),Album Name,Album Artist Name(s),Track Duration (ms)\n" +
             "spotify:track:1,A,X,Album,Label Sampler,1\n" +
             "spotify:track:2,B,Y,Album,Label Sampler,1\n";
 
-        Assert.That(TrackMetadata.FromAlbum(ExportifyCsv.Parse(csv).Tracks).Select(m => m.AlbumArtists), Is.All.EqualTo(new[] { "Label Sampler" }));
-    }
-
-    [TestCase("", null)]
-    [TestCase("0000", null)]
-    [TestCase("1999", 1999)]
-    [TestCase("1999-02", 1999)]
-    [TestCase("1999-02-03", 1999)]
-    [TestCase("19990203", null)]
-    public void Parses_year(string releaseDate, int? year)
-    {
-        Assert.That(TrackMetadata.ParseYear(releaseDate), Is.EqualTo(year));
+        await Assert.That(TrackMetadata.FromAlbum(ExportifyCsv.Parse(csv).Tracks).Select(m => m.AlbumArtists)).All(artists => artists.SequenceEqual(["Label Sampler"]));
     }
 
     [Test]
-    public void Unknown_key_and_tempo_are_blank()
+    [Arguments("", null)]
+    [Arguments("0000", null)]
+    [Arguments("1999", 1999)]
+    [Arguments("1999-02", 1999)]
+    [Arguments("1999-02-03", 1999)]
+    [Arguments("19990203", null)]
+    public async Task Parses_year(string releaseDate, int? year)
+    {
+        await Assert.That(TrackMetadata.ParseYear(releaseDate)).IsEqualTo(year);
+    }
+
+    [Test]
+    public async Task Unknown_key_and_tempo_are_blank()
     {
         var metadata = new TrackMetadata { Key = -1, Mode = 1, Tempo = 0 };
 
-        Assert.That(metadata.InitialKey, Is.Empty);
-        Assert.That(metadata.BeatsPerMinute, Is.Null);
+        await Assert.That(metadata.InitialKey).IsEmpty();
+        await Assert.That(metadata.BeatsPerMinute).IsNull();
     }
 }
 
@@ -165,22 +166,23 @@ public class HttpAlbumArtFetcherTests
         var first = await fetcher.FetchAsync("https://i.scdn.co/image/abc");
         var second = await fetcher.FetchAsync("https://i.scdn.co/image/abc");
 
-        Assert.That(first?.MimeType, Is.EqualTo("image/png"));
-        Assert.That(second, Is.SameAs(first));
-        Assert.That(handler.Requests, Has.Count.EqualTo(1));
+        await Assert.That(first?.MimeType).IsEqualTo("image/png");
+        await Assert.That(second).IsSameReferenceAs(first);
+        await Assert.That(handler.Requests).Count().IsEqualTo(1);
     }
 
-    [TestCase("https://api.spotify.com/v1/albums/1")]
-    [TestCase("http://i.scdn.co/image/abc")]
-    [TestCase("not a url")]
+    [Test]
+    [Arguments("https://api.spotify.com/v1/albums/1")]
+    [Arguments("http://i.scdn.co/image/abc")]
+    [Arguments("not a url")]
     public async Task Refuses_anything_but_the_image_cdn(string url)
     {
         var handler = new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(PngBytes) });
 
         var art = await new HttpAlbumArtFetcher(new HttpClient(handler)).FetchAsync(url);
 
-        Assert.That(art, Is.Null);
-        Assert.That(handler.Requests, Is.Empty);
+        await Assert.That(art).IsNull();
+        await Assert.That(handler.Requests).IsEmpty();
     }
 
     [Test]
@@ -192,8 +194,8 @@ public class HttpAlbumArtFetcherTests
             : new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(PngBytes) });
         var fetcher = new HttpAlbumArtFetcher(new HttpClient(handler));
 
-        Assert.That(await fetcher.FetchAsync("https://i.scdn.co/image/abc"), Is.Null);
-        Assert.That(await fetcher.FetchAsync("https://i.scdn.co/image/abc"), Is.Not.Null);
+        await Assert.That(await fetcher.FetchAsync("https://i.scdn.co/image/abc")).IsNull();
+        await Assert.That(await fetcher.FetchAsync("https://i.scdn.co/image/abc")).IsNotNull();
     }
 
     [Test]
@@ -201,7 +203,7 @@ public class HttpAlbumArtFetcherTests
     {
         var handler = new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<html>") });
 
-        Assert.That(await new HttpAlbumArtFetcher(new HttpClient(handler)).FetchAsync("https://i.scdn.co/image/abc"), Is.Null);
+        await Assert.That(await new HttpAlbumArtFetcher(new HttpClient(handler)).FetchAsync("https://i.scdn.co/image/abc")).IsNull();
     }
 
     private sealed class FakeHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler

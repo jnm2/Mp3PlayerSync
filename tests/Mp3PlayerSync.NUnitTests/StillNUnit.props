@@ -9,6 +9,5 @@
     <StillNUnit Include="$(UnitTestsFolder)Placement\*.cs" />
     <StillNUnit Include="$(UnitTestsFolder)Scanning\*.cs" />
     <StillNUnit Include="$(UnitTestsFolder)Sync\*.cs" />
-    <StillNUnit Include="$(UnitTestsFolder)Tagging\*.cs" />
   </ItemGroup>
 </Project>
