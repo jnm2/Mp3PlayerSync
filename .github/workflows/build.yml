@@ -255,9 +255,12 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # Only when the publishes and the end-to-end tests on both architectures passed (they need the build job): a job's
+  # own `if` without always() or failure() also requires every job it needs (and each leg of a matrix) to have
+  # succeeded.
   release:
     if: github.ref_type == 'tag'
-    needs: publish
+    needs: [publish, e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: write
