@@ -226,9 +226,10 @@ function Click($window, [string] $automationId) {
 }
 
 function Select-Filter($window, [string] $name) {
+    # Only the tabs' AutomationIds end in FilterItem: library tiles can be selected too, and a playlist could be called "All".
     $item = Wait-Until {
         @($window.FindAll($TreeScope::Descendants, [System.Windows.Automation.PropertyCondition]::new($AE::NameProperty, $name))) |
-            Where-Object { $_.GetSupportedPatterns() -contains [System.Windows.Automation.SelectionItemPattern]::Pattern } | Select-Object -First 1
+            Where-Object { $_.Current.AutomationId -like '*FilterItem' } | Select-Object -First 1
     } "selector tab '$name'"
     (Pattern $item ([System.Windows.Automation.SelectionItemPattern])).Select()
 }
