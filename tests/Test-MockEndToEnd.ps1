@@ -1105,9 +1105,10 @@ try {
             $otherData = "$env:MP3PLAYERSYNC_DATA_DIR-other"
             $env:MP3PLAYERSYNC_DATA_DIR, $sharedData = $otherData, $env:MP3PLAYERSYNC_DATA_DIR
             try { $other, $otherWindow = Start-App $url } finally { $env:MP3PLAYERSYNC_DATA_DIR = $sharedData }
-            $script:currentWindow = $window
             Check ($null -ne $otherWindow -and !$other.HasExited) 'A launch on another data folder runs alongside'
             Stop-App $other
+            # Stop-App forgets the window it closes; the rest of the run watches the first one again.
+            $script:currentWindow = $window
             Remove-Item $otherData -Recurse -Force -ErrorAction SilentlyContinue
 
             Choose-Player $window
