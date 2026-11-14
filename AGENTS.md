@@ -22,8 +22,7 @@ Only the user merges to `main` or creates tags.
 ## Running the app and tests
 
 The UI must never take focus from the user's desktop (TEST-1). Run it only through the end-to-end test on a hidden
-desktop, never with `dotnet run` or `winapp run` on the user's desktop. The one exception is the upkeep session, which
-launches the app there after each successful warm build of `private` (UPKEEP-1).
+desktop, never with `dotnet run` or `winapp run` on the user's desktop.
 
 ```powershell
 dotnet build Mp3PlayerSync.slnx
