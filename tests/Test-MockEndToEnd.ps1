@@ -27,9 +27,8 @@ param(
     [string] $AppPath = (Get-ChildItem "$PSScriptRoot\Mp3PlayerSync.E2EHost\bin\Debug" -Recurse -Filter Mp3PlayerSync.E2EHost.exe | Select-Object -First 1).FullName,
     [string] $ScreenshotFolder,
     [ValidateSet('Run1', 'Run2', 'Run2b', 'Run2c', 'Run3', 'Run4', 'Run5')] [string[]] $Only,
-    # Where Invoke-EndToEnd.ps1 runs this. On the current desktop (CI, or someone asking for it) Windows can give a
-    # newly started app the foreground, and there's nobody's work to protect, so the foreground check only applies to
-    # the hidden desktop.
+    # Where Invoke-EndToEnd.ps1 runs this. It watches the user's foreground window itself (TEST-1): from here, on a
+    # hidden desktop, GetForegroundWindow always returns NULL.
     [ValidateSet('Hidden', 'Current')] [string] $Desktop = 'Hidden'
 )
 
@@ -40,7 +39,6 @@ using System; using System.Runtime.InteropServices;
 public static class E2EWin32 {
     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
-    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, uint flags);
     public const uint SWP_NOMOVE = 0x2, SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10;
@@ -88,17 +86,12 @@ function Check([bool] $condition, [string] $description) {
     else { Write-Host "  FAIL  $description" -ForegroundColor Red; $failures.Add($description) }
 }
 
-# The app runs off-screen without activation; it must never take the foreground from whatever the user is doing.
 # Only the app processes this run started, while they run: Windows reuses the IDs of those that have exited.
-# Nor may it ever show Exportify's own page: the embedded page is only shown while it's Spotify's sign-in.
+# The app may never show Exportify's own page: the embedded page is only shown while it's Spotify's sign-in.
 $script:appProcesses = [System.Collections.Generic.List[System.Diagnostics.Process]]::new()
-$script:tookForeground = $false
 $script:currentWindow = $null
 $script:sawExportifyPage = $false
-function Watch-Foreground {
-    $foregroundPid = [uint32]0
-    [E2EWin32]::GetWindowThreadProcessId([E2EWin32]::GetForegroundWindow(), [ref]$foregroundPid) | Out-Null
-    if ($script:appProcesses | Where-Object { $_.Id -eq $foregroundPid -and !$_.HasExited }) { $script:tookForeground = $true }
+function Watch-Page {
     try {
         if ($script:currentWindow -and (Find-ById $script:currentWindow 'SignInTitle') -and
             (Find-Named $script:currentWindow $ControlType::Pane 'Spotify sign-in') -and
@@ -124,7 +117,7 @@ function Wait-Until([scriptblock] $probe, [string] $what, [double] $timeoutSecon
     $timeoutSeconds *= $script:waitScale
     $deadline = [DateTime]::UtcNow.AddSeconds($timeoutSeconds)
     do {
-        Watch-Foreground
+        Watch-Page
         $result = & $probe
         if ($result) { return $result }
         Start-Sleep -Milliseconds 200
@@ -460,7 +453,6 @@ function Prepare-State([string] $lastItem) {
     $script:lastOpened = $lastItem
 }
 
-$foregroundAtStart = [E2EWin32]::GetForegroundWindow()
 # Everything this run uses is its own, so runs can go side by side: its data folder (and so the app's settings,
 # WebView2 profile, caches, staging and single-instance key, and the test's player and drive folders), and the mock's port.
 $env:MP3PLAYERSYNC_DATA_DIR = Join-Path ([IO.Path]::GetTempPath()) "Mp3PlayerSyncE2E-$PID-$([Guid]::NewGuid().ToString('N').Substring(0, 8))"
@@ -967,7 +959,7 @@ try {
             $interrupted = @()
             $stopwatch = [Diagnostics.Stopwatch]::StartNew()
             while ($stopwatch.Elapsed.TotalSeconds -lt 30) {
-                Watch-Foreground
+                Watch-Page
                 if (Find-ById $window 'SignInTitle') { $interrupted += 'sign-in' }
                 if (Find-ById $window 'LoadingText') { $interrupted += 'loading' }
                 $title = Get-Text $window 'PlaylistTitle'
@@ -1105,9 +1097,7 @@ try {
     }
     $newDownloads = Get-ChildItem $downloads -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt $startTime }
     Check (@($newDownloads).Count -eq 0) "Nothing was written to $downloads"
-    if ($Desktop -eq 'Hidden') { Check (!$script:tookForeground) 'The app never took the foreground' }
     Check (!$script:sawExportifyPage) "Exportify's own page was never shown"
-    Write-Host "  Foreground window at start $foregroundAtStart, at end $([E2EWin32]::GetForegroundWindow())"
 }
 catch {
     $failures.Add($_.ToString())

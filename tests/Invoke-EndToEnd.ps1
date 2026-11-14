@@ -206,6 +206,11 @@ try {
     $logText
     Write-Host "Foreground windows on the user's desktop during the run:"
     $foregroundChanges | ForEach-Object { Write-Host "  $_" }
+    # The check for TEST-1. The script can't make it: off the input desktop, GetForegroundWindow is always NULL.
+    if ($hidden) {
+        if ($stolen.Count) { Write-Host "  FAIL  The app never took the foreground: $($stolen -join ', ')" -ForegroundColor Red }
+        else { Write-Host '  PASS  The app never took the foreground' -ForegroundColor Green }
+    }
 
     $processExitCode = [uint32]0
     $exited = $testProcess.HasExited -and [TestDesktop]::GetExitCodeProcess($processHandle, [ref]$processExitCode)
