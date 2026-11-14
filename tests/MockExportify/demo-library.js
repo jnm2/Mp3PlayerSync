@@ -32,8 +32,8 @@ window.demoLibrary = {
         { "id": "rainy", "name": "Rainy Day Acoustic", "total": 16 },
         { "id": "throwback", "name": "Throwback Thursday", "total": 35 },
         { "id": "dinner", "name": "Dinner Party", "total": 19 },
-        { "id": "indie", "name": "Indie Discoveries", "total": 50, "byOthers": true },
-        { "id": "chill", "name": "Chill Mix", "total": 40, "byOthers": true }
+        { "id": "indie", "name": "Indie Discoveries", "total": 50, "saved": true },
+        { "id": "chill", "name": "Chill Mix", "total": 40, "saved": true }
     ],
     "likedTotal": 86,
     "albums": [

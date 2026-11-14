@@ -520,12 +520,12 @@ try {
             Wait-Library $window '40 playlists' ([ref]$sawSignIn)
             Check ($null -eq (Find-ById $window 'SignInTitle')) 'Sign-in screen is hidden after signing in'
             Check ((First-LibraryItem $window) -eq 'Liked Songs') "Liked Songs is first (got '$(First-LibraryItem $window)')"
-            $firstTab = @($window.FindAll($TreeScope::Descendants, [System.Windows.Automation.PropertyCondition]::new($AE::NameProperty, 'Playlists by you'))) |
+            $firstTab = @($window.FindAll($TreeScope::Descendants, [System.Windows.Automation.PropertyCondition]::new($AE::NameProperty, 'Created playlists'))) |
                 Where-Object { $_.GetSupportedPatterns() -contains [System.Windows.Automation.SelectionItemPattern]::Pattern } | Select-Object -First 1
             $tabs = @([System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($firstTab).FindAll($TreeScope::Children, [System.Windows.Automation.Condition]::TrueCondition)) |
                 Where-Object { $_.GetSupportedPatterns() -contains [System.Windows.Automation.SelectionItemPattern]::Pattern } |
                 Sort-Object { $_.Current.BoundingRectangle.Left } | ForEach-Object { $_.Current.Name }
-            Check (($tabs -join ' | ') -eq 'Playlists by you | Playlists by others | Saved albums | All') "[GRID-6] Tabs: $($tabs -join ' | ')"
+            Check (($tabs -join ' | ') -eq 'Created playlists | Saved playlists | Saved albums | All') "[GRID-6] Tabs: $($tabs -join ' | ')"
             Check ((Get-Text $window 'SignOutButton') -eq 'Sign out of Spotify') "[TEXT-4] Sign-out button: '$(Get-Text $window 'SignOutButton')'"
             Check-NoBrowserText $window 'library page'
 
@@ -817,7 +817,7 @@ try {
             Check $true 'A synced song deleted from the player goes back to being added'
             Save-Screenshot $window 'synced'
             Click $window 'BackButton'
-            Select-Filter $window 'Playlists by others'
+            Select-Filter $window 'Saved playlists'
             Wait-Library $window '19 playlists' ([ref]$sawSignIn)
 
             Select-Filter $window 'Saved albums'
@@ -843,7 +843,7 @@ try {
             Click $window 'BackButton'
             Wait-Library $window '4 albums' ([ref]$sawSignIn)
             Check $true 'Playlist 14, a single album, stays in Saved albums'
-            Select-Filter $window 'Playlists by you'
+            Select-Filter $window 'Created playlists'
             Wait-Library $window '41 playlists' ([ref]$sawSignIn)
 
             Select-Filter $window 'All'

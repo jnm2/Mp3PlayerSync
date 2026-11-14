@@ -253,8 +253,8 @@
                             x:Name="FilterBar"
                             AutomationProperties.AutomationId="FilterBar"
                             SelectionChanged="OnFilterChanged">
-                            <SelectorBarItem x:Name="CreatedFilterItem" Text="Playlists by you" />
-                            <SelectorBarItem x:Name="SavedPlaylistsFilterItem" Text="Playlists by others" />
+                            <SelectorBarItem x:Name="CreatedFilterItem" Text="Created playlists" />
+                            <SelectorBarItem x:Name="SavedPlaylistsFilterItem" Text="Saved playlists" />
                             <SelectorBarItem x:Name="SavedAlbumsFilterItem" Text="Saved albums" />
                             <SelectorBarItem x:Name="AllFilterItem" Text="All" />
                         </SelectorBar>
