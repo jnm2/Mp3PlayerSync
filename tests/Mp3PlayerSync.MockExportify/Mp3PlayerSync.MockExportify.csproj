@@ -14,8 +14,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The mock's pages, served from beside the exe -->
-    <Content Include="..\MockExportify\**" LinkBase="MockExportify" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The made-up library the mock lists with its demo switch, which tests\Update-ReadmeScreenshots.ps1 also reads -->
+    <Content Include="DemoLibrary.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -5,8 +5,8 @@
 .DESCRIPTION
     Runs the app through its end-to-end test host (Mp3PlayerSync.E2EHost) on a hidden desktop
     (Invoke-EndToEnd.ps1), so it never appears over or takes focus from your windows. It runs against the mock
-    Exportify with ?demo (tests/MockExportify/demo-library.js), a fake "MP3 PLAYER (E:)" drive backed by a temporary
-    folder (MP3PLAYERSYNC_TEST_DRIVES) and the fake YouTube Music. No real Spotify account, library, drive or folder
+    Exportify with --demo (tests\Mp3PlayerSync.MockExportify\DemoLibrary.json), a fake "MP3 PLAYER (E:)" drive
+    backed by a temporary folder (MP3PLAYERSYNC_TEST_DRIVES) and the fake YouTube Music. No real Spotify account, library, drive or folder
     path can appear in the pictures.
 
     Build first: dotnet build Mp3PlayerSync.slnx
@@ -148,9 +148,8 @@ function Save-Screenshot($window, [string] $name) {
     Write-Host "Screenshot: $name ($((Get-Item $path).Length) bytes)"
 }
 
-# The demo library, and its tracks as fake-spotify.js makes them
-$libraryScript = Get-Content (Join-Path $PSScriptRoot 'MockExportify\demo-library.js') -Raw
-$library = $libraryScript.Substring($libraryScript.IndexOf('window.demoLibrary =') + 'window.demoLibrary ='.Length).Trim().TrimEnd(';') | ConvertFrom-Json
+# The demo library, and its tracks as the mock makes them
+$library = Get-Content (Join-Path $PSScriptRoot 'Mp3PlayerSync.MockExportify\DemoLibrary.json') -Raw | ConvertFrom-Json
 function Get-DemoTrack([string] $playlistId, [int] $index) {
     $seed = [uint64]7
     foreach ($c in $playlistId.ToCharArray()) { $seed = ($seed * 31 + [int]$c) % 4294967296 }
@@ -183,7 +182,7 @@ foreach ($i in 0..($playlist.total - $playlist.newSinceLastSync - 1)) {
 
 # The mock picks a free port itself, and the first line it prints is its address.
 $mockLog = Join-Path ([IO.Path]::GetTempPath()) "Mp3PlayerSyncScreenshotsMock-$PID"
-$server = Start-Process $MockPath -ArgumentList '--port', '0' -PassThru -NoNewWindow -RedirectStandardOutput "$mockLog.out" -RedirectStandardError "$mockLog.err"
+$server = Start-Process $MockPath -ArgumentList '--port', '0', '--demo' -PassThru -NoNewWindow -RedirectStandardOutput "$mockLog.out" -RedirectStandardError "$mockLog.err"
 $process = $null
 try {
     $url = Wait-Until {
@@ -191,7 +190,7 @@ try {
         $address = Select-String -LiteralPath "$mockLog.out" -Pattern '^Mock Exportify listening on (\S+)' -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($address) { $address.Matches[0].Groups[1].Value }
     } 'the mock server'
-    $env:MP3PLAYERSYNC_EXPORTIFY_URL = "$($url)?autoSignIn&demo"
+    $env:MP3PLAYERSYNC_EXPORTIFY_URL = "$($url)?autoSignIn"
     # The mock's fake Spotify sign-in page, on another origin like accounts.spotify.com
     $env:MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL = $url -replace '//localhost:', '//127.0.0.1:'
     $process = Start-Process $AppPath -PassThru

@@ -1,6 +1,7 @@
 <#
 .SYNOPSIS
-    End-to-end test of Mp3PlayerSync against the mock Exportify (tests/MockExportify), driven through UI Automation.
+    End-to-end test of Mp3PlayerSync against the mock Exportify (tests\Mp3PlayerSync.MockExportify), driven through UI
+    Automation.
 
 .DESCRIPTION
     Starts the mock, then launches the app several times against one fresh data folder, through the test host
@@ -20,7 +21,6 @@
     as the app's XAML draws it, through the test host, so they work while the PC is locked, when Windows gives
     PrintWindow stale or blank pictures.
 
-    The mock runs the live exportify.net exportify.js and FileSaver.js, so it needs internet access.
     Build first: dotnet build Mp3PlayerSync.slnx
 
 .PARAMETER Only
@@ -638,17 +638,17 @@ function Wait-Library($window, [string] $expectedSummary, [ref] $sawSignIn) {
     } "library summary like '$expectedSummary'" 60 | Out-Null
 }
 
-# How many calls to the fake Spotify API matched the pattern, from the mock's log.
-function Get-ApiCalls([string] $pattern) {
-    $calls = Invoke-RestMethod "$($url)api-log" # The whole list as one array, so filter it rather than pipe it
+# How many of the requests the mock has logged, such as "export roadtrip" or "token", matched the pattern.
+function Get-MockRequests([string] $pattern) {
+    $calls = Invoke-RestMethod "$($url)requests" # The whole list as one array, so filter it rather than pipe it
     @(@($calls) -match $pattern).Count
 }
 
 # Clicks Refresh and waits until the app has asked Spotify again: the busy text alone can come and go between polls.
-function Click-Refresh($window, [string] $apiPattern, [string] $what) {
-    $before = Get-ApiCalls $apiPattern
+function Click-Refresh($window, [string] $requestPattern, [string] $what) {
+    $before = Get-MockRequests $requestPattern
     Click $window 'RefreshPlaylistButton'
-    Wait-Until { (Get-ApiCalls $apiPattern) -gt $before } "$what to ask Spotify again" 30 | Out-Null
+    Wait-Until { (Get-MockRequests $requestPattern) -gt $before } "$what to ask Spotify again" 30 | Out-Null
 }
 function Test-Selected([string[]] $names) { -not $Only -or @($names | Where-Object { $Only -contains $_ }).Count -gt 0 }
 
@@ -714,7 +714,7 @@ $startTime = Get-Date
 try {
     $mock = Start-Mock
     $url = $mock.Url
-    # The mock's fake Spotify sign-in page, on another origin like accounts.spotify.com
+    # The mock's Spotify sign-in page, on another origin like accounts.spotify.com
     $env:MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL = $url -replace '//localhost:', '//127.0.0.1:'
 
     if (Test-Selected 'Run1') {
@@ -787,7 +787,7 @@ try {
             } finally { Remove-Item $holdFinding -ErrorAction SilentlyContinue }
             Wait-Until { $null -eq (Find-ById $window 'FindingProgressText') } 'the finding progress line to go away' 30 | Out-Null
             Check $true '[TEXT-15] The finding progress line goes away when finding finishes'
-            Check ((Get-AllText $window) -like '*Some details could not be loaded*403*') "Exportify's audio-features 403 is surfaced as a warning"
+            Check ((Get-AllText $window) -like '*Some details could not be loaded*403*') "The export's warning (HTTP 403) is surfaced"
             Check ((Get-AllText $window) -like '*Spotify refused some requests (HTTP 403)*' -and (Get-AllText $window) -notmatch '(?i)browser|exportify') "[TEXT-1] The warning is in the app's words: '$(((Get-AllText $window) -split "`n" | Where-Object { $_ -match '403' }) -join ' ')'"
             $firstRow = Get-Items (Find-ById $window 'TracksListView') | Select-Object -First 1
             Check ($firstRow.Current.Name -eq 'roadtrip song 1 — Earth, Wind & Fire, Chaka Khan') "First track row: '$($firstRow.Current.Name)'"
@@ -828,7 +828,7 @@ try {
                 $edges = @(
                     @('TitleHeader', 'roadtrip song 1', 'Left'),
                     @('ArtistsHeader', 'Earth, Wind & Fire, Chaka Khan', 'Left'),
-                    @('AlbumHeader', 'Album 0', 'Left'), # The first track's album in fake-spotify.js
+                    @('AlbumHeader', 'Album 0', 'Left'), # The first track's album in the mock's test library
                     @('NumberHeader', '1', 'Right'),
                     @('TimeHeader', ($firstRow.FindAll($TreeScope::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.Name -match '^\d+:\d\d$' } | Select-Object -First 1).Current.Name, 'Right'))
                 $off = foreach ($edge in $edges) {
@@ -891,7 +891,7 @@ try {
             # Refreshing keeps what the user ticked and unticked.
             (Row-Box $elsewhere).Toggle()
             $removeBox.Toggle()
-            Click-Refresh $window '^/v1/playlists/roadtrip/tracks' 'the refresh'
+            Click-Refresh $window '^export roadtrip$' 'the refresh'
             Wait-Contents $window 'Road Trip, Vol. 2 (refreshed with choices)' '250 tracks, *'
             $tracksList = Find-ById $window 'TracksListView'
             $elsewhere = Find-ListItem $tracksList 'roadtrip song 5 — Artist 4'
@@ -924,7 +924,7 @@ try {
             Wait-Until { $syncButton.Current.IsEnabled } 'the Sync button to enable again' 5 | Out-Null
             Check $true 'Select all selects every track again'
 
-            Click-Refresh $window '^/v1/playlists/roadtrip/tracks' 'the playlist refresh'
+            Click-Refresh $window '^export roadtrip$' 'the playlist refresh'
             Wait-Contents $window 'Road Trip, Vol. 2 (refreshed)' '250 tracks, 21:08:45'
 
             # Cancelling part way through the downloads leaves the player as it was.
@@ -1058,8 +1058,8 @@ try {
             Open-LibraryItem $window 'Big Album'
             Wait-Contents $window 'Big Album' 'Prolific Band · 2010 — 60 tracks, 3:29:30'
             Check ($null -eq (Find-ById $window 'AlbumHeader') -and $null -ne (Find-ById $window 'ArtistsHeader')) 'Album pages leave out the Album column'
-            # The summary already matches, so wait until the refresh has asked Spotify (the Saved Albums export's lookup).
-            Click-Refresh $window '^/v1/tracks\?' 'the album refresh'
+            # The summary already matches, so wait until the refresh has asked for the Saved Albums export again.
+            Click-Refresh $window '^export albums$' 'the album refresh'
             Wait-Contents $window 'Big Album (refreshed)' '*60 tracks, *'
             Click $window 'BackButton'
 
@@ -1187,9 +1187,9 @@ try {
             Choose-Player $window
             Wait-Until { (Get-Text $window 'PlaylistTitle') -eq 'Spotify album: Big Album' } 'the last opened album to reopen' 60 | Out-Null
             Wait-Contents $window 'Big Album (restored)' '*60 tracks, *'
-            # The token runs out now, while the test watches; the fake API then rejects it, so only a renewed one works.
+            # The token runs out now, while the test watches; the mock then refuses it, so only a renewed one works.
             # The watch lasts until the renewal has asked Spotify for a new token, and a few seconds after.
-            $renewals = Get-ApiCalls '^/api/token$'
+            $renewals = Get-MockRequests '^token$'
             Invoke-RestMethod "$($url)expire" -Method Post | Out-Null
             $interrupted = @()
             $renewed = $null
@@ -1201,12 +1201,12 @@ try {
                 if (Find-ById $window 'LoadingText') { $interrupted += 'loading' }
                 $title = Get-Text $window 'PlaylistTitle'
                 if ($title -ne 'Spotify album: Big Album') { $interrupted += "left the album ('$title')" }
-                if (!$renewed -and (Get-ApiCalls '^/api/token$') -gt $renewals) { $renewed = $stopwatch.Elapsed }
+                if (!$renewed -and (Get-MockRequests '^token$') -gt $renewals) { $renewed = $stopwatch.Elapsed }
                 Start-Sleep -Milliseconds 200
             }
             Check ($null -ne $renewed) "The token that ran out is renewed in the background$(if ($renewed) { " after $([int]$renewed.TotalMilliseconds) ms" })"
             Check (-not $interrupted) "The album stays on screen while the token is renewed $(($interrupted | Select-Object -Unique) -join ', ')"
-            Click-Refresh $window '^/v1/tracks\?' 'the refresh'
+            Click-Refresh $window '^export albums$' 'the refresh'
             Wait-Contents $window 'Big Album (after renewal)' '*60 tracks, *'
             Check ((Get-AllText $window) -notlike '*Could not load*') 'Exports work with the renewed token'
         } finally { Stop-App $process }
@@ -1248,14 +1248,14 @@ try {
 
             Write-Host 'Run 4: sign out'
             Click $window 'BackButton'
-            $loginLoads = Get-ApiCalls '^fake-login loaded$'
+            $loginLoads = Get-MockRequests '^sign-in page$'
             Click $window 'SignOutButton'
             Wait-Until { Find-ById $window 'SignInTitle' } 'the sign-in screen after signing out' 30 | Out-Null
             Check $true 'Signing out shows the sign-in screen'
 
             # Links to elsewhere open outside the app; the sign-in page stays, and signing in still works.
-            # The page reports loading to the mock, which tells a page that never loaded from one UI Automation can't see.
-            Wait-Until { (Get-ApiCalls '^fake-login loaded$') -gt $loginLoads } "Spotify's sign-in page to load" 60 | Out-Null
+            # The mock logs serving the page, which tells a page that never loaded from one UI Automation can't see.
+            Wait-Until { (Get-MockRequests '^sign-in page$') -gt $loginLoads } "Spotify's sign-in page to load" 60 | Out-Null
             $page = try { Wait-Until { Find-WebDocument $window 'Spotify login (mock)' } "Spotify's sign-in page in UI Automation" 60 }
                 catch { Write-Host "  The page loaded; the sign-in button instead of the page is $(if (Find-ById $window 'SignInPromptButton') { '' } else { 'not ' })showing"; throw }
             $opened = Join-Path $env:MP3PLAYERSYNC_DATA_DIR 'OpenedExternally.txt'

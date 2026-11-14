@@ -5,7 +5,7 @@ using System.Drawing.Imaging;
 namespace Mp3PlayerSync.MockExportify;
 
 /// <summary>
-/// Made-up playlist covers for the demo library (fake-spotify.js <c>?demo</c>): a gradient with soft circles, the same
+/// Made-up playlist covers for the demo library (the mock's <c>--demo</c>): a gradient with soft circles, the same
 /// for the same name.
 /// </summary>
 internal static class DemoCovers

@@ -1,7 +1,4 @@
-// The made-up library fake-spotify.js serves with ?demo, for screenshots. The object below is plain JSON, so
-// tests/Update-ReadmeScreenshots.ps1 can read it too. Track i of a playlist is title (seed + 5i) and artist
-// (seed + 7i), where seed is the playlist ID hashed as fake-spotify.js's demoSeed does.
-window.demoLibrary = {
+{
     "artists": [
         ["Halcyon Bay", "Northern Lights", "2021-03-12"],
         ["Nova Lindqvist", "Paper Moons", "2019-09-27"],
@@ -40,4 +37,4 @@ window.demoLibrary = {
         { "id": "northern", "name": "Northern Lights", "artist": "Halcyon Bay", "release": "2021-03-12", "added": "2025-03-01T00:00:00Z", "total": 11 },
         { "id": "moons", "name": "Paper Moons", "artist": "Nova Lindqvist", "release": "2019-09-27", "added": "2024-10-15T00:00:00Z", "total": 9 }
     ]
-};
+}
