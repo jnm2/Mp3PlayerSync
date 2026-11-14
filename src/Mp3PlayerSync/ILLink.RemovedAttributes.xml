@@ -1,0 +1,9 @@
+<linker>
+  <!-- InternalsVisibleTo only lets the unit tests (Mp3PlayerSync.Tests) reach the app's internals; the released exe
+       has no use for it and shouldn't name the tests (TEST-2). -->
+  <assembly fullname="System.Private.CoreLib">
+    <type fullname="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <attribute internal="RemoveAttributeInstances" />
+    </type>
+  </assembly>
+</linker>

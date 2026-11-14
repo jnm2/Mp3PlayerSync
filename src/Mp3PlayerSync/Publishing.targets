@@ -37,6 +37,8 @@
          its reflection finds everything it needs. -->
     <NoWarn>$(NoWarn);IL2104</NoWarn>
     <_ExtraTrimmerArgs>$(_ExtraTrimmerArgs) --link-attributes "$(MSBuildThisFileDirectory)ILLink.Suppressions.xml"</_ExtraTrimmerArgs>
+    <!-- Attributes that are only for tests, left out of what ships. -->
+    <_ExtraTrimmerArgs>$(_ExtraTrimmerArgs) --link-attributes "$(MSBuildThisFileDirectory)ILLink.RemovedAttributes.xml"</_ExtraTrimmerArgs>
   </PropertyGroup>
   <Target Name="SummarizeTagLibTrimWarnings" AfterTargets="_PrepareTrimConfiguration">
     <ItemGroup>
