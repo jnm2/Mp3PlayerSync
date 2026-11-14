@@ -213,7 +213,7 @@ function Open-LibraryItem($window, [string] $name) {
     # Scrolling recycles item containers, so the element found before may now stand for another item.
     $item = Wait-Until { $i = Find-Named $list $ControlType::ListItem $name; if ($i -and !$i.Current.IsOffscreen) { $i } } "'$name' scrolled into view" 10
     (Pattern $item ([System.Windows.Automation.InvokePattern])).Invoke()
-    Wait-Until { (Get-Text $window 'PlaylistTitle') -match ('^Spotify (playlist|album): ' + [regex]::Escape($name) + '$') } "the page for '$name' (got '$(Get-Text $window 'PlaylistTitle')')" | Out-Null
+    Wait-Until { (Get-Text $window 'PlaylistTitle') -match ('^Spotify (playlist|album): ' + [regex]::Escape($name) + '$') } "the page for '$name'" | Out-Null
 }
 
 function Wait-Contents($window, [string] $name, [string] $expectedSummary, [double] $timeoutSeconds = 60) {
@@ -221,7 +221,7 @@ function Wait-Contents($window, [string] $name, [string] $expectedSummary, [doub
     $summary = Wait-Until {
         $s = Get-Text $window 'SummaryText'
         if ($s -like $expectedSummary -and !(Find-ById $window 'PlaylistBusyText')) { $s }
-    } "'$name' contents like '$expectedSummary' (now '$(Get-Text $window 'SummaryText')')" $timeoutSeconds
+    } "'$name' contents like '$expectedSummary'" $timeoutSeconds
     Check $true "'$name' shows '$summary' after $([int]$stopwatch.Elapsed.TotalMilliseconds) ms"
 }
 
@@ -469,7 +469,7 @@ function Wait-Library($window, [string] $expectedSummary, [ref] $sawSignIn) {
     Wait-Until {
         if (Find-ById $window 'SignInTitle') { $sawSignIn.Value = $true }
         (Get-Text $window 'LibrarySummaryText') -like $expectedSummary -and !(Find-ById $window 'LibraryBusyText')
-    } "library summary like '$expectedSummary' (now '$(Get-Text $window 'LibrarySummaryText')')" 60 | Out-Null
+    } "library summary like '$expectedSummary'" 60 | Out-Null
 }
 
 # How many calls to the fake Spotify API matched the pattern, from the mock's log.
@@ -614,7 +614,7 @@ try {
             try {
                 Open-LibraryItem $window 'Road Trip, Vol. 2'
                 Wait-Contents $window 'Road Trip, Vol. 2' '250 tracks, 21:08:45'
-                $findingText = Wait-Until { $t = Get-Text $window 'FindingProgressText'; if ($t -match '^Finding sources… \d+ of \d+$') { $t } } "the finding progress line (now '$(Get-Text $window 'FindingProgressText')')" 30
+                $findingText = Wait-Until { $t = Get-Text $window 'FindingProgressText'; if ($t -match '^Finding sources… \d+ of \d+$') { $t } } "the finding progress line" 30
                 Save-Screenshot $window 'finding-progress'
                 Check ($findingText -match '^Finding sources… \d+ of 2\d\d$') "[TEXT-15] One line counts the songs being looked for: '$findingText'"
             } finally { Remove-Item $holdFinding -ErrorAction SilentlyContinue }
@@ -775,7 +775,7 @@ try {
             $filesAfter = @(Get-ChildItem $playerFolder -Recurse -File -Force | ForEach-Object FullName)
             Check ($null -eq (Compare-Object $filesBefore $filesAfter)) "Cancelling during the downloads leaves the player's files as they were $((Compare-Object $filesBefore $filesAfter | ForEach-Object InputObject) -join ', ')"
             Check ((Get-AllText $window) -notmatch '(?m)^(Downloading|Waiting|Saving)') 'No song is left looking busy after cancelling'
-            Wait-Until { (Get-Text $window 'SyncSummaryText') -eq 'Adding 249 songs' } "the summary after cancelling (now '$(Get-Text $window 'SyncSummaryText')')" 10 | Out-Null
+            Wait-Until { (Get-Text $window 'SyncSummaryText') -eq 'Adding 249 songs' } "the summary after cancelling" 10 | Out-Null
             Check $true 'Every song is still to be added after cancelling'
 
             Check ($null -ne (Find-ById $window 'OpenPlayerFolderButton')) 'The playlist offers to open its folder on the player'
