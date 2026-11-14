@@ -3,14 +3,16 @@ namespace Mp3PlayerSync.E2EHost;
 /// <summary>
 /// Starts MP3 Player Sync for the end-to-end tests (tests\Test-MockEndToEnd.ps1): off-screen and never activated,
 /// against the mock Exportify, with its own data folder, and with <see cref="FakeTrackFinder"/> standing in for
-/// YouTube Music.
+/// YouTube Music. Without the mock's addresses, it runs against the real exportify.net and Spotify, with the
+/// addresses the released app uses.
 /// </summary>
 /// <remarks>
 /// Set by the test script:
 /// <list type="bullet">
 /// <item><c>MP3PLAYERSYNC_DATA_DIR</c>: the data folder.</item>
-/// <item><c>MP3PLAYERSYNC_EXPORTIFY_URL</c>: the mock Exportify's home page.</item>
-/// <item><c>MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL</c>: where the mock's Spotify sign-in pages are.</item>
+/// <item><c>MP3PLAYERSYNC_EXPORTIFY_URL</c> (optional): the mock Exportify's home page.</item>
+/// <item><c>MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL</c> (optional): where the mock's Spotify sign-in pages are. It is set
+/// together with <c>MP3PLAYERSYNC_EXPORTIFY_URL</c>, or neither is set.</item>
 /// <item><c>MP3PLAYERSYNC_TEST_FAKE_AUDIO</c>: the .m4a file every song is "downloaded" as.</item>
 /// <item><c>MP3PLAYERSYNC_TEST_DRIVES</c> (optional): drives to list instead of the real ones (see <see cref="TestDrives"/>).</item>
 /// </list>
@@ -26,12 +28,18 @@ public static class Program
         var dataDirectory = Required("MP3PLAYERSYNC_DATA_DIR");
         var fakeAudio = Required("MP3PLAYERSYNC_TEST_FAKE_AUDIO");
         var testDrives = TestDrives.FromEnvironment();
+        var mockExportify = Optional("MP3PLAYERSYNC_EXPORTIFY_URL");
+        var mockSpotifyAccounts = Optional("MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL");
+        // Half the mock would send the app between the mock and the real sites.
+        if ((mockExportify is null) != (mockSpotifyAccounts is null))
+            throw new InvalidOperationException("Set both MP3PLAYERSYNC_EXPORTIFY_URL and MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL for the mock, or neither for the real sites.");
+
         var defaults = new AppServices { DataDirectory = dataDirectory };
         var services = new AppServices
         {
             DataDirectory = dataDirectory,
-            ExportifyUri = new Uri(Required("MP3PLAYERSYNC_EXPORTIFY_URL")),
-            SpotifySignInOrigins = (string[])[Required("MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL")],
+            ExportifyUri = mockExportify is null ? defaults.ExportifyUri : new Uri(mockExportify),
+            SpotifySignInOrigins = mockSpotifyAccounts is null ? defaults.SpotifySignInOrigins : (string[])[mockSpotifyAccounts],
             CreateTrackFinder = _ => new FakeTrackFinder(fakeAudio, Path.Combine(dataDirectory, "HoldFinding.txt")),
             GetDrives = testDrives is null ? defaults.GetDrives : testDrives.List,
             DriveFolder = testDrives is null ? defaults.DriveFolder : testDrives.FolderOf,
@@ -51,5 +59,8 @@ public static class Program
     }
 
     private static string Required(string name) =>
-        Environment.GetEnvironmentVariable(name) is { Length: > 0 } value ? value : throw new InvalidOperationException($"{name} is not set.");
+        Optional(name) ?? throw new InvalidOperationException($"{name} is not set.");
+
+    private static string? Optional(string name) =>
+        Environment.GetEnvironmentVariable(name) is { Length: > 0 } value ? value : null;
 }
