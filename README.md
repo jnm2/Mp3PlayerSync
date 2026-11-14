@@ -62,8 +62,11 @@ dotnet run --project src\Mp3PlayerSync
 ```
 
 Unit tests ([TUnit](https://tunit.dev) and [Shouldly](https://docs.shouldly.org)): `dotnet test tests\Mp3PlayerSync.Tests`.
-End-to-end tests run on a hidden desktop: `dotnet build Mp3PlayerSync.slnx`, then `pwsh tests\Invoke-EndToEnd.ps1`. The
-screenshots above are generated from a made-up library by `pwsh tests\Update-ReadmeScreenshots.ps1`.
+End-to-end tests run on a hidden desktop: `dotnet build Mp3PlayerSync.slnx`, then `pwsh tests\Invoke-EndToEnd.ps1`. They
+are moving to C#, in `tests\Mp3PlayerSync.EndToEnd`: run those on a hidden desktop with
+`dotnet run --project tests\Mp3PlayerSync.EndToEnd`, or run and debug them from Visual Studio's Test Explorer, which runs
+the app on your own desktop, off-screen. The screenshots above are generated from a made-up library by
+`pwsh tests\Update-ReadmeScreenshots.ps1`.
 
 To release, push a tag such as `v0.1.1`, or `v0.2.0-beta.1` for a prerelease. The Build workflow then publishes the exes
 to a GitHub release with exactly that version. Nothing needs to be bumped afterwards, because every other build bases its

@@ -34,7 +34,9 @@ dotnet run --project tests\Mp3PlayerSync.EndToEnd
 The end-to-end tests are moving from PowerShell (`Invoke-EndToEnd.ps1`) to C# (`tests\Mp3PlayerSync.EndToEnd`, TUnit
 with Shouldly, driven through FlaUI). The C# project is its own launcher: run as above, it runs its tests on a hidden
 desktop, with the same exit codes and pass text as `Invoke-EndToEnd.ps1`. Its `--only` takes run names, and `--help`
-lists its options. It's never run by `dotnet test`.
+lists its options. The user can also run and debug its tests from Visual Studio's Test Explorer, which runs them on
+their own desktop (TEST-3). Agents never do that, and never run them through `dotnet test`, which skips them: agents
+use only the launcher.
 
 Agents never pass `-Desktop Current` to `Invoke-EndToEnd.ps1` (or `Test-PublishedExe.ps1`), or `--desktop Current` to
 the C# launcher, on the user's PC: it runs the app on their own desktop, covering and taking focus from their windows.
