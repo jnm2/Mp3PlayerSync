@@ -7,7 +7,7 @@ public class PlaylistExecutorTests
     private string root = null!;
     private string downloads = null!;
 
-    [SetUp]
+    [Before(Test)]
     public void SetUp()
     {
         var baseDirectory = Path.Combine(Path.GetTempPath(), "Mp3PlayerSync.Tests", Guid.NewGuid().ToString("N"));
@@ -17,7 +17,7 @@ public class PlaylistExecutorTests
         Directory.CreateDirectory(downloads);
     }
 
-    [TearDown]
+    [After(Test)]
     public void TearDown() => Directory.Delete(Path.GetDirectoryName(root)!, recursive: true);
 
     private Mp3PlayerSync.Core.Scanning.IndexedFile Put(string relativePath, string title, string artist = "Queen")
@@ -50,18 +50,18 @@ public class PlaylistExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, t => t.Track.Title == "D" ? download : null);
 
-        Assert.Multiple(() =>
+        using (Assert.Multiple())
         {
-            Assert.That(report.Failed, Is.Empty);
-            Assert.That(report.Deleted.Single().FromRelativePath, Is.EqualTo(@"My Mix\03. Old - Gone.m4a"));
-            Assert.That(report.Renamed.Count(), Is.EqualTo(2));
-            Assert.That(report.Added.Select(c => (c.TrackId, c.FromRelativePath)), Is.EqualTo(new[] { ("3", "Queen - C.m4a"), ("4", (string?)null) }));
-            Assert.That(FolderContents("My Mix"), Is.EqualTo(new[] { "01. Queen - B.m4a", "02. Queen - A.m4a", "03. Queen - C.m4a", "04. Queen - D.m4a" }));
-            Assert.That(Read(@"My Mix\01. Queen - B.m4a"), Is.EqualTo("B"));
-            Assert.That(Read(@"My Mix\02. Queen - A.m4a"), Is.EqualTo("A"));
-            Assert.That(Read(@"My Mix\03. Queen - C.m4a"), Is.EqualTo("C"));
-            Assert.That(Read("Queen - C.m4a"), Is.EqualTo("C"), "Copying leaves the original where it was.");
-        });
+            await Assert.That(report.Failed).IsEmpty();
+            await Assert.That(report.Deleted.Single().FromRelativePath).IsEqualTo(@"My Mix\03. Old - Gone.m4a");
+            await Assert.That(report.Renamed.Count()).IsEqualTo(2);
+            await Assert.That(report.Added.Select(c => (c.TrackId, c.FromRelativePath))).IsEquivalentTo(new (string?, string?)[] { ("3", "Queen - C.m4a"), ("4", null) }, CollectionOrdering.Matching);
+            await Assert.That(FolderContents("My Mix")).IsEquivalentTo(new[] { "01. Queen - B.m4a", "02. Queen - A.m4a", "03. Queen - C.m4a", "04. Queen - D.m4a" }, CollectionOrdering.Matching);
+            await Assert.That(Read(@"My Mix\01. Queen - B.m4a")).IsEqualTo("B");
+            await Assert.That(Read(@"My Mix\02. Queen - A.m4a")).IsEqualTo("A");
+            await Assert.That(Read(@"My Mix\03. Queen - C.m4a")).IsEqualTo("C");
+            await Assert.That(Read("Queen - C.m4a")).IsEqualTo("C").Because("Copying leaves the original where it was.");
+        }
     }
 
     [Test]
@@ -74,8 +74,8 @@ public class PlaylistExecutorTests
         var rescanned = new[] { PlaylistPlannerTests.FileAt(root, @"My Mix\01. Queen - B.m4a", "B"), PlaylistPlannerTests.FileAt(root, @"My Mix\02. Queen - A.m4a", "A") };
         var plan = PlaylistPlanner.Plan("My Mix", tracks, root, rescanned);
 
-        Assert.That(plan.Tracks.Select(t => t.State), Is.All.EqualTo(PlaylistTrackState.InPlace));
-        Assert.That(plan.Renames, Is.Empty);
+        await Assert.That(plan.Tracks.Select(t => t.State)).All(item => item == PlaylistTrackState.InPlace);
+        await Assert.That(plan.Renames).IsEmpty();
     }
 
     [Test]
@@ -87,12 +87,12 @@ public class PlaylistExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, _ => null);
 
-        Assert.That(report.Failed, Is.Empty);
-        Assert.That(FolderContents("My Mix"), Is.EqualTo(new[] { "01. Queen - A.m4a", "02. Queen - B.m4a" }));
-        Assert.That(Read(@"My Mix\01. Queen - A.m4a"), Is.EqualTo("A"));
+        await Assert.That(report.Failed).IsEmpty();
+        await Assert.That(FolderContents("My Mix")).IsEquivalentTo(new[] { "01. Queen - A.m4a", "02. Queen - B.m4a" }, CollectionOrdering.Matching);
+        await Assert.That(Read(@"My Mix\01. Queen - A.m4a")).IsEqualTo("A");
     }
 
-    [Test, Platform("Win")]
+    [Test, RunOn(TUnit.Core.Enums.OS.Windows)]
     public async Task Renumbering_renames_the_files_without_copying_them()
     {
         // WRITE-4 in docs/design-decisions.md
@@ -103,13 +103,13 @@ public class PlaylistExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, _ => null);
 
-        Assert.Multiple(() =>
+        using (Assert.Multiple())
         {
-            Assert.That(report.Failed, Is.Empty);
-            Assert.That(report.Added, Is.Empty);
-            Assert.That(FileId(@"My Mix\01. Queen - B.m4a"), Is.EqualTo(idOfB), "B is the same file, renamed");
-            Assert.That(FileId(@"My Mix\02. Queen - A.m4a"), Is.EqualTo(idOfA), "A is the same file, renamed");
-        });
+            await Assert.That(report.Failed).IsEmpty();
+            await Assert.That(report.Added).IsEmpty();
+            await Assert.That(FileId(@"My Mix\01. Queen - B.m4a")).IsEqualTo(idOfB).Because("B is the same file, renamed");
+            await Assert.That(FileId(@"My Mix\02. Queen - A.m4a")).IsEqualTo(idOfA).Because("A is the same file, renamed");
+        }
     }
 
     /// <summary>The file system's ID for the file, which a rename keeps and a copy doesn't.</summary>
@@ -138,7 +138,7 @@ public class PlaylistExecutorTests
 
         await new PlacementExecutor(root).ExecuteAsync(PlaylistPlanner.Plan("My Mix", [], root, []), _ => null);
 
-        Assert.That(FolderContents("My Mix"), Is.EqualTo(new[] { "~mps-notours.partial" }));
+        await Assert.That(FolderContents("My Mix")).IsEquivalentTo(new[] { "~mps-notours.partial" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -150,8 +150,8 @@ public class PlaylistExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, _ => null);
 
-        Assert.That(report.Renamed.Single().ActualRelativePath, Is.EqualTo(@"My Mix\01. Queen - A (2).m4a"));
-        Assert.That(Read(@"My Mix\01. Queen - A.m4a"), Is.EqualTo("squatter"));
+        await Assert.That(report.Renamed.Single().ActualRelativePath).IsEqualTo(@"My Mix\01. Queen - A (2).m4a");
+        await Assert.That(Read(@"My Mix\01. Queen - A.m4a")).IsEqualTo("squatter");
     }
 
     [Test]
@@ -163,6 +163,6 @@ public class PlaylistExecutorTests
 
         var report = await new PlacementExecutor(root).ExecuteAsync(plan, _ => null);
 
-        Assert.That(report.Failed.Select(c => c.TrackId), Is.EqualTo(new[] { "1", "2" }));
+        await Assert.That(report.Failed.Select(c => c.TrackId)).IsEquivalentTo(new string?[] { "1", "2" }, CollectionOrdering.Matching);
     }
 }

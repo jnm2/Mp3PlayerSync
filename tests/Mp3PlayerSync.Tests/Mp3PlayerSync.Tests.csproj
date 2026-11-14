@@ -16,12 +16,6 @@
     <PackageReference Include="TUnit" Version="1.84.0" />
   </ItemGroup>
 
-  <!-- Temporary, while the unit tests move to TUnit: the files still on NUnit run in ..\Mp3PlayerSync.NUnitTests -->
-  <Import Project="..\Mp3PlayerSync.NUnitTests\StillNUnit.props" />
-  <ItemGroup>
-    <Compile Remove="@(StillNUnit)" />
-  </ItemGroup>
-
   <ItemGroup>
     <!-- For CollectionOrdering.Matching: NUnit's Is.EqualTo compared collections in order, and TUnit's IsEqualTo
          compares their references -->

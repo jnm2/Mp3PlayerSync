@@ -7,7 +7,7 @@ public class DownloadCacheTests
     private string directory = null!;
     private string source = null!;
 
-    [SetUp]
+    [Before(Test)]
     public void SetUp()
     {
         var temp = Path.Combine(Path.GetTempPath(), "Mp3PlayerSyncTests", Guid.NewGuid().ToString("N"));
@@ -16,38 +16,39 @@ public class DownloadCacheTests
         File.WriteAllBytes(source, new byte[1000]);
     }
 
-    [TearDown]
+    [After(Test)]
     public void TearDown() => Directory.Delete(Path.GetDirectoryName(source)!, recursive: true);
 
     [Test]
-    public void Keeps_a_download_by_video_and_format()
+    public async Task Keeps_a_download_by_video_and_format()
     {
         var cache = new DownloadCache(directory);
 
         cache.Add("dQw4w9WgXcQ", "140", "https://lh3.googleusercontent.com/art", source);
 
-        Assert.That(cache.TryGet("dQw4w9WgXcQ"), Is.EqualTo(new CachedDownload("dQw4w9WgXcQ", "140", Path.Combine(directory, "dQw4w9WgXcQ.140.m4a"), "https://lh3.googleusercontent.com/art")));
-        Assert.That(cache.TryGet("other"), Is.Null);
+        await Assert.That(cache.TryGet("dQw4w9WgXcQ")).IsEqualTo(new CachedDownload("dQw4w9WgXcQ", "140", Path.Combine(directory, "dQw4w9WgXcQ.140.m4a"), "https://lh3.googleusercontent.com/art"));
+        await Assert.That(cache.TryGet("other")).IsNull();
 
         cache.Remove("dQw4w9WgXcQ");
-        Assert.That(Directory.GetFiles(directory), Is.Empty);
+        await Assert.That(Directory.GetFiles(directory)).IsEmpty();
     }
 
-    [TestCase("..\\evil")]
-    [TestCase("a/b")]
-    [TestCase("")]
-    public void Ignores_ids_that_are_not_file_name_safe(string videoId)
+    [Test]
+    [Arguments("..\\evil")]
+    [Arguments("a/b")]
+    [Arguments("")]
+    public async Task Ignores_ids_that_are_not_file_name_safe(string videoId)
     {
         var cache = new DownloadCache(directory);
 
         cache.Add(videoId, "140", null, source);
 
-        Assert.That(Directory.Exists(directory), Is.False);
-        Assert.That(cache.TryGet(videoId), Is.Null);
+        await Assert.That(Directory.Exists(directory)).IsFalse();
+        await Assert.That(cache.TryGet(videoId)).IsNull();
     }
 
     [Test]
-    public void Prunes_old_entries_then_the_oldest_until_it_fits()
+    public async Task Prunes_old_entries_then_the_oldest_until_it_fits()
     {
         var cache = new DownloadCache(directory) { MaxAge = TimeSpan.FromDays(30), MaxBytes = 2500 };
         foreach (var id in new[] { "old", "a", "b", "c" }) cache.Add(id, "140", null, source);
@@ -59,11 +60,11 @@ public class DownloadCacheTests
 
         cache.Prune(now);
 
-        Assert.That(new[] { "old", "a", "b", "c" }.Select(id => cache.TryGet(id) is not null), Is.EqualTo(new[] { false, false, true, true }));
+        await Assert.That(new[] { "old", "a", "b", "c" }.Select(id => cache.TryGet(id) is not null)).IsEquivalentTo(new[] { false, false, true, true }, CollectionOrdering.Matching);
     }
 
     [Test]
-    public void Prune_removes_leftovers_from_a_crash_but_not_a_copy_in_progress()
+    public async Task Prune_removes_leftovers_from_a_crash_but_not_a_copy_in_progress()
     {
         Directory.CreateDirectory(directory);
         var crashed = Path.Combine(directory, "x.140.m4a.0123.tmp");
@@ -75,7 +76,7 @@ public class DownloadCacheTests
 
         new DownloadCache(directory).Prune(DateTimeOffset.UtcNow);
 
-        Assert.That(Directory.GetFiles(directory).Select(Path.GetFileName), Is.EqualTo(new[] { "y.140.m4a.4567.tmp" }));
+        await Assert.That(Directory.GetFiles(directory).Select(Path.GetFileName)).IsEquivalentTo(new string?[] { "y.140.m4a.4567.tmp" }, CollectionOrdering.Matching);
     }
 
     private void SetSavedAt(string videoId, DateTimeOffset savedAt) =>

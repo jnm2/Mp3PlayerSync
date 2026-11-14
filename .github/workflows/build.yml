@@ -58,17 +58,11 @@ jobs:
         run: dotnet build Mp3PlayerSync.slnx -c Release --no-restore -bl:logs\build.binlog
 
       # On Microsoft.Testing.Platform (global.json's test runner), which takes --report-trx rather than VSTest's --logger.
-      # Temporary, while the unit tests move to TUnit: the ones still on NUnit run from Mp3PlayerSync.NUnitTests, under
-      # the same assembly name, so each writes its results to a folder of its own.
       - name: Test
         env:
-          # The next step writes the summary, the same for both frameworks
+          # The next step writes the summary
           TUNIT_DISABLE_GITHUB_REPORTER: true
-        run: |
-          dotnet test --project tests\Mp3PlayerSync.Tests\Mp3PlayerSync.Tests.csproj -c Release --no-build --report-trx --results-directory TestResults\TUnit -bl:logs\test.binlog
-          $tunit = $LASTEXITCODE
-          dotnet test --project tests\Mp3PlayerSync.NUnitTests\Mp3PlayerSync.NUnitTests.csproj -c Release --no-build --report-trx --results-directory TestResults\NUnit -bl:logs\test-nunit.binlog
-          if ($tunit) { exit $tunit }
+        run: dotnet test --project tests\Mp3PlayerSync.Tests\Mp3PlayerSync.Tests.csproj -c Release --no-build --report-trx --results-directory TestResults -bl:logs\test.binlog
 
       - name: Test summary
         if: ${{ !cancelled() }}

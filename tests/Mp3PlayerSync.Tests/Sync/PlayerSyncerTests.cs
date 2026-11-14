@@ -12,7 +12,7 @@ public class PlayerSyncerTests
     private string root = null!;
     private string work = null!;
 
-    [SetUp]
+    [Before(Test)]
     public void SetUp()
     {
         var temp = Path.Combine(Path.GetTempPath(), "Mp3PlayerSyncTests", Guid.NewGuid().ToString("N"));
@@ -20,7 +20,7 @@ public class PlayerSyncerTests
         work = Directory.CreateDirectory(Path.Combine(temp, "Work")).FullName;
     }
 
-    [TearDown]
+    [After(Test)]
     public void TearDown() => Directory.Delete(Path.GetDirectoryName(root)!, recursive: true);
 
     [Test]
@@ -37,10 +37,10 @@ public class PlayerSyncerTests
             new Collector(progress),
             CancellationToken.None);
 
-        Assert.That(finder.Downloaded, Is.EqualTo(new[] { "One" }));
-        Assert.That(AudioFilesOnPlayer(), Is.EqualTo(new[] { Path.Combine("Mix", "01. Queen - One.m4a") }));
-        Assert.That(progress.Where(p => p.State == TrackSyncState.Done).Select(p => p.Track.Title), Is.EqualTo(new[] { "One" }));
-        Assert.That(result.Added, Is.EqualTo(new[] { songs[0] }).Using((IEqualityComparer<ExportedTrack>)ReferenceEqualityComparer.Instance), "The result says what was added, without relying on progress reports");
+        await Assert.That(finder.Downloaded).IsEquivalentTo(new[] { "One" }, CollectionOrdering.Matching);
+        await Assert.That(AudioFilesOnPlayer()).IsEquivalentTo(new[] { Path.Combine("Mix", "01. Queen - One.m4a") }, CollectionOrdering.Matching);
+        await Assert.That(progress.Where(p => p.State == TrackSyncState.Done).Select(p => p.Track.Title)).IsEquivalentTo(new[] { "One" }, CollectionOrdering.Matching);
+        await Assert.That(result.Added).IsEquivalentTo(new[] { songs[0] }, CollectionOrdering.Matching).Using((IEqualityComparer<ExportedTrack>)ReferenceEqualityComparer.Instance).Because("The result says what was added, without relying on progress reports");
     }
 
     [Test]
@@ -54,12 +54,12 @@ public class PlayerSyncerTests
         var result = await new PlayerSyncer(finder, new TrackTagWriter(), work).SyncAsync(
             library, Request(songs, resolutions: songs.Select(Resolved)), new Collector(progress), CancellationToken.None);
 
-        Assert.That(result.Errors, Is.Empty);
-        Assert.That(result.Added, Is.EqualTo(new[] { songs[0] }).Using((IEqualityComparer<ExportedTrack>)ReferenceEqualityComparer.Instance));
-        Assert.That(progress.Last(p => p.Track == songs[1]).State, Is.EqualTo(TrackSyncState.NeedsReview));
-        Assert.That(result.NeedsReview, Is.EqualTo(new[] { songs[1] }).Using((IEqualityComparer<ExportedTrack>)ReferenceEqualityComparer.Instance));
-        Assert.That(result.Failed, Is.Empty);
-        Assert.That(progress.Last(p => p.Track == songs[0]).State, Is.EqualTo(TrackSyncState.Done));
+        await Assert.That(result.Errors).IsEmpty();
+        await Assert.That(result.Added).IsEquivalentTo(new[] { songs[0] }, CollectionOrdering.Matching).Using((IEqualityComparer<ExportedTrack>)ReferenceEqualityComparer.Instance);
+        await Assert.That(progress.Last(p => p.Track == songs[1]).State).IsEqualTo(TrackSyncState.NeedsReview);
+        await Assert.That(result.NeedsReview).IsEquivalentTo(new[] { songs[1] }, CollectionOrdering.Matching).Using((IEqualityComparer<ExportedTrack>)ReferenceEqualityComparer.Instance);
+        await Assert.That(result.Failed).IsEmpty();
+        await Assert.That(progress.Last(p => p.Track == songs[0]).State).IsEqualTo(TrackSyncState.Done);
     }
 
     [Test]
@@ -71,14 +71,14 @@ public class PlayerSyncerTests
         var cache = new DownloadCache(Path.Combine(work, "..", "Cache"));
 
         using var library = await StartLibraryAsync();
-        Assert.That(
+        await Assert.That(
             async () => await new PlayerSyncer(finder, new TrackTagWriter(), work) { Cache = cache }.SyncAsync(
-                library, Request(songs, resolutions: songs.Select(Resolved)), new Collector([]), cancellation.Token),
-            Throws.InstanceOf<OperationCanceledException>());
+                library, Request(songs, resolutions: songs.Select(Resolved)), new Collector([]), cancellation.Token))
+            .Throws<OperationCanceledException>();
 
-        Assert.That(Directory.GetFileSystemEntries(root), Is.Empty, "Nothing, not even the playlist's folder, is written to the player");
-        Assert.That(Directory.GetFiles(work, "*", SearchOption.AllDirectories), Is.Empty, "Staging is cleaned up");
-        Assert.That(songs.Select(s => cache.TryGet(VideoIdOf(s)) is not null), Is.All.True, "The downloads are kept for next time");
+        await Assert.That(Directory.GetFileSystemEntries(root)).IsEmpty().Because("Nothing, not even the playlist's folder, is written to the player");
+        await Assert.That(Directory.GetFiles(work, "*", SearchOption.AllDirectories)).IsEmpty().Because("Staging is cleaned up");
+        await Assert.That(songs.Select(s => cache.TryGet(VideoIdOf(s)) is not null)).All(item => item).Because("The downloads are kept for next time");
     }
 
     [Test]
@@ -90,21 +90,21 @@ public class PlayerSyncerTests
         var interrupted = new FakeFinder { CancelBefore = "Two", Cancellation = cancellation };
 
         using var library = await StartLibraryAsync();
-        Assert.That(
+        await Assert.That(
             async () => await new PlayerSyncer(interrupted, new TrackTagWriter(), work) { Cache = cache }.SyncAsync(
-                library, Request(songs, resolutions: songs.Select(Resolved)), new Collector([]), cancellation.Token),
-            Throws.InstanceOf<OperationCanceledException>());
-        Assert.That(interrupted.Downloaded, Is.EqualTo(new[] { "One" }));
+                library, Request(songs, resolutions: songs.Select(Resolved)), new Collector([]), cancellation.Token))
+            .Throws<OperationCanceledException>();
+        await Assert.That(interrupted.Downloaded).IsEquivalentTo(new[] { "One" }, CollectionOrdering.Matching);
 
         var resumed = new FakeFinder();
         var progress = new List<TrackSyncProgress>();
         await new PlayerSyncer(resumed, new TrackTagWriter(), work) { Cache = cache }.SyncAsync(
             library, Request(songs, resolutions: songs.Select(Resolved)), new Collector(progress), CancellationToken.None);
 
-        Assert.That(resumed.Downloaded, Is.EqualTo(new[] { "Two", "Three" }));
-        Assert.That(AudioFilesOnPlayer(), Has.Length.EqualTo(3));
-        Assert.That(progress.Where(p => p.State == TrackSyncState.Done).Select(p => p.Track.Title), Is.EquivalentTo(new[] { "One", "Two", "Three" }));
-        Assert.That(Directory.GetFiles(cache.Directory), Is.Empty, "Songs on the player aren't kept");
+        await Assert.That(resumed.Downloaded).IsEquivalentTo(new[] { "Two", "Three" }, CollectionOrdering.Matching);
+        await Assert.That(AudioFilesOnPlayer()).Count().IsEqualTo(3);
+        await Assert.That(progress.Where(p => p.State == TrackSyncState.Done).Select(p => p.Track.Title)).IsEquivalentTo(new[] { "One", "Two", "Three" });
+        await Assert.That(Directory.GetFiles(cache.Directory)).IsEmpty().Because("Songs on the player aren't kept");
     }
 
     [Test]
@@ -117,11 +117,11 @@ public class PlayerSyncerTests
         var result = await new PlayerSyncer(new FakeFinder(), new TrackTagWriter(), work) { IsWriteProtected = _ => true }.SyncAsync(
             library, Request(songs, resolutions: songs.Select(Resolved)), new Collector(progress), CancellationToken.None);
 
-        Assert.That(result.Errors, Is.EqualTo(new[] { "This card is locked" }));
-        Assert.That(result.Added, Is.Empty);
-        Assert.That(result.Failed.Select(f => (f.Track.Title, f.Message)), Is.EqualTo(new[] { ("One", "This card is locked"), ("Two", "This card is locked") }));
-        Assert.That(Directory.GetFileSystemEntries(root), Is.Empty);
-        Assert.That(songs.Select(s => progress.Last(p => p.Track == s).State), Is.All.EqualTo(TrackSyncState.Failed));
+        await Assert.That(result.Errors).IsEquivalentTo(new[] { "This card is locked" }, CollectionOrdering.Matching);
+        await Assert.That(result.Added).IsEmpty();
+        await Assert.That(result.Failed.Select(f => (f.Track.Title, f.Message))).IsEquivalentTo(new (string, string?)[] { ("One", "This card is locked"), ("Two", "This card is locked") }, CollectionOrdering.Matching);
+        await Assert.That(Directory.GetFileSystemEntries(root)).IsEmpty();
+        await Assert.That(songs.Select(s => progress.Last(p => p.Track == s).State)).All(item => item == TrackSyncState.Failed);
     }
 
     [Test]
@@ -134,9 +134,9 @@ public class PlayerSyncerTests
         await new PlayerSyncer(new FakeFinder { CoverArtUrl = "https://lh3.googleusercontent.com/art=w500-h500-l90-rj" }, new TrackTagWriter(fetcher), work).SyncAsync(
             library, Request(songs, resolutions: songs.Select(Resolved)), new Collector([]), CancellationToken.None);
 
-        Assert.That(fetcher.Urls, Is.EqualTo(new[] { "https://lh3.googleusercontent.com/art=w500-h500-l90-rj" }));
+        await Assert.That(fetcher.Urls).IsEquivalentTo(new[] { "https://lh3.googleusercontent.com/art=w500-h500-l90-rj" }, CollectionOrdering.Matching);
         using var file = TagLib.File.Create(Path.Combine(root, AudioFilesOnPlayer().Single()));
-        Assert.That(file.Tag.Pictures.Single().Data.Data, Is.EqualTo(RecordingArtFetcher.Jpeg));
+        await Assert.That(file.Tag.Pictures.Single().Data.Data).IsEquivalentTo(RecordingArtFetcher.Jpeg, CollectionOrdering.Matching);
     }
 
     private static SyncRequest Request(IReadOnlyList<ExportedTrack> songs, IEnumerable<TrackResolution> resolutions)
@@ -219,7 +219,7 @@ public class PlayerSyncerTests
                     cancellationToken.ThrowIfCancellationRequested();
                 }
 
-                File.Copy(Path.Combine(TestContext.CurrentContext.TestDirectory, "Tagging", "Assets", "silence.m4a"), request.DestinationPath, overwrite: true);
+                File.Copy(Path.Combine(AppContext.BaseDirectory, "Tagging", "Assets", "silence.m4a"), request.DestinationPath, overwrite: true);
                 Downloaded.Add(request.Track.Title);
                 var result = new TrackDownloadResult(request, null, null, null) { CoverArtUrl = CoverArtUrl };
                 progress?.Invoke(new(request, TrackDownloadStage.Succeeded, 1) { Result = result });
