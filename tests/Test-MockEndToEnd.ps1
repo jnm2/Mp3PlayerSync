@@ -231,10 +231,16 @@ function Find-ListItem($list, [string] $name) {
 
 function Open-LibraryItem($window, [string] $name) {
     $list = Wait-Until { Find-ById $window 'LibraryGridView' } 'the library list'
-    $item = Wait-Until { Find-ListItem $list $name } "'$name' in the library"
-    (Pattern $item ([System.Windows.Automation.ScrollItemPattern])).ScrollIntoView()
-    # Scrolling recycles item containers, so the element found before may now stand for another item.
-    $item = Wait-Until { $i = Find-Named $list $ControlType::ListItem $name; if ($i -and !$i.Current.IsOffscreen) { $i } } "'$name' scrolled into view" 10
+    # Scrolling recycles item containers, so the element found before may now stand for another item, and the grid can
+    # be filled again after the scroll (such as when an export shows a playlist is an album), which leaves the tile out
+    # of view. So until it's in view, it's found and scrolled to again.
+    $item = Wait-Until {
+        try {
+            $i = Find-ListItem $list $name
+            if ($i -and !$i.Current.IsOffscreen -and $i.Current.Name -eq $name) { $i }
+            elseif ($i) { (Pattern $i ([System.Windows.Automation.ScrollItemPattern])).ScrollIntoView() }
+        } catch [System.Windows.Automation.ElementNotAvailableException] { } # Recycled meanwhile
+    } "'$name' scrolled into view" 20
     (Pattern $item ([System.Windows.Automation.InvokePattern])).Invoke()
     Wait-Until { (Get-Text $window 'PlaylistTitle') -match ('^Spotify (playlist|album): ' + [regex]::Escape($name) + '$') } "the page for '$name'" | Out-Null
 }
