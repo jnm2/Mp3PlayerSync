@@ -537,7 +537,7 @@ try {
             (Pattern $window ([System.Windows.Automation.TransformPattern])).Resize(400, 900)
             Start-Sleep -Milliseconds 700
             if ($process.HasExited) { throw "The app exited when the window was narrowed (exit code $($process.ExitCode))" }
-            $tabs = 'ByYouFilterItem', 'ByOthersFilterItem', 'SavedAlbumsFilterItem', 'AllFilterItem' | ForEach-Object { Wait-Until { Find-ById $window $_ } $_ 10 }
+            $tabs = 'CreatedFilterItem', 'SavedPlaylistsFilterItem', 'SavedAlbumsFilterItem', 'AllFilterItem' | ForEach-Object { Wait-Until { Find-ById $window $_ } $_ 10 }
             $clippedTabs = $tabs | Where-Object { $_.Current.IsOffscreen -or $_.Current.BoundingRectangle.Width -le 0 } | ForEach-Object { $_.Current.Name }
             $refresh = (Find-ById $window 'RefreshLibraryButton').Current.BoundingRectangle
             $signOut = (Find-ById $window 'SignOutButton').Current.BoundingRectangle

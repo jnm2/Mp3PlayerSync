@@ -1,11 +1,19 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace Mp3PlayerSync.Core;
 
 public enum LibraryItemKind { Playlist, LikedSongs, AlbumPlaylist, SavedAlbum }
 
-public enum LibraryFilter { PlaylistsByYou, PlaylistsByOthers, SavedAlbums, All }
+public enum LibraryFilter
+{
+    // Settings files store the names these tabs had in 0.1.0.
+    [JsonStringEnumMemberName("PlaylistsByYou")] CreatedPlaylists,
+    [JsonStringEnumMemberName("PlaylistsByOthers")] SavedPlaylists,
+    SavedAlbums,
+    All,
+}
 
 /// <summary>
 /// What an earlier export of a playlist showed, remembered so the library can show it without exporting again.
@@ -120,7 +128,7 @@ public static class LibraryBuilder
             {
                 LibraryItemKind.SavedAlbum => JoinParts(string.Join(", ", item.Album!.Artists), item.Album.ReleaseDate is { Length: >= 4 } date ? date[..4] : null),
                 LibraryItemKind.LikedSongs => "",
-                _ => filter != LibraryFilter.PlaylistsByYou && OwnerName.IsShown(item.Owner) ? item.Owner : "",
+                _ => filter != LibraryFilter.CreatedPlaylists && OwnerName.IsShown(item.Owner) ? item.Owner : "",
             },
             // Only what's known for every item alike, not what earlier exports of some playlists showed.
             Stats = TrackCountText(item.TrackCount) ?? "",
@@ -130,8 +138,8 @@ public static class LibraryBuilder
 
     public static IEnumerable<LibraryItem> Filter(IEnumerable<LibraryItem> items, LibraryFilter filter) => filter switch
     {
-        LibraryFilter.PlaylistsByYou => items.Where(i => i.Kind == LibraryItemKind.LikedSongs || i.Kind == LibraryItemKind.Playlist && i.IsOwnedByUser),
-        LibraryFilter.PlaylistsByOthers => items.Where(i => i.Kind == LibraryItemKind.Playlist && !i.IsOwnedByUser),
+        LibraryFilter.CreatedPlaylists => items.Where(i => i.Kind == LibraryItemKind.LikedSongs || i.Kind == LibraryItemKind.Playlist && i.IsOwnedByUser),
+        LibraryFilter.SavedPlaylists => items.Where(i => i.Kind == LibraryItemKind.Playlist && !i.IsOwnedByUser),
         LibraryFilter.SavedAlbums => items.Where(i => i.Kind is LibraryItemKind.SavedAlbum or LibraryItemKind.AlbumPlaylist),
         _ => items,
     };

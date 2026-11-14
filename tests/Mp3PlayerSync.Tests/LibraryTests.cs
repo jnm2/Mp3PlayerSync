@@ -41,8 +41,8 @@ public class LibraryBuilderTests
     {
         var items = LibraryBuilder.Build(Rows, Albums, NoExports);
 
-        Assert.That(Names(items, LibraryFilter.PlaylistsByYou), Is.EqualTo(new[] { "Liked Songs", "Mine", "Empty" }));
-        Assert.That(Names(items, LibraryFilter.PlaylistsByOthers), Is.EqualTo(new[] { "Theirs" }));
+        Assert.That(Names(items, LibraryFilter.CreatedPlaylists), Is.EqualTo(new[] { "Liked Songs", "Mine", "Empty" }));
+        Assert.That(Names(items, LibraryFilter.SavedPlaylists), Is.EqualTo(new[] { "Theirs" }));
         Assert.That(Names(items, LibraryFilter.SavedAlbums), Is.EqualTo(new[] { "Seeker", "Their album", "New album", "Old album" }));
         Assert.That(Names(items, LibraryFilter.All), Is.EqualTo(new[] { "Liked Songs", "Mine", "Theirs", "Seeker", "Their album", "Empty", "New album", "Old album" }));
     }
@@ -59,7 +59,7 @@ public class LibraryBuilderTests
 
         var items = LibraryBuilder.Build(rows, Albums, exports);
 
-        Assert.That(Names(items, LibraryFilter.PlaylistsByYou), Is.EqualTo(new[] { "Liked Songs", "Mine" }));
+        Assert.That(Names(items, LibraryFilter.CreatedPlaylists), Is.EqualTo(new[] { "Liked Songs", "Mine" }));
         Assert.That(Names(items, LibraryFilter.All)[0], Is.EqualTo("Liked Songs"));
         Assert.That(Names(items, LibraryFilter.SavedAlbums), Does.Not.Contain("Liked Songs"));
     }
@@ -91,11 +91,11 @@ public class LibraryBuilderTests
         var items = LibraryBuilder.Build(Rows, albums: null, exports);
 
         Assert.That(Names(items, LibraryFilter.SavedAlbums), Is.EqualTo(new[] { "Mine", "Their album" }));
-        Assert.That(Names(items, LibraryFilter.PlaylistsByYou), Does.Contain("Seeker"));
+        Assert.That(Names(items, LibraryFilter.CreatedPlaylists), Does.Contain("Seeker"));
     }
 
     [Test]
-    public void Owner_is_shown_except_on_your_own_playlists_tab()
+    public void Owner_is_shown_except_on_created_playlists_tab()
     {
         PlaylistSummary[] rows =
         [
@@ -106,7 +106,7 @@ public class LibraryBuilderTests
 
         string Byline(LibraryFilter filter) => LibraryBuilder.Present(items, filter, Now).Single(i => i.Name == "Mine").Byline;
 
-        Assert.That(Byline(LibraryFilter.PlaylistsByYou), Is.Empty);
+        Assert.That(Byline(LibraryFilter.CreatedPlaylists), Is.Empty);
         Assert.That(Byline(LibraryFilter.All), Is.EqualTo("me"));
         Assert.That(LibraryBuilder.Present(items, LibraryFilter.All, Now)[0].Byline, Is.Empty, "Liked Songs");
     }
@@ -126,7 +126,7 @@ public class LibraryBuilderTests
         {
             ["https://open.spotify.com/playlist/mine"] = new(30, (long)TimeSpan.FromMinutes(125).TotalMilliseconds, Now.AddDays(-2), false),
         };
-        var items = LibraryBuilder.Present(LibraryBuilder.Build(Rows, null, exports), LibraryFilter.PlaylistsByYou, Now);
+        var items = LibraryBuilder.Present(LibraryBuilder.Build(Rows, null, exports), LibraryFilter.CreatedPlaylists, Now);
 
         var mine = items.Single(i => i.Name == "Mine");
         Assert.That((mine.Stats, mine.DateText), Is.EqualTo(("30 tracks", "")));
@@ -220,6 +220,27 @@ public class SavedAlbumTests
 
 public class AppSettingsTests
 {
+    [TestCase("PlaylistsByYou", LibraryFilter.CreatedPlaylists)]
+    [TestCase("PlaylistsByOthers", LibraryFilter.SavedPlaylists)]
+    public void Reads_the_tab_chosen_in_0_1_0_and_keeps_the_player(string stored, LibraryFilter expected)
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, $$"""{ "player": { "folderPath": "D:\\Player" }, "filter": "{{stored}}" }""");
+
+            var loaded = AppSettings.Load(path);
+
+            Assert.That((loaded.Filter, loaded.Player?.FolderPath), Is.EqualTo((expected, @"D:\Player")));
+            loaded.Save(path);
+            Assert.That(File.ReadAllText(path), Does.Contain($"\"{stored}\""));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Test]
     public void Round_trips_choices_and_export_summaries()
     {
@@ -249,7 +270,7 @@ public class AppSettingsTests
         try
         {
             File.WriteAllText(path, "{ not json");
-            Assert.That(AppSettings.Load(path).Filter, Is.EqualTo(LibraryFilter.PlaylistsByYou));
+            Assert.That(AppSettings.Load(path).Filter, Is.EqualTo(LibraryFilter.CreatedPlaylists));
             Assert.That(AppSettings.Load(path + ".missing").LastSelectedKey, Is.Null);
         }
         finally
