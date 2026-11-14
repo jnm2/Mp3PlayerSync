@@ -4,4 +4,9 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- The version builds get when a release tag doesn't set one (-p:Version in build.yml). -->
+    <VersionPrefix>0.1.0</VersionPrefix>
+  </PropertyGroup>
 </Project>
