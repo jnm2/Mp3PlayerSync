@@ -1,0 +1,15 @@
+<Project>
+  <!-- Temporary, while the unit tests move to TUnit: the files in ..\Mp3PlayerSync.Tests that are still NUnit. They run
+       in Mp3PlayerSync.NUnitTests.csproj, and Mp3PlayerSync.Tests.csproj leaves them out. -->
+  <PropertyGroup>
+    <UnitTestsFolder>$(MSBuildThisFileDirectory)..\Mp3PlayerSync.Tests\</UnitTestsFolder>
+  </PropertyGroup>
+  <ItemGroup>
+    <StillNUnit Include="$(UnitTestsFolder)*.cs" Exclude="$(UnitTestsFolder)CsvReaderTests.cs" />
+    <StillNUnit Include="$(UnitTestsFolder)Download\*.cs" />
+    <StillNUnit Include="$(UnitTestsFolder)Placement\*.cs" />
+    <StillNUnit Include="$(UnitTestsFolder)Scanning\*.cs" />
+    <StillNUnit Include="$(UnitTestsFolder)Sync\*.cs" />
+    <StillNUnit Include="$(UnitTestsFolder)Tagging\*.cs" />
+  </ItemGroup>
+</Project>

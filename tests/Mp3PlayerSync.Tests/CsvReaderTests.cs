@@ -5,34 +5,34 @@ namespace Mp3PlayerSync.Tests;
 public class CsvReaderTests
 {
     [Test]
-    public void Quoted_fields_can_contain_commas_quotes_and_line_breaks()
+    public async Task Quoted_fields_can_contain_commas_quotes_and_line_breaks()
     {
         var records = CsvReader.Parse("a,\"b, \"\"c\"\"\",\"line1\r\nline2\"\r\nx,,z\n");
 
-        Assert.That(records, Is.EqualTo(new[]
+        await Assert.That(records).IsEquivalentTo(new[]
         {
             new[] { "a", "b, \"c\"", "line1\r\nline2" },
             new[] { "x", "", "z" },
-        }));
+        }, CollectionOrdering.Matching);
     }
 
     [Test]
-    public void Leading_byte_order_mark_is_ignored()
+    public async Task Leading_byte_order_mark_is_ignored()
     {
         var records = CsvReader.Parse("\uFEFFTrack URI,Track Name\nspotify:track:1,Song\n");
 
-        Assert.That(records[0][0], Is.EqualTo("Track URI"));
+        await Assert.That(records[0][0]).IsEqualTo("Track URI");
     }
 
     [Test]
-    public void Blank_lines_produce_no_records()
+    public async Task Blank_lines_produce_no_records()
     {
-        Assert.That(CsvReader.Parse("a\n\n\r\nb\n\n"), Has.Count.EqualTo(2));
+        await Assert.That(CsvReader.Parse("a\n\n\r\nb\n\n")).Count().IsEqualTo(2);
     }
 
     [Test]
-    public void Quoted_empty_field_on_its_own_line_is_a_record()
+    public async Task Quoted_empty_field_on_its_own_line_is_a_record()
     {
-        Assert.That(CsvReader.Parse("\"\"\n"), Is.EqualTo(new[] { new[] { "" } }));
+        await Assert.That(CsvReader.Parse("\"\"\n")).IsEquivalentTo(new[] { new[] { "" } }, CollectionOrdering.Matching);
     }
 }
