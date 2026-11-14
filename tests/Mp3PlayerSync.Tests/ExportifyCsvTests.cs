@@ -54,7 +54,7 @@ public class ExportifyCsvTests
             "\"Track URI\",\"Track Name\",\"Artist URI(s)\",\"Artist Name(s)\",\"Album URI\",\"Album Name\",\"Album Artist URI(s)\",\"Album Artist Name(s)\",\"Album Release Date\",\"Album Image URL\",\"Disc Number\",\"Track Number\",\"Track Duration (ms)\",\"Track Preview URL\",\"Explicit\",\"Popularity\",\"ISRC\",\"Added By\",\"Added At\"\n" +
             "\"spotify:track:1\",\"Song\",\"a, b\",\"Earth\\, Wind & Fire, Chaka Khan\",\"spotify:album:1\",\"Album\",\"\",\"\",\"2000\",\"\",\"1\",\"1\",\"3725000\",\"\",\"false\",\"1\",\"X\",\"\",\"2020-01-01T00:00:00Z\"\n";
 
-        var track = ExportifyCsv.Parse(csv).Tracks.Single();
+        var track = ExportifyCsv.Parse(csv).Tracks.ShouldHaveSingleItem();
 
         track.Artists.ShouldBe(new[] { "Earth, Wind & Fire", "Chaka Khan" });
         track.DurationText.ShouldBe("1:02:05");

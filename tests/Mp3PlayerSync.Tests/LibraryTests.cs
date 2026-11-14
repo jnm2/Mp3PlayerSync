@@ -116,7 +116,7 @@ public class LibraryBuilderTests
     {
         PlaylistSummary[] rows = [new("https://open.spotify.com/playlist/x", "X", "7fjct5b53ypygv8hdtcpuwzc2", 3, null, Mosaic)];
 
-        LibraryBuilder.Present(LibraryBuilder.Build(rows, null, NoExports), LibraryFilter.All, Now).Single().Byline.ShouldBeEmpty();
+        LibraryBuilder.Present(LibraryBuilder.Build(rows, null, NoExports), LibraryFilter.All, Now).ShouldHaveSingleItem().Byline.ShouldBeEmpty();
     }
 
     [Test]
@@ -224,7 +224,7 @@ public class SavedAlbumTests
         ]));
 
         albums.Select(a => (a.Name, a.ReleaseDate, a.Tracks.Count)).ShouldBe(new[] { ("Greatest Hits", "2001", 2), ("Greatest Hits", "1990", 1) });
-        albums[1].ToExportedPlaylist().Tracks.Single().Number.ShouldBe(1);
+        albums[1].ToExportedPlaylist().Tracks.ShouldHaveSingleItem().Number.ShouldBe(1);
         albums.Select(a => a.Key).ShouldBeUnique();
     }
 }
@@ -243,7 +243,9 @@ public class AppSettingsTests
 
             var loaded = AppSettings.Load(path);
 
-            (loaded.Filter, loaded.Player?.FolderPath).ShouldBe((expected, @"D:\Player"));
+            loaded.ShouldSatisfyAllConditions(
+                l => l.Filter.ShouldBe(expected),
+                l => l.Player.ShouldNotBeNull().FolderPath.ShouldBe(@"D:\Player"));
             loaded.Save(path);
             File.ReadAllText(path).ShouldContain($"\"{stored}\"", Case.Sensitive);
         }

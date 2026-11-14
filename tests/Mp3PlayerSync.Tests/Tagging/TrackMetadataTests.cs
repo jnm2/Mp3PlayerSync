@@ -13,7 +13,7 @@ public class TrackMetadataTests
             "Track URI,ISRC,Track Name,Album Name,Artist Name(s),Release Date,Duration (ms),Popularity,Explicit,Added By,Added At,Genres,Record Label,Danceability,Energy,Key,Loudness,Mode,Speechiness,Acousticness,Instrumentalness,Liveness,Valence,Tempo,Time Signature\n" +
             "spotify:track:2,USRC2,Under Pressure,Hot Space,Queen;David Bowie,1982-05-21,248440,77,true,me,2024-03-02T00:00:00Z,\"glam rock,classic rock,rock\",EMI,0.67,0.71,9,-10.4,0,0.04,0.2,0,0.1,0.5,113.4,4\n";
 
-        var metadata = TrackMetadata.FromExportedTrack(ExportifyCsv.Parse(csv).Tracks.Single());
+        var metadata = TrackMetadata.FromExportedTrack(ExportifyCsv.Parse(csv).Tracks.ShouldHaveSingleItem());
 
         metadata.ShouldSatisfyAllConditions(
             m => m.Title.ShouldBe("Under Pressure"),
@@ -40,7 +40,7 @@ public class TrackMetadataTests
             "\"Track URI\",\"Track Name\",\"Artist URI(s)\",\"Artist Name(s)\",\"Album URI\",\"Album Name\",\"Album Artist URI(s)\",\"Album Artist Name(s)\",\"Album Release Date\",\"Album Image URL\",\"Disc Number\",\"Track Number\",\"Track Duration (ms)\",\"Track Preview URL\",\"Explicit\",\"Popularity\",\"ISRC\",\"Added By\",\"Added At\",\"Artist Genres\",\"Key\",\"Mode\",\"Tempo\",\"Album Genres\",\"Label\",\"Copyrights\"\n" +
             "\"spotify:track:1\",\"Song\",\"a\",\"Earth\\, Wind & Fire, Chaka Khan\",\"spotify:album:1\",\"Album\",\"x\",\"Earth\\, Wind & Fire, Various\",\"1979-06\",\"https://i.scdn.co/image/abc\",\"2\",\"7\",\"1000\",\"\",\"false\",\"1\",\"X\",\"\",\"2020-01-01T00:00:00Z\",\"funk,disco\",\"1\",\"1\",\"120.0\",\"Disco\",\"Columbia\",\"C 1979 Columbia, P 1979 Columbia\"\n";
 
-        var metadata = TrackMetadata.FromExportedTrack(ExportifyCsv.Parse(csv).Tracks.Single());
+        var metadata = TrackMetadata.FromExportedTrack(ExportifyCsv.Parse(csv).Tracks.ShouldHaveSingleItem());
 
         metadata.ShouldSatisfyAllConditions(
             m => m.AlbumArtists.ShouldBe(new[] { "Earth, Wind & Fire", "Various" }),
