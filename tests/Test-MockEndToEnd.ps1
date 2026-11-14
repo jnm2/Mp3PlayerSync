@@ -1015,8 +1015,19 @@ try {
             foreach ($link in @(@('Sign up for Spotify', 'https://www.spotify.com/signup'), @('Help', 'https://support.spotify.com/'))) {
                 (Pattern (Wait-Until { Find-Named $page $ControlType::Hyperlink $link[0] } "the '$($link[0])' link" 10) ([System.Windows.Automation.InvokePattern])).Invoke()
                 Wait-Until { (Test-Path $opened) -and (Get-Content $opened) -contains $link[1] } "'$($link[0])' to open outside the app" 10 | Out-Null
-                Start-Sleep -Milliseconds 500
-                Check ($null -ne (Find-WebDocument $window 'Spotify login (mock)') -and (Find-ById $window 'SignInTitle')) "Clicking '$($link[0])' opens it outside the app and stays on the sign-in page"
+                # Asks the page found above, whose name is its title: it changes if the WebView goes elsewhere. Looking
+                # it up again through the window doesn't work once the click has put focus inside the WebView.
+                $stayed = $true
+                try {
+                    Wait-Until {
+                        $title = try { $page.Current.Name } catch [System.Windows.Automation.ElementNotAvailableException] { $null }
+                        $title -eq 'Spotify login (mock)' -and (Find-ById $window 'SignInTitle')
+                    } "the sign-in page after clicking '$($link[0])'" 10 | Out-Null
+                } catch {
+                    $stayed = $false
+                    Write-Host "  $($_.Exception.Message)"
+                }
+                Check $stayed "Clicking '$($link[0])' opens it outside the app and stays on the sign-in page"
             }
             (Pattern (Find-Named $page $ControlType::Button 'Sign in') ([System.Windows.Automation.InvokePattern])).Invoke()
             $sawSignIn = $true
