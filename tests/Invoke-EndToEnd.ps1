@@ -20,6 +20,8 @@ param(
     [string] $ScreenshotFolder,
     # The test host to run, such as the trimmed one from Test-PublishedExe.ps1; otherwise the Debug build
     [string] $AppPath,
+    # The mock Exportify to run, such as the one Test-PublishedExe.ps1 builds; otherwise the Debug build
+    [string] $MockPath,
     # Just these runs of Test-MockEndToEnd.ps1, for example Run2b,Run2c (see its -Only)
     [string[]] $Only,
     # Another script to run there instead, such as a quick experiment
@@ -140,6 +142,7 @@ try {
     $script = $TestScript
     $arguments = if ($ScreenshotFolder) { " -ScreenshotFolder '$ScreenshotFolder'" } else { '' }
     if ($AppPath) { $arguments += " -AppPath '$((Resolve-Path $AppPath).Path)'" }
+    if ($MockPath) { $arguments += " -MockPath '$((Resolve-Path $MockPath).Path)'" }
     if ($Only) { $arguments += " -Only $($Only -join ',')" }
     if (!$hidden) { $arguments += ' -Desktop Current' }
     $pwsh = [Environment]::ProcessPath
