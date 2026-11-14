@@ -14,21 +14,21 @@ public class TrackNormalizerTests
     [Arguments("Simon & Garfunkel", "simon and garfunkel")]
     [Arguments("  Hello,   World...  ", "hello world")]
     [Arguments("ＦＵＬＬ ｗｉｄｔｈ", "full width")]
-    public async Task NormalizeText_ignores_case_punctuation_and_diacritics(string text, string expected)
+    public void NormalizeText_ignores_case_punctuation_and_diacritics(string text, string expected)
     {
-        await Assert.That(TrackNormalizer.NormalizeText(text)).IsEqualTo(expected);
+        TrackNormalizer.NormalizeText(text).ShouldBe(expected);
     }
 
     [Test]
-    public async Task Keys_ignore_spacing_so_initialisms_match()
+    public void Keys_ignore_spacing_so_initialisms_match()
     {
-        await Assert.That(TrackNormalizer.ArtistKey("R.E.M.")).IsEqualTo(TrackNormalizer.ArtistKey("REM"));
+        TrackNormalizer.ArtistKey("R.E.M.").ShouldBe(TrackNormalizer.ArtistKey("REM"));
     }
 
     [Test]
-    public async Task Artist_keys_ignore_a_leading_The()
+    public void Artist_keys_ignore_a_leading_The()
     {
-        await Assert.That(TrackNormalizer.ArtistKey("The Beatles")).IsEqualTo(TrackNormalizer.ArtistKey("Beatles"));
+        TrackNormalizer.ArtistKey("The Beatles").ShouldBe(TrackNormalizer.ArtistKey("Beatles"));
     }
 
     [Test]
@@ -45,9 +45,9 @@ public class TrackNormalizerTests
     [Arguments("Dancing with Myself", "Dancing with Myself")]
     [Arguments("Rather Be (Clean Bandit Remix)", "Rather Be (Clean Bandit Remix)")]
     [Arguments("Clean", "Clean")]
-    public async Task StripTitleDecorations_removes_version_suffixes_but_keeps_different_recordings(string title, string expected)
+    public void StripTitleDecorations_removes_version_suffixes_but_keeps_different_recordings(string title, string expected)
     {
-        await Assert.That(TrackNormalizer.StripTitleDecorations(title, out _)).IsEqualTo(expected);
+        TrackNormalizer.StripTitleDecorations(title, out _).ShouldBe(expected);
     }
 
     [Test]
@@ -57,10 +57,10 @@ public class TrackNormalizerTests
     [Arguments("Song feat. Artist B")]
     [Arguments("Song - featuring Artist B")]
     [Arguments("Song (feat. Artist B) - Remastered 2011")]
-    public async Task StripTitleDecorations_moves_featured_artists_out_of_the_title(string title)
+    public void StripTitleDecorations_moves_featured_artists_out_of_the_title(string title)
     {
-        await Assert.That(TrackNormalizer.StripTitleDecorations(title, out var featured)).IsEqualTo("Song");
-        await Assert.That(featured).IsEquivalentTo(new[] { "Artist B" }, CollectionOrdering.Matching);
+        TrackNormalizer.StripTitleDecorations(title, out var featured).ShouldBe("Song");
+        featured.ShouldBe(new[] { "Artist B" });
     }
 
     [Test]
@@ -73,17 +73,22 @@ public class TrackNormalizerTests
     [Arguments("Song", null)]
     [Arguments("Clean", null)]
     [Arguments("Rather Be (Clean Bandit Remix)", null)]
-    public async Task ExplicitMarker_reads_explicit_and_clean_suffixes(string text, bool? expected)
+    public void ExplicitMarker_reads_explicit_and_clean_suffixes(string text, bool? expected)
     {
-        await Assert.That(TrackNormalizer.ExplicitMarker(text)).IsEqualTo(expected);
-        if (expected is not null) await Assert.That(TrackNormalizer.TitleKey(text)).DoesNotContain("explicit").And.DoesNotContain("clean");
+        TrackNormalizer.ExplicitMarker(text).ShouldBe(expected);
+        if (expected is not null)
+        {
+            TrackNormalizer.TitleKey(text).ShouldSatisfyAllConditions(
+                key => key.ShouldNotContain("explicit", Case.Sensitive),
+                key => key.ShouldNotContain("clean", Case.Sensitive));
+        }
     }
 
     [Test]
-    public async Task BaseTitleKey_drops_any_trailing_part()
+    public void BaseTitleKey_drops_any_trailing_part()
     {
-        await Assert.That(TrackNormalizer.BaseTitleKey("Song - From \"The Movie\" Soundtrack")).IsEqualTo(TrackNormalizer.TitleKey("Song"));
-        await Assert.That(TrackNormalizer.BaseTitleKey("Song (Radio Edit)")).IsEqualTo(TrackNormalizer.TitleKey("Song"));
+        TrackNormalizer.BaseTitleKey("Song - From \"The Movie\" Soundtrack").ShouldBe(TrackNormalizer.TitleKey("Song"));
+        TrackNormalizer.BaseTitleKey("Song (Radio Edit)").ShouldBe(TrackNormalizer.TitleKey("Song"));
     }
 
     [Test]
@@ -92,28 +97,28 @@ public class TrackNormalizerTests
     [Arguments("A; B", new[] { "A", "B" })]
     [Arguments("A with B", new[] { "A", "B" })]
     [Arguments("A vs. B", new[] { "A", "B" })]
-    public async Task SplitArtists_splits_on_credit_separators(string credit, string[] expected)
+    public void SplitArtists_splits_on_credit_separators(string credit, string[] expected)
     {
-        await Assert.That(TrackNormalizer.SplitArtists(credit)).IsEquivalentTo(expected, CollectionOrdering.Matching);
+        TrackNormalizer.SplitArtists(credit).ShouldBe(expected);
     }
 
     [Test]
-    public async Task Artist_keys_overlap_across_credit_styles()
+    public void Artist_keys_overlap_across_credit_styles()
     {
         var spotify = TrackNormalizer.ArtistKeys(["Queen", "David Bowie"]);
 
-        await Assert.That(TrackNormalizer.ArtistKeys(["Queen & David Bowie"]).Overlaps(spotify)).IsTrue();
-        await Assert.That(TrackNormalizer.ArtistKeys(["David Bowie feat. Queen"]).Overlaps(spotify)).IsTrue();
-        await Assert.That(TrackNormalizer.ArtistKeys(["Earth Wind and Fire"]).Overlaps(TrackNormalizer.ArtistKeys(["Earth, Wind & Fire"]))).IsTrue();
-        await Assert.That(TrackNormalizer.ArtistKeys(["AC", "DC"]).Overlaps(TrackNormalizer.ArtistKeys(["AC/DC"]))).IsTrue();
-        await Assert.That(TrackNormalizer.ArtistKeys(["Metallica"]).Overlaps(spotify)).IsFalse();
+        TrackNormalizer.ArtistKeys(["Queen & David Bowie"]).Overlaps(spotify).ShouldBeTrue();
+        TrackNormalizer.ArtistKeys(["David Bowie feat. Queen"]).Overlaps(spotify).ShouldBeTrue();
+        TrackNormalizer.ArtistKeys(["Earth Wind and Fire"]).Overlaps(TrackNormalizer.ArtistKeys(["Earth, Wind & Fire"])).ShouldBeTrue();
+        TrackNormalizer.ArtistKeys(["AC", "DC"]).Overlaps(TrackNormalizer.ArtistKeys(["AC/DC"])).ShouldBeTrue();
+        TrackNormalizer.ArtistKeys(["Metallica"]).Overlaps(spotify).ShouldBeFalse();
     }
 
     [Test]
-    public async Task IsrcKey_ignores_case_and_separators()
+    public void IsrcKey_ignores_case_and_separators()
     {
-        await Assert.That(TrackNormalizer.IsrcKey("gb-umw-07-12345")).IsEqualTo("GBUMW0712345");
-        await Assert.That(TrackNormalizer.IsrcKey(null)).IsEmpty();
+        TrackNormalizer.IsrcKey("gb-umw-07-12345").ShouldBe("GBUMW0712345");
+        TrackNormalizer.IsrcKey(null).ShouldBeEmpty();
     }
 
     [Test]
@@ -123,8 +128,8 @@ public class TrackNormalizerTests
     [Arguments("05 Song.mp3", "", "Song")]
     [Arguments("99 Luftballons.mp3", "", "99 Luftballons")]
     [Arguments("Artist_-_Song.mp3", "Artist", "Song")]
-    public async Task ParseFileName_reads_artist_and_title(string fileName, string artist, string title)
+    public void ParseFileName_reads_artist_and_title(string fileName, string artist, string title)
     {
-        await Assert.That(AudioTagReader.ParseFileName(fileName)).IsEqualTo((artist, title));
+        AudioTagReader.ParseFileName(fileName).ShouldBe((artist, title));
     }
 }

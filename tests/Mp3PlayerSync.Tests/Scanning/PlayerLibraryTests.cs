@@ -32,9 +32,9 @@ public class PlayerLibraryTests
     [Arguments("cover.jpg", false)]
     [Arguments("playlist.m3u", false)]
     [Arguments("song", false)]
-    public async Task IsAudioFile_checks_the_extension(string name, bool expected)
+    public void IsAudioFile_checks_the_extension(string name, bool expected)
     {
-        await Assert.That(AudioFileScanner.IsAudioFile(name)).IsEqualTo(expected);
+        AudioFileScanner.IsAudioFile(name).ShouldBe(expected);
     }
 
     [Test]
@@ -49,19 +49,19 @@ public class PlayerLibraryTests
     [Arguments("Just hidden", FileAttributes.Directory | FileAttributes.Hidden, false)]
     [Arguments("Link", FileAttributes.Directory | FileAttributes.ReparsePoint, true)]
     [Arguments("Music", FileAttributes.Directory, false)]
-    public async Task ShouldSkipDirectory_skips_system_folders_and_links(string name, FileAttributes attributes, bool expected)
+    public void ShouldSkipDirectory_skips_system_folders_and_links(string name, FileAttributes attributes, bool expected)
     {
-        await Assert.That(AudioFileScanner.ShouldSkipDirectory(name, attributes)).IsEqualTo(expected);
+        AudioFileScanner.ShouldSkipDirectory(name, attributes).ShouldBe(expected);
     }
 
     [Test]
-    public async Task Reparse_points_that_are_not_links_are_scanned()
+    public void Reparse_points_that_are_not_links_are_scanned()
     {
-        await Assert.That(AudioFileScanner.ShouldSkipDirectory("OneDrive folder", FileAttributes.Directory | FileAttributes.ReparsePoint, () => null)).IsFalse();
+        AudioFileScanner.ShouldSkipDirectory("OneDrive folder", FileAttributes.Directory | FileAttributes.ReparsePoint, () => null).ShouldBeFalse();
     }
 
     [Test]
-    public async Task EnumerateAudioFiles_finds_files_at_any_depth_and_skips_system_folders_and_junctions()
+    public void EnumerateAudioFiles_finds_files_at_any_depth_and_skips_system_folders_and_junctions()
     {
         Touch("a.mp3");
         Touch(@"Music\Artist\Album\Disc 1\Deep\b.flac");
@@ -73,13 +73,13 @@ public class PlayerLibraryTests
 
         var found = AudioFileScanner.EnumerateAudioFiles(root).Select(f => Path.GetRelativePath(root, f.FullName)).ToArray();
 
-        await Assert.That(found).IsEquivalentTo(new[] { "a.mp3", @"Music\Artist\Album\Disc 1\Deep\b.flac" }, CollectionOrdering.Matching);
+        found.ShouldBe(new[] { "a.mp3", @"Music\Artist\Album\Disc 1\Deep\b.flac" });
     }
 
     [Test]
-    public async Task EnumerateAudioFiles_throws_when_the_root_is_missing()
+    public void EnumerateAudioFiles_throws_when_the_root_is_missing()
     {
-        await Assert.That(() => AudioFileScanner.EnumerateAudioFiles(Path.Combine(root, "missing")).ToList()).ThrowsExactly<DirectoryNotFoundException>();
+        Should.Throw<DirectoryNotFoundException>(() => AudioFileScanner.EnumerateAudioFiles(Path.Combine(root, "missing")).ToList());
     }
 
     [Test]
@@ -105,36 +105,34 @@ public class PlayerLibraryTests
         await library.ScanCompletion.WaitAsync(TimeSpan.FromSeconds(30));
 
         var snapshot = library.GetSnapshot();
-        await Assert.That(snapshot.IsScanComplete).IsTrue();
-        await Assert.That(snapshot.Files).Count().IsEqualTo(2);
+        snapshot.IsScanComplete.ShouldBeTrue();
+        snapshot.Files.Count.ShouldBe(2);
 
         var tagged = snapshot.Files.Single(f => f.Path == path);
-        using (Assert.Multiple())
-        {
-            await Assert.That(tagged.HasTags).IsTrue();
-            await Assert.That(tagged.Tags.Title).IsEqualTo("Under Pressure");
-            await Assert.That(tagged.Tags.Artists).IsEquivalentTo(new[] { "Queen", "David Bowie" }, CollectionOrdering.Matching);
-            await Assert.That(tagged.Tags.Album).IsEqualTo("Hot Space");
-            await Assert.That(tagged.Tags.AlbumArtists).IsEquivalentTo(new[] { "Queen" }, CollectionOrdering.Matching);
-            await Assert.That(tagged.Tags.TrackNumber).IsEqualTo(11);
-            await Assert.That(tagged.Tags.DiscNumber).IsEqualTo(1);
-            await Assert.That(tagged.Tags.Year).IsEqualTo(1982);
-            await Assert.That(tagged.Tags.Isrc).IsEqualTo("GBUM71029605");
-            await Assert.That(tagged.Tags.Duration!.Value.TotalSeconds).IsEqualTo(10).Within(0.5);
-        }
+        tagged.ShouldSatisfyAllConditions(
+            t => t.HasTags.ShouldBeTrue(),
+            t => t.Tags.Title.ShouldBe("Under Pressure"),
+            t => t.Tags.Artists.ShouldBe(new[] { "Queen", "David Bowie" }),
+            t => t.Tags.Album.ShouldBe("Hot Space"),
+            t => t.Tags.AlbumArtists.ShouldBe(new[] { "Queen" }),
+            t => t.Tags.TrackNumber.ShouldBe(11),
+            t => t.Tags.DiscNumber.ShouldBe(1),
+            t => t.Tags.Year.ShouldBe(1982),
+            t => t.Tags.Isrc.ShouldBe("GBUM71029605"),
+            t => t.Tags.Duration.ShouldNotBeNull().ShouldBe(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(0.5)));
 
         var untagged = snapshot.Files.Single(f => f.Path != path);
-        await Assert.That(untagged.HasTags).IsFalse();
-        await Assert.That(untagged.Tags.Title).IsEqualTo("Untagged Song");
+        untagged.HasTags.ShouldBeFalse();
+        untagged.Tags.Title.ShouldBe("Untagged Song");
 
         var match = snapshot.Match(new ExportedTrack(1, "", "Under Pressure", ["Queen", "David Bowie"], "Hot Space", TimeSpan.FromSeconds(11), "", null, "", null, "", ""));
-        await Assert.That(match.Kind).IsEqualTo(TrackMatchKind.ArtistAndTitle);
-        await Assert.That(snapshot.FindAlbum("Queen", "Hot Space").Single().Path).IsEqualTo(path);
+        match.Kind.ShouldBe(TrackMatchKind.ArtistAndTitle);
+        snapshot.FindAlbum("Queen", "Hot Space").ShouldHaveSingleItem().Path.ShouldBe(path);
 
         PlayerScanProgress last;
         lock (progress) last = progress.Last();
-        await Assert.That(last.Phase).IsEqualTo(PlayerScanPhase.Complete);
-        await Assert.That(last.FilesRead).IsEqualTo(2);
+        last.Phase.ShouldBe(PlayerScanPhase.Complete);
+        last.FilesRead.ShouldBe(2);
     }
 
     [Test]
@@ -143,19 +141,19 @@ public class PlayerLibraryTests
         using var library = new PlayerLibrary(Path.Combine(root, "missing"));
         library.Start();
 
-        await Assert.That(async () => await library.ScanCompletion.WaitAsync(TimeSpan.FromSeconds(30))).ThrowsExactly<DirectoryNotFoundException>();
-        await Assert.That(library.Progress.Phase).IsEqualTo(PlayerScanPhase.Failed);
+        await Should.ThrowAsync<DirectoryNotFoundException>(async () => await library.ScanCompletion.WaitAsync(TimeSpan.FromSeconds(30)));
+        library.Progress.Phase.ShouldBe(PlayerScanPhase.Failed);
     }
 
     [Test]
-    public async Task Disposing_cancels_the_scan()
+    public void Disposing_cancels_the_scan()
     {
         var library = new PlayerLibrary(root);
         library.Dispose();
 
-        await Assert.That(library.ScanCompletion.IsCanceled).IsTrue();
-        await Assert.That(library.Progress.Phase).IsEqualTo(PlayerScanPhase.Canceled);
-        await Assert.That(() => library.Start()).ThrowsExactly<ObjectDisposedException>();
+        library.ScanCompletion.IsCanceled.ShouldBeTrue();
+        library.Progress.Phase.ShouldBe(PlayerScanPhase.Canceled);
+        Should.Throw<ObjectDisposedException>(() => library.Start());
     }
 
     [Test]
@@ -173,8 +171,8 @@ public class PlayerLibraryTests
         try { await library.ScanCompletion.WaitAsync(TimeSpan.FromSeconds(30)); }
         catch (Exception e) when (e is DirectoryNotFoundException or OperationCanceledException) { }
 
-        await Assert.That(library.Progress.Phase).IsEqualTo(expected);
-        await Assert.That(completedAtFinalEvent).IsFalse().Because("ScanCompletion was already complete when the final phase was set");
+        library.Progress.Phase.ShouldBe(expected);
+        completedAtFinalEvent.ShouldBe(false, customMessage: "ScanCompletion was already complete when the final phase was set");
     }
 
     [Test]
@@ -183,7 +181,7 @@ public class PlayerLibraryTests
         using var library = new PlayerLibrary(root, new PlayerLibraryOptions { ChangeDebounce = TimeSpan.FromMilliseconds(100) });
         library.Start();
         await library.ScanCompletion.WaitAsync(TimeSpan.FromSeconds(30));
-        await Assert.That(library.GetSnapshot().Files).IsEmpty();
+        library.GetSnapshot().Files.ShouldBeEmpty();
 
         var path = WriteMp3(@"New\Song.mp3", seconds: 5, tag => { tag.Title = "Song"; tag.Performers = ["Artist"]; });
         await WaitUntil(() => library.GetSnapshot().Files.Any(f => f.Path == path && f.Tags.Title == "Song"));
@@ -210,9 +208,9 @@ public class PlayerLibraryTests
         library.IndexChanged += (_, _) => Interlocked.Increment(ref lateEvents);
         await Task.Delay(600);
 
-        await Assert.That(library.IsScanComplete).IsTrue();
-        await Assert.That(library.Progress.Phase).IsEqualTo(PlayerScanPhase.Complete);
-        await Assert.That(lateEvents).IsZero();
+        library.IsScanComplete.ShouldBeTrue();
+        library.Progress.Phase.ShouldBe(PlayerScanPhase.Complete);
+        lateEvents.ShouldBe(0);
     }
 
     [Test]
@@ -227,50 +225,50 @@ public class PlayerLibraryTests
 
         var path = WriteMp3(@"Artist\Song.mp3", seconds: 5, tag => tag.Title = "Song");
         library.NotifyFileWritten(path);
-        await Assert.That(library.GetSnapshot().Files.Single().Tags.Title).IsEqualTo("Song");
+        library.GetSnapshot().Files.ShouldHaveSingleItem().Tags.Title.ShouldBe("Song");
 
         var moved = Path.Combine(root, "Other", "Song.mp3");
         Directory.CreateDirectory(Path.GetDirectoryName(moved)!);
         System.IO.File.Move(path, moved);
         library.NotifyMoved(path, moved);
-        await Assert.That(library.GetSnapshot().Files.Single().Path).IsEqualTo(moved);
+        library.GetSnapshot().Files.ShouldHaveSingleItem().Path.ShouldBe(moved);
 
         System.IO.File.Delete(moved);
         library.NotifyDeleted(moved);
-        await Assert.That(library.GetSnapshot().Files).IsEmpty();
-        await Assert.That(changes).IsEqualTo(3);
+        library.GetSnapshot().Files.ShouldBeEmpty();
+        changes.ShouldBe(3);
     }
 
     [Test]
-    public async Task Reads_the_mp4_advisory_written_for_explicit_tracks()
+    public void Reads_the_mp4_advisory_written_for_explicit_tracks()
     {
         var path = Path.Combine(root, "explicit.m4a");
         System.IO.File.Copy(Path.Combine(AppContext.BaseDirectory, "Tagging", "Assets", "silence.m4a"), path);
         Mp3PlayerSync.Core.Tagging.TrackTagWriter.Write(path, new Mp3PlayerSync.Core.Tagging.TrackMetadata { Title = "Song", Explicit = true }, art: null);
 
-        await Assert.That(AudioTagReader.ReadTags(path).Explicit).IsTrue();
+        AudioTagReader.ReadTags(path).Explicit.ShouldBe(true);
     }
 
     [Test]
     [Arguments("1", true)]
     [Arguments("2", false)]
     [Arguments("0", null)]
-    public async Task Reads_the_id3_advisory(string advisory, bool? expected)
+    public void Reads_the_id3_advisory(string advisory, bool? expected)
     {
         var path = WriteMp3("Song.mp3", seconds: 1, tag =>
             TagLib.Id3v2.UserTextInformationFrame.Get((TagLib.Id3v2.Tag)tag, "ITUNESADVISORY", create: true).Text = [advisory]);
 
-        await Assert.That(AudioTagReader.ReadTags(path).Explicit).IsEqualTo(expected);
+        AudioTagReader.ReadTags(path).Explicit.ShouldBe(expected);
     }
 
     [Test]
-    public async Task Files_without_an_advisory_have_no_version()
+    public void Files_without_an_advisory_have_no_version()
     {
-        await Assert.That(AudioTagReader.ReadTags(WriteMp3("Song.mp3", seconds: 1, tag => tag.Title = "Song")).Explicit).IsNull();
+        AudioTagReader.ReadTags(WriteMp3("Song.mp3", seconds: 1, tag => tag.Title = "Song")).Explicit.ShouldBeNull();
     }
 
     [Test]
-    public async Task Reading_tags_leaves_the_file_untouched()
+    public void Reading_tags_leaves_the_file_untouched()
     {
         var path = WriteMp3("Song.mp3", seconds: 5, tag => tag.Title = "Song");
         var oldTime = new DateTime(2001, 2, 3, 4, 5, 6, DateTimeKind.Utc);
@@ -278,18 +276,16 @@ public class PlayerLibraryTests
         System.IO.File.SetLastWriteTimeUtc(path, oldTime);
         var attributes = System.IO.File.GetAttributes(path);
 
-        await Assert.That(AudioTagReader.Read(new FileInfo(path)).Tags.Title).IsEqualTo("Song");
+        AudioTagReader.Read(new FileInfo(path)).Tags.Title.ShouldBe("Song");
 
-        using (Assert.Multiple())
-        {
-            await Assert.That(System.IO.File.GetLastAccessTimeUtc(path)).IsEqualTo(oldTime);
-            await Assert.That(System.IO.File.GetLastWriteTimeUtc(path)).IsEqualTo(oldTime);
-            await Assert.That(System.IO.File.GetAttributes(path)).IsEqualTo(attributes);
-        }
+        new FileInfo(path).ShouldSatisfyAllConditions(
+            f => f.LastAccessTimeUtc.ShouldBe(oldTime),
+            f => f.LastWriteTimeUtc.ShouldBe(oldTime),
+            f => f.Attributes.ShouldBe(attributes));
     }
 
     [Test]
-    public async Task Reading_tags_reads_only_a_few_kilobytes_even_with_large_cover_art()
+    public void Reading_tags_reads_only_a_few_kilobytes_even_with_large_cover_art()
     {
         var path = WriteMp3("Song.mp3", seconds: 120, tag =>
         {
@@ -300,11 +296,10 @@ public class PlayerLibraryTests
         CountingStream? counter = null;
         var tags = AudioTagReader.ReadTags(path, stream => counter = new CountingStream(stream));
 
-        await Assert.That(tags.Title).IsEqualTo("Song");
-        await Assert.That(tags.Duration!.Value.TotalSeconds).IsEqualTo(120).Within(1);
-        await Assert.That(new FileInfo(path).Length).IsGreaterThan(2 * 1024 * 1024);
-        Console.Out.WriteLine($"Read {counter!.BytesRead} of {new FileInfo(path).Length} bytes.");
-        await Assert.That(counter.BytesRead).IsLessThanOrEqualTo(32 * 1024);
+        tags.Title.ShouldBe("Song");
+        tags.Duration.ShouldNotBeNull().ShouldBe(TimeSpan.FromSeconds(120), TimeSpan.FromSeconds(1));
+        new FileInfo(path).Length.ShouldBeGreaterThan(2 * 1024 * 1024);
+        counter.ShouldNotBeNull().BytesRead.ShouldBeLessThanOrEqualTo(32 * 1024, customMessage: $"of {new FileInfo(path).Length} bytes");
     }
 
     private sealed class CountingStream(Stream inner) : Stream
