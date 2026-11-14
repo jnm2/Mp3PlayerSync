@@ -1015,11 +1015,14 @@ try {
             foreach ($link in @(@('Sign up for Spotify', 'https://www.spotify.com/signup'), @('Help', 'https://support.spotify.com/'))) {
                 (Pattern (Wait-Until { Find-Named $page $ControlType::Hyperlink $link[0] } "the '$($link[0])' link" 10) ([System.Windows.Automation.InvokePattern])).Invoke()
                 Wait-Until { (Test-Path $opened) -and (Get-Content $opened) -contains $link[1] } "'$($link[0])' to open outside the app" 10 | Out-Null
-                # WebView2 rebuilds the page's accessibility tree after the navigation the app cancels, so one look
-                # can come up empty while the page is in fact still there; wait for it to settle instead.
+                # Asks the page found above, whose name is its title: it changes if the WebView goes elsewhere. Looking
+                # it up again through the window doesn't work once the click has put focus inside the WebView.
                 $stayed = $true
                 try {
-                    Wait-Until { (Find-WebDocument $window 'Spotify login (mock)') -and (Find-ById $window 'SignInTitle') } "the sign-in page after clicking '$($link[0])'" 10 | Out-Null
+                    Wait-Until {
+                        $title = try { $page.Current.Name } catch [System.Windows.Automation.ElementNotAvailableException] { $null }
+                        $title -eq 'Spotify login (mock)' -and (Find-ById $window 'SignInTitle')
+                    } "the sign-in page after clicking '$($link[0])'" 10 | Out-Null
                 } catch {
                     $stayed = $false
                     Write-Host "  $($_.Exception.Message)"
