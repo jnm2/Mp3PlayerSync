@@ -109,11 +109,22 @@ function Find-WebDocument($window, [string] $name) {
     }
 }
 
-# CI runners, with two cores on Arm64, are slower and busier than a developer's PC.
+# CI runners, with two cores on Arm64, are slower and busier than a developer's PC. So is a PC running other runs at
+# the same time, which Invoke-EndToEnd.ps1 does: each running one adds half as much again, up to twice as long, as
+# counted from its queue (MP3PLAYERSYNC_E2E_QUEUE) at most every 5 s.
 $script:waitScale = if ($env:CI -eq 'true') { 2 } else { 1 }
+$script:waitScaleAt = [DateTime]::MinValue
+function Update-WaitScale {
+    if (!$env:MP3PLAYERSYNC_E2E_QUEUE -or ([DateTime]::UtcNow - $script:waitScaleAt).TotalSeconds -lt 5) { return }
+    $script:waitScaleAt = [DateTime]::UtcNow
+    $running = @(Get-ChildItem $env:MP3PLAYERSYNC_E2E_QUEUE -Filter *.json -ErrorAction SilentlyContinue |
+        ForEach-Object { try { Get-Content $_.FullName -Raw | ConvertFrom-Json } catch { } } | Where-Object running).Count
+    $script:waitScale = [Math]::Max($(if ($env:CI -eq 'true') { 2.0 } else { 1.0 }), [Math]::Min(2.0, 1 + 0.5 * ($running - 1)))
+}
 $script:timeoutShots = 0
 
 function Wait-Until([scriptblock] $probe, [string] $what, [double] $timeoutSeconds = 30) {
+    Update-WaitScale
     $timeoutSeconds *= $script:waitScale
     $deadline = [DateTime]::UtcNow.AddSeconds($timeoutSeconds)
     do {
@@ -202,7 +213,7 @@ function Open-LibraryItem($window, [string] $name) {
     # Scrolling recycles item containers, so the element found before may now stand for another item.
     $item = Wait-Until { $i = Find-Named $list $ControlType::ListItem $name; if ($i -and !$i.Current.IsOffscreen) { $i } } "'$name' scrolled into view" 10
     (Pattern $item ([System.Windows.Automation.InvokePattern])).Invoke()
-    Wait-Until { (Get-Text $window 'PlaylistTitle') -match ('^Spotify (playlist|album): ' + [regex]::Escape($name) + '$') } "the page for '$name' (got '$(Get-Text $window 'PlaylistTitle')')" | Out-Null
+    Wait-Until { (Get-Text $window 'PlaylistTitle') -match ('^Spotify (playlist|album): ' + [regex]::Escape($name) + '$') } "the page for '$name'" | Out-Null
 }
 
 function Wait-Contents($window, [string] $name, [string] $expectedSummary, [double] $timeoutSeconds = 60) {
@@ -210,7 +221,7 @@ function Wait-Contents($window, [string] $name, [string] $expectedSummary, [doub
     $summary = Wait-Until {
         $s = Get-Text $window 'SummaryText'
         if ($s -like $expectedSummary -and !(Find-ById $window 'PlaylistBusyText')) { $s }
-    } "'$name' contents like '$expectedSummary' (now '$(Get-Text $window 'SummaryText')')" $timeoutSeconds
+    } "'$name' contents like '$expectedSummary'" $timeoutSeconds
     Check $true "'$name' shows '$summary' after $([int]$stopwatch.Elapsed.TotalMilliseconds) ms"
 }
 
@@ -274,6 +285,21 @@ function Check-Spacing($window, [string] $where, [string[]] $ids, [string[][]] $
         if ($gap -lt 7.5) { $problems.Add("$($pair[0]) and $($pair[1]) are $gap px apart, not 8") }
     }
     Check (-not $problems.Count) "$where`: nothing touches, and related elements are 8px apart $($problems -join '; ')"
+}
+
+# A resize settles over several layout passes, and the window's minimum size can change it again, so after one this
+# waits until the window's width has changed and the window and these elements read the same twice in a row. A window
+# that can't change width, such as one already as wide as the screen (CI's is 1024 px), has settled once they've read
+# the same five times in a row.
+function Wait-Layout($window, [double] $widthBefore, [string[]] $ids, [string] $what, [scriptblock] $more = { }) {
+    $reads = @{ Last = $null; Same = 0 } # Not assigned to in the probe, which runs in a scope of its own
+    Wait-Until {
+        $bounds = $window.Current.BoundingRectangle
+        $now = (@($bounds) + @(foreach ($id in $ids) { (Find-ById $window $id)?.Current.BoundingRectangle }) + @(& $more)) -join ';'
+        $reads.Same = if ($now -eq $reads.Last) { $reads.Same + 1 } else { 0 }
+        $reads.Last = $now
+        ($bounds.Width -ne $widthBefore -and $reads.Same -ge 1) -or $reads.Same -ge 4
+    } "the layout $what to settle" 10 | Out-Null
 }
 
 # The player to sync to, beside the contents page's heading or under it, never on top of it.
@@ -443,7 +469,7 @@ function Wait-Library($window, [string] $expectedSummary, [ref] $sawSignIn) {
     Wait-Until {
         if (Find-ById $window 'SignInTitle') { $sawSignIn.Value = $true }
         (Get-Text $window 'LibrarySummaryText') -like $expectedSummary -and !(Find-ById $window 'LibraryBusyText')
-    } "library summary like '$expectedSummary' (now '$(Get-Text $window 'LibrarySummaryText')')" 60 | Out-Null
+    } "library summary like '$expectedSummary'" 60 | Out-Null
 }
 
 # How many calls to the fake Spotify API matched the pattern, from the mock's log.
@@ -549,7 +575,9 @@ try {
             $sawSignIn = $true
             Wait-Library $window '40 playlists' ([ref]$sawSignIn)
             Check ($null -eq (Find-ById $window 'SignInTitle')) 'Sign-in screen is hidden after signing in'
-            Check ((First-LibraryItem $window) -eq 'Liked Songs') "Liked Songs is first (got '$(First-LibraryItem $window)')"
+            # The summary changes in the same call that fills the grid, before its tiles are laid out.
+            $first = Wait-Until { First-LibraryItem $window } 'the first tile in the library' 10
+            Check ($first -eq 'Liked Songs') "Liked Songs is first (got '$first')"
             $firstTab = @($window.FindAll($TreeScope::Descendants, [System.Windows.Automation.PropertyCondition]::new($AE::NameProperty, 'Created playlists'))) |
                 Where-Object { $_.GetSupportedPatterns() -contains [System.Windows.Automation.SelectionItemPattern]::Pattern } | Select-Object -First 1
             $tabs = @([System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($firstTab).FindAll($TreeScope::Children, [System.Windows.Automation.Condition]::TrueCondition)) |
@@ -564,9 +592,10 @@ try {
             Check-Spacing $window 'Playlists page' @('ChangePlayerButton', 'SelectedPlayerTitle', 'LibraryTitle', 'FilterBar', 'RefreshLibraryButton', 'SignOutButton', 'LibrarySummaryText') @(, @('RefreshLibraryButton', 'SignOutButton'))
 
             # The window can't be made so narrow that a tab, Refresh or Sign out is cut off.
+            $before = $window.Current.BoundingRectangle.Width
             (Pattern $window ([System.Windows.Automation.TransformPattern])).Resize(400, 900)
-            Start-Sleep -Milliseconds 700
             if ($process.HasExited) { throw "The app exited when the window was narrowed (exit code $($process.ExitCode))" }
+            Wait-Layout $window $before 'AllFilterItem', 'RefreshLibraryButton', 'SignOutButton' 'at the narrowest window'
             $tabs = 'CreatedFilterItem', 'SavedPlaylistsFilterItem', 'SavedAlbumsFilterItem', 'AllFilterItem' | ForEach-Object { Wait-Until { Find-ById $window $_ } $_ 10 }
             $clippedTabs = $tabs | Where-Object { $_.Current.IsOffscreen -or $_.Current.BoundingRectangle.Width -le 0 } | ForEach-Object { $_.Current.Name }
             $refresh = (Find-ById $window 'RefreshLibraryButton').Current.BoundingRectangle
@@ -574,8 +603,9 @@ try {
             $windowRect = $window.Current.BoundingRectangle
             Check (@($tabs).Count -eq 4 -and -not $clippedTabs -and ($tabs | ForEach-Object { $_.Current.BoundingRectangle.Right } | Measure-Object -Maximum).Maximum -le $refresh.Left -and $signOut.Right -le $windowRect.Right - 8) "At the narrowest window ($($windowRect.Width) px) the tabs, Refresh and Sign out all fit $($clippedTabs -join ', ')"
             Save-Screenshot $window 'library-narrowest'
+            $before = $window.Current.BoundingRectangle.Width
             (Pattern $window ([System.Windows.Automation.TransformPattern])).Resize(1280, 900)
-            Start-Sleep -Milliseconds 500
+            Wait-Layout $window $before 'AllFilterItem', 'RefreshLibraryButton', 'SignOutButton' 'at 1280 px'
 
             # TEXT-15: one line counts the songs found while they're looked for, then goes away. The fake finder would be
             # done in a second or two, so it's held after its first few songs until the line has been checked.
@@ -584,7 +614,7 @@ try {
             try {
                 Open-LibraryItem $window 'Road Trip, Vol. 2'
                 Wait-Contents $window 'Road Trip, Vol. 2' '250 tracks, 21:08:45'
-                $findingText = Wait-Until { $t = Get-Text $window 'FindingProgressText'; if ($t -match '^Finding sources… \d+ of \d+$') { $t } } "the finding progress line (now '$(Get-Text $window 'FindingProgressText')')" 30
+                $findingText = Wait-Until { $t = Get-Text $window 'FindingProgressText'; if ($t -match '^Finding sources… \d+ of \d+$') { $t } } "the finding progress line" 30
                 Save-Screenshot $window 'finding-progress'
                 Check ($findingText -match '^Finding sources… \d+ of 2\d\d$') "[TEXT-15] One line counts the songs being looked for: '$findingText'"
             } finally { Remove-Item $holdFinding -ErrorAction SilentlyContinue }
@@ -624,8 +654,9 @@ try {
                 }
             }
             foreach ($width in 800, 1200, 1900) {
+                $before = $window.Current.BoundingRectangle.Width
                 Resize-Window $width 900
-                Start-Sleep -Milliseconds 700
+                Wait-Layout $window $before 'TitleHeader', 'ArtistsHeader', 'AlbumHeader', 'NumberHeader', 'TimeHeader', 'SyncButton' "at $width px" { Cell $firstRow 'roadtrip song 1' }
                 $edges = @(
                     @('TitleHeader', 'roadtrip song 1', 'Left'),
                     @('ArtistsHeader', 'Earth, Wind & Fire, Chaka Khan', 'Left'),
@@ -744,7 +775,7 @@ try {
             $filesAfter = @(Get-ChildItem $playerFolder -Recurse -File -Force | ForEach-Object FullName)
             Check ($null -eq (Compare-Object $filesBefore $filesAfter)) "Cancelling during the downloads leaves the player's files as they were $((Compare-Object $filesBefore $filesAfter | ForEach-Object InputObject) -join ', ')"
             Check ((Get-AllText $window) -notmatch '(?m)^(Downloading|Waiting|Saving)') 'No song is left looking busy after cancelling'
-            Wait-Until { (Get-Text $window 'SyncSummaryText') -eq 'Adding 249 songs' } "the summary after cancelling (now '$(Get-Text $window 'SyncSummaryText')')" 10 | Out-Null
+            Wait-Until { (Get-Text $window 'SyncSummaryText') -eq 'Adding 249 songs' } "the summary after cancelling" 10 | Out-Null
             Check $true 'Every song is still to be added after cancelling'
 
             Check ($null -ne (Find-ById $window 'OpenPlayerFolderButton')) 'The playlist offers to open its folder on the player'
@@ -852,7 +883,7 @@ try {
 
             Select-Filter $window 'Saved albums'
             Wait-Library $window '5 albums' ([ref]$sawSignIn)
-            $albumNames = (Get-Items (Find-ById $window 'LibraryGridView')) | ForEach-Object { $_.Current.Name }
+            $albumNames = Wait-Until { $names = @(Get-Items (Find-ById $window 'LibraryGridView') | ForEach-Object { $_.Current.Name }); if ($names.Count -ge 5) { $names } } "the saved albums' tiles" 10
             Check (($albumNames -join '|') -eq 'Playlist 5|Playlist 14|Mock Album One|Big Album|Old Album') "Saved albums: album-like playlists, then saved albums newest first ($($albumNames -join ', '))"
             Save-Screenshot $window 'saved-albums'
             Open-LibraryItem $window 'Big Album'
@@ -981,22 +1012,29 @@ try {
     if (Test-Selected 'Run2b') {
         Prepare-State 'Big Album'
         Write-Host 'Run 2b: the token runs out while the app is open'
-        $process, $window = Start-App "$($url)?expireAfter=20"
+        $process, $window = Start-App "$($url)?expireWhenAsked"
         try {
             Choose-Player $window
             Wait-Until { (Get-Text $window 'PlaylistTitle') -eq 'Spotify album: Big Album' } 'the last opened album to reopen' 60 | Out-Null
             Wait-Contents $window 'Big Album (restored)' '*60 tracks, *'
-            # The token runs out 20 s after the page loaded; the fake API then rejects it, so only a renewed one works.
+            # The token runs out now, while the test watches; the fake API then rejects it, so only a renewed one works.
+            # The watch lasts until the renewal has asked Spotify for a new token, and a few seconds after.
+            $renewals = Get-ApiCalls '^/api/token$'
+            Invoke-RestMethod "$($url)expire" -Method Post | Out-Null
             $interrupted = @()
+            $renewed = $null
             $stopwatch = [Diagnostics.Stopwatch]::StartNew()
-            while ($stopwatch.Elapsed.TotalSeconds -lt 30) {
+            while (!$renewed -or ($stopwatch.Elapsed - $renewed).TotalSeconds -lt 5 * $script:waitScale) {
+                if (!$renewed -and $stopwatch.Elapsed.TotalSeconds -gt 60 * $script:waitScale) { break }
                 Watch-Page
                 if (Find-ById $window 'SignInTitle') { $interrupted += 'sign-in' }
                 if (Find-ById $window 'LoadingText') { $interrupted += 'loading' }
                 $title = Get-Text $window 'PlaylistTitle'
                 if ($title -ne 'Spotify album: Big Album') { $interrupted += "left the album ('$title')" }
+                if (!$renewed -and (Get-ApiCalls '^/api/token$') -gt $renewals) { $renewed = $stopwatch.Elapsed }
                 Start-Sleep -Milliseconds 200
             }
+            Check ($null -ne $renewed) "The token that ran out is renewed in the background$(if ($renewed) { " after $([int]$renewed.TotalMilliseconds) ms" })"
             Check (-not $interrupted) "The album stays on screen while the token is renewed $(($interrupted | Select-Object -Unique) -join ', ')"
             Click-Refresh $window '^/v1/tracks\?' 'the refresh'
             Wait-Contents $window 'Big Album (after renewal)' '*60 tracks, *'

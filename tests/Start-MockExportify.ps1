@@ -87,6 +87,19 @@ function Send-Response($context) {
         }
         $context.Response.Close(); return
     }
+    # The tests can make the page's token run out once they're watching (POST); the page, opened with
+    # ?expireWhenAsked, asks here (GET) and is told once.
+    if ($path -eq 'expire') {
+        if ($context.Request.HttpMethod -eq 'POST') { $script:expireAsked = $true }
+        else {
+            $bytes = [Text.Encoding]::UTF8.GetBytes($(if ($script:expireAsked) { 'expire' } else { 'wait' }))
+            $script:expireAsked = $false
+            $context.Response.ContentType = 'text/plain'
+            $context.Response.Headers['Cache-Control'] = 'no-store'
+            $context.Response.OutputStream.Write($bytes, 0, $bytes.Length)
+        }
+        $context.Response.Close(); return
+    }
     if ($path -match '^demo-cover/(.+)\.png$') {
         $bytes = New-DemoCover $Matches[1]
         $context.Response.ContentType = 'image/png'

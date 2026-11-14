@@ -78,6 +78,8 @@ public static class TestDesktop
 $slotCount = [Math]::Max(2, [int][Math]::Floor([Environment]::ProcessorCount / 4))
 $queue = Join-Path ([IO.Path]::GetTempPath()) 'Mp3PlayerSyncEndToEndQueue'
 New-Item -ItemType Directory -Force $queue | Out-Null
+# So Test-MockEndToEnd.ps1 can allow for the runs going at the same time
+$env:MP3PLAYERSYNC_E2E_QUEUE = $queue
 $entry = Join-Path $queue "$PID.json"
 $me = @{ pid = $PID; since = (Get-Date).ToString('o'); from = (Resolve-Path "$PSScriptRoot\..").Path; only = $Only -join ','; running = $false }
 $me | ConvertTo-Json -Compress | Set-Content $entry

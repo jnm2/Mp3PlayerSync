@@ -9,16 +9,21 @@
 	<title>Exportify (mock)</title>
 	<meta charset="utf-8">
 	<script>let code = new URLSearchParams(location.search).get('code'); if (code) history.replaceState({}, '', '/')</script>
-	<!-- Test switches: ?expireToken makes the stored access token more than an hour old, and ?expireAfter=<seconds>
-	     makes it run out that long after the page loads, while it's open. Either way the fake API stops accepting it. -->
+	<!-- Test switches: ?expireToken makes the stored access token more than an hour old, and ?expireWhenAsked makes it
+	     run out while the page is open, when a test asks the mock (Start-MockExportify.ps1's expire). Either way the
+	     fake API stops accepting it. -->
 	<script>
 		const expireToken = () => {
 			localStorage.setItem('access_token_timestamp', '0')
 			localStorage.setItem('mock_expired_token', localStorage.getItem('access_token'))
 		}
 		if (new URLSearchParams(location.search).has('expireToken')) expireToken()
-		const expireAfter = Number(new URLSearchParams(location.search).get('expireAfter'))
-		if (expireAfter) setTimeout(() => { expireToken(); document.body.append(document.createElement('i')) }, expireAfter * 1000) // Nudges the app's page observer
+		const mockFetch = window.fetch.bind(window) // fake-spotify.js replaces fetch with the fake Spotify API
+		if (new URLSearchParams(location.search).has('expireWhenAsked')) setInterval(async () => {
+			if (await mockFetch('/expire', { cache: 'no-store' }).then(r => r.text()).catch(() => '') !== 'expire') return
+			expireToken()
+			document.body.append(document.createElement('i')) // Nudges the app's page observer
+		}, 250)
 	</script>
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
