@@ -287,6 +287,21 @@ function Check-Spacing($window, [string] $where, [string[]] $ids, [string[][]] $
     Check (-not $problems.Count) "$where`: nothing touches, and related elements are 8px apart $($problems -join '; ')"
 }
 
+# A resize settles over several layout passes, and the window's minimum size can change it again, so after one this
+# waits until the window's width has changed and the window and these elements read the same twice in a row. A window
+# that can't change width, such as one already as wide as the screen (CI's is 1024 px), has settled once they've read
+# the same five times in a row.
+function Wait-Layout($window, [double] $widthBefore, [string[]] $ids, [string] $what, [scriptblock] $more = { }) {
+    $reads = @{ Last = $null; Same = 0 } # Not assigned to in the probe, which runs in a scope of its own
+    Wait-Until {
+        $bounds = $window.Current.BoundingRectangle
+        $now = (@($bounds) + @(foreach ($id in $ids) { (Find-ById $window $id)?.Current.BoundingRectangle }) + @(& $more)) -join ';'
+        $reads.Same = if ($now -eq $reads.Last) { $reads.Same + 1 } else { 0 }
+        $reads.Last = $now
+        ($bounds.Width -ne $widthBefore -and $reads.Same -ge 1) -or $reads.Same -ge 4
+    } "the layout $what to settle" 10 | Out-Null
+}
+
 # The player to sync to, beside the contents page's heading or under it, never on top of it.
 function Check-PlayerBesideHeading($window, [int] $width) {
     $title = (Find-ById $window 'PlaylistTitle').Current.BoundingRectangle
@@ -575,9 +590,10 @@ try {
             Check-Spacing $window 'Playlists page' @('ChangePlayerButton', 'SelectedPlayerTitle', 'LibraryTitle', 'FilterBar', 'RefreshLibraryButton', 'SignOutButton', 'LibrarySummaryText') @(, @('RefreshLibraryButton', 'SignOutButton'))
 
             # The window can't be made so narrow that a tab, Refresh or Sign out is cut off.
+            $before = $window.Current.BoundingRectangle.Width
             (Pattern $window ([System.Windows.Automation.TransformPattern])).Resize(400, 900)
-            Start-Sleep -Milliseconds 700
             if ($process.HasExited) { throw "The app exited when the window was narrowed (exit code $($process.ExitCode))" }
+            Wait-Layout $window $before 'AllFilterItem', 'RefreshLibraryButton', 'SignOutButton' 'at the narrowest window'
             $tabs = 'CreatedFilterItem', 'SavedPlaylistsFilterItem', 'SavedAlbumsFilterItem', 'AllFilterItem' | ForEach-Object { Wait-Until { Find-ById $window $_ } $_ 10 }
             $clippedTabs = $tabs | Where-Object { $_.Current.IsOffscreen -or $_.Current.BoundingRectangle.Width -le 0 } | ForEach-Object { $_.Current.Name }
             $refresh = (Find-ById $window 'RefreshLibraryButton').Current.BoundingRectangle
@@ -585,8 +601,9 @@ try {
             $windowRect = $window.Current.BoundingRectangle
             Check (@($tabs).Count -eq 4 -and -not $clippedTabs -and ($tabs | ForEach-Object { $_.Current.BoundingRectangle.Right } | Measure-Object -Maximum).Maximum -le $refresh.Left -and $signOut.Right -le $windowRect.Right - 8) "At the narrowest window ($($windowRect.Width) px) the tabs, Refresh and Sign out all fit $($clippedTabs -join ', ')"
             Save-Screenshot $window 'library-narrowest'
+            $before = $window.Current.BoundingRectangle.Width
             (Pattern $window ([System.Windows.Automation.TransformPattern])).Resize(1280, 900)
-            Start-Sleep -Milliseconds 500
+            Wait-Layout $window $before 'AllFilterItem', 'RefreshLibraryButton', 'SignOutButton' 'at 1280 px'
 
             # TEXT-15: one line counts the songs found while they're looked for, then goes away. The fake finder would be
             # done in a second or two, so it's held after its first few songs until the line has been checked.
@@ -635,8 +652,9 @@ try {
                 }
             }
             foreach ($width in 800, 1200, 1900) {
+                $before = $window.Current.BoundingRectangle.Width
                 Resize-Window $width 900
-                Start-Sleep -Milliseconds 700
+                Wait-Layout $window $before 'TitleHeader', 'ArtistsHeader', 'AlbumHeader', 'NumberHeader', 'TimeHeader', 'SyncButton' "at $width px" { Cell $firstRow 'roadtrip song 1' }
                 $edges = @(
                     @('TitleHeader', 'roadtrip song 1', 'Left'),
                     @('ArtistsHeader', 'Earth, Wind & Fire, Chaka Khan', 'Left'),
