@@ -8,7 +8,7 @@ public class YouTubeMusicDownloaderTests
     private string directory = null!;
     private string cachePath = null!;
 
-    [SetUp]
+    [Before(Test)]
     public void SetUp()
     {
         directory = Path.Join(Path.GetTempPath(), "Mp3PlayerSync.Tests", Path.GetRandomFileName());
@@ -16,7 +16,7 @@ public class YouTubeMusicDownloaderTests
         cachePath = Path.Join(directory, "cache", "YouTubeMatches.json");
     }
 
-    [TearDown]
+    [After(Test)]
     public void TearDown() => Directory.Delete(directory, recursive: true);
 
     private static readonly ExportedTrack UnderPressure = Track("Under Pressure", "Queen;David Bowie", 248, uri: "spotify:track:under-pressure", isrc: "GBUM71029604") with { Album = "Hot Space" };
@@ -46,7 +46,7 @@ public class YouTubeMusicDownloaderTests
     {
         for (var i = 0; downloader.PendingLookupCount > 0; i++)
         {
-            if (i > 500) Assert.Fail("Lookups didn't finish.");
+            if (i > 500) Fail.Test("Lookups didn't finish.");
             await Task.Delay(10);
         }
     }
@@ -55,7 +55,7 @@ public class YouTubeMusicDownloaderTests
     {
         for (var i = 0; !condition(); i++)
         {
-            if (i > 500) Assert.Fail("Timed out.");
+            if (i > 500) Fail.Test("Timed out.");
             await Task.Delay(10);
         }
     }
@@ -72,17 +72,17 @@ public class YouTubeMusicDownloaderTests
 
         var immediate = downloader.FindInBackground(tracks);
 
-        Assert.That(immediate.Select(r => r?.State), Is.EqualTo(new TrackResolutionState?[] { null, TrackResolutionState.Skipped, null, null }));
+        await Assert.That(immediate.Select(r => r?.State)).IsEquivalentTo(new TrackResolutionState?[] { null, TrackResolutionState.Skipped, null, null }, CollectionOrdering.Matching);
         await WaitUntilIdleAsync(downloader);
         await WaitUntilAsync(() => { lock (completed) return completed.Count == 3; });
 
-        Assert.That(completed.Select(p => (p.Track, p.Resolution!.State)), Is.EquivalentTo(new[]
+        await Assert.That(completed.Select(p => (p.Track, p.Resolution!.State))).IsEquivalentTo(new[]
         {
             (tracks[0], TrackResolutionState.Resolved), (tracks[2], TrackResolutionState.Resolved), (tracks[3], TrackResolutionState.Resolved),
-        }));
-        Assert.That(SongSearches(source), Is.EquivalentTo(new[] { "A", "C", "D" }));
-        Assert.That(source.MaxConcurrentSearches, Is.LessThanOrEqualTo(2));
-        Assert.That(downloader.FindInBackground(tracks).Select(r => r?.State), Is.All.Not.Null, "Remembered");
+        });
+        await Assert.That(SongSearches(source)).IsEquivalentTo(new[] { "A", "C", "D" });
+        await Assert.That(source.MaxConcurrentSearches).IsLessThanOrEqualTo(2);
+        await Assert.That(downloader.FindInBackground(tracks).Select(r => r?.State)).All(state => state is not null).Because("Remembered");
     }
 
     [Test]
@@ -99,8 +99,8 @@ public class YouTubeMusicDownloaderTests
         source.OpenGate();
         await WaitUntilIdleAsync(downloader);
 
-        Assert.That(SongSearches(source), Is.EqualTo(new[] { "A" }), "B and C were dropped");
-        Assert.That(downloader.GetCachedResolution(songs[0])?.State, Is.EqualTo(TrackResolutionState.Resolved), "The lookup under way finished and was remembered");
+        await Assert.That(SongSearches(source)).IsEquivalentTo(new[] { "A" }, CollectionOrdering.Matching).Because("B and C were dropped");
+        await Assert.That(downloader.GetCachedResolution(songs[0])?.State).IsEqualTo(TrackResolutionState.Resolved).Because("The lookup under way finished and was remembered");
     }
 
     [Test]
@@ -115,13 +115,13 @@ public class YouTubeMusicDownloaderTests
         downloader.FindInBackground(first);
         await WaitUntilAsync(() => SongSearches(source).Length == 1);
         downloader.FindInBackground(second);
-        Assert.That(downloader.PendingLookupCount, Is.EqualTo(4), "A (running), D, C, E");
+        await Assert.That(downloader.PendingLookupCount).IsEqualTo(4).Because("A (running), D, C, E");
         source.OpenGate();
         await WaitUntilIdleAsync(downloader);
 
-        Assert.That(SongSearches(source), Is.EqualTo(new[] { "A", "D", "C", "E" }));
-        Assert.That(downloader.GetCachedResolution(first[0])?.State, Is.EqualTo(TrackResolutionState.Resolved), "The started lookup finished and was remembered");
-        Assert.That(downloader.GetCachedResolution(first[1]), Is.Null);
+        await Assert.That(SongSearches(source)).IsEquivalentTo(new[] { "A", "D", "C", "E" }, CollectionOrdering.Matching);
+        await Assert.That(downloader.GetCachedResolution(first[0])?.State).IsEqualTo(TrackResolutionState.Resolved).Because("The started lookup finished and was remembered");
+        await Assert.That(downloader.GetCachedResolution(first[1])).IsNull();
     }
 
     [Test]
@@ -140,9 +140,9 @@ public class YouTubeMusicDownloaderTests
         var results = await resolving;
         await WaitUntilIdleAsync(downloader);
 
-        Assert.That(results.Select(r => r.State), Is.All.EqualTo(TrackResolutionState.Resolved));
-        Assert.That(results[1].Track, Is.SameAs(background[0]));
-        Assert.That(SongSearches(source), Is.EqualTo(new[] { "A", "D", "B", "C" }), "A was joined, not searched again");
+        await Assert.That(results.Select(r => r.State)).All(state => state == TrackResolutionState.Resolved);
+        await Assert.That(results[1].Track).IsSameReferenceAs(background[0]);
+        await Assert.That(SongSearches(source)).IsEquivalentTo(new[] { "A", "D", "B", "C" }, CollectionOrdering.Matching).Because("A was joined, not searched again");
     }
 
     [Test]
@@ -159,10 +159,10 @@ public class YouTubeMusicDownloaderTests
 
         var result = await downloader.DownloadTrackAsync(Request(resolution, "track"), null, CancellationToken.None);
 
-        Assert.That(result.Succeeded, result.FailureReason);
-        Assert.That(source.Searches, Has.Count.EqualTo(searches));
-        Assert.That(source.Extractions, Is.EqualTo(new[] { "BaxnrepwXck" }), "Only the lookup's extraction");
-        Assert.That(source.Downloads.Single().FromInfoJson);
+        await Assert.That(result.Succeeded).IsTrue().Because(result.FailureReason ?? "");
+        await Assert.That(source.Searches).Count().IsEqualTo(searches);
+        await Assert.That(source.Extractions).IsEquivalentTo(new[] { "BaxnrepwXck" }, CollectionOrdering.Matching).Because("Only the lookup's extraction");
+        await Assert.That(source.Downloads.Single().FromInfoJson).IsTrue();
     }
 
     private static FakeSource UnderPressureSource()
@@ -191,8 +191,9 @@ public class YouTubeMusicDownloaderTests
     private static ExportedTrack LoseYourself(bool? isExplicit) =>
         Track("Lose Yourself", "Eminem", 320, uri: "spotify:track:lose-yourself") with { Album = "8 Mile", Explicit = isExplicit };
 
-    [TestCase(true, "explicit001")]
-    [TestCase(false, "clean000001")]
+    [Test]
+    [Arguments(true, "explicit001")]
+    [Arguments(false, "clean000001")]
     public async Task Picks_the_playlists_explicit_or_clean_version(bool isExplicit, string expectedVideoId)
     {
         var source = LoseYourselfSource();
@@ -200,8 +201,8 @@ public class YouTubeMusicDownloaderTests
 
         var resolution = (await downloader.ResolveTracksAsync([LoseYourself(isExplicit)], null, CancellationToken.None)).Single();
 
-        Assert.That(resolution.Video?.VideoId, Is.EqualTo(expectedVideoId), resolution.Reason);
-        Assert.That(source.Extractions, Is.EqualTo(new[] { expectedVideoId }), "The right version is verified first");
+        await Assert.That(resolution.Video?.VideoId).IsEqualTo(expectedVideoId).Because(resolution.Reason ?? "");
+        await Assert.That(source.Extractions).IsEquivalentTo(new[] { expectedVideoId }, CollectionOrdering.Matching).Because("The right version is verified first");
     }
 
     [Test]
@@ -211,10 +212,10 @@ public class YouTubeMusicDownloaderTests
 
         var resolution = (await downloader.ResolveTracksAsync([LoseYourself(isExplicit: false)], null, CancellationToken.None)).Single();
 
-        Assert.That(resolution.State, Is.EqualTo(TrackResolutionState.NeedsReview));
-        Assert.That(resolution.Reason, Is.EqualTo("YouTube Music only seems to have the explicit version; your playlist has the clean one."));
-        Assert.That(resolution.Candidates.Single().Score.Explicit, Is.EqualTo(ExplicitMatch.Mismatch));
-        Assert.That(resolution.Candidates.Single().Video.IsExplicit, Is.True);
+        await Assert.That(resolution.State).IsEqualTo(TrackResolutionState.NeedsReview);
+        await Assert.That(resolution.Reason).IsEqualTo("YouTube Music only seems to have the explicit version; your playlist has the clean one.");
+        await Assert.That(resolution.Candidates.Single().Score.Explicit).IsEqualTo(ExplicitMatch.Mismatch);
+        await Assert.That(resolution.Candidates.Single().Video.IsExplicit).IsTrue();
     }
 
     [Test]
@@ -228,8 +229,8 @@ public class YouTubeMusicDownloaderTests
 
         var resolution = (await downloader.ResolveTracksAsync([LoseYourself(isExplicit: true)], null, CancellationToken.None)).Single();
 
-        Assert.That(resolution.State, Is.EqualTo(TrackResolutionState.NeedsReview));
-        Assert.That(resolution.Reason, Is.EqualTo("YouTube Music has both versions, and it isn't clear which one is the explicit version in your playlist."));
+        await Assert.That(resolution.State).IsEqualTo(TrackResolutionState.NeedsReview);
+        await Assert.That(resolution.Reason).IsEqualTo("YouTube Music has both versions, and it isn't clear which one is the explicit version in your playlist.");
     }
 
     [Test]
@@ -239,7 +240,7 @@ public class YouTubeMusicDownloaderTests
 
         var resolution = (await downloader.ResolveTracksAsync([LoseYourself(isExplicit: true)], null, CancellationToken.None)).Single();
 
-        Assert.That(resolution.Video?.VideoId, Is.EqualTo("explicit001"), "Same as before: the first confident match");
+        await Assert.That(resolution.Video?.VideoId).IsEqualTo("explicit001").Because("Same as before: the first confident match");
     }
 
     [Test]
@@ -251,7 +252,7 @@ public class YouTubeMusicDownloaderTests
         using var reloaded = CreateDownloader(new FakeSource());
         var cached = reloaded.GetCachedResolution(LoseYourself(isExplicit: false))!;
 
-        Assert.That(cached.Candidates.Single().Video.IsExplicit, Is.True);
+        await Assert.That(cached.Candidates.Single().Video.IsExplicit).IsTrue();
     }
 
     [Test]
@@ -263,14 +264,14 @@ public class YouTubeMusicDownloaderTests
 
         var resolution = (await downloader.ResolveTracksAsync([UnderPressure], new SynchronousProgress<TrackResolutionProgress>(p => stages.Add(p.Stage)), CancellationToken.None)).Single();
 
-        Assert.That(resolution.State, Is.EqualTo(TrackResolutionState.Resolved));
-        Assert.That(resolution.FromCache, Is.False);
+        await Assert.That(resolution.State).IsEqualTo(TrackResolutionState.Resolved);
+        await Assert.That(resolution.FromCache).IsFalse();
         var video = resolution.Video!;
-        Assert.That((video.VideoId, video.Title, video.Album, video.Duration, video.Source), Is.EqualTo(("BaxnrepwXck", "Under Pressure", "Hot Space", (TimeSpan?)TimeSpan.FromSeconds(248), ResolutionSource.Automatic)));
-        Assert.That(video.Artists, Is.EqualTo(new[] { "Queen", "David Bowie" }));
-        Assert.That(video.Url, Is.EqualTo("https://music.youtube.com/watch?v=BaxnrepwXck"));
-        Assert.That(source.Extractions, Is.EqualTo(new[] { "BaxnrepwXck" }));
-        Assert.That(stages, Is.EqualTo(new[] { TrackResolutionStage.Queued, TrackResolutionStage.Searching, TrackResolutionStage.Completed }));
+        await Assert.That((video.VideoId, video.Title, video.Album, video.Duration, video.Source)).IsEqualTo(("BaxnrepwXck", "Under Pressure", "Hot Space", (TimeSpan?)TimeSpan.FromSeconds(248), ResolutionSource.Automatic));
+        await Assert.That(video.Artists).IsEquivalentTo(new[] { "Queen", "David Bowie" }, CollectionOrdering.Matching);
+        await Assert.That(video.Url).IsEqualTo("https://music.youtube.com/watch?v=BaxnrepwXck");
+        await Assert.That(source.Extractions).IsEquivalentTo(new[] { "BaxnrepwXck" }, CollectionOrdering.Matching);
+        await Assert.That(stages).IsEquivalentTo(new[] { TrackResolutionStage.Queued, TrackResolutionStage.Searching, TrackResolutionStage.Completed }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -281,8 +282,8 @@ public class YouTubeMusicDownloaderTests
 
         var resolution = (await downloader.ResolveTracksAsync([UnderPressure with { Album = "Greatest Hits II" }], null, CancellationToken.None)).Single();
 
-        Assert.That(resolution.Video?.VideoId, Is.EqualTo("BaxnrepwXck"));
-        Assert.That(source.Extractions, Is.EqualTo(new[] { "BaxnrepwXck", "nbwn21TU4ec" }), "Not the live versions or other songs");
+        await Assert.That(resolution.Video?.VideoId).IsEqualTo("BaxnrepwXck");
+        await Assert.That(source.Extractions).IsEquivalentTo(new[] { "BaxnrepwXck", "nbwn21TU4ec" }, CollectionOrdering.Matching).Because("Not the live versions or other songs");
     }
 
     [Test]
@@ -298,8 +299,8 @@ public class YouTubeMusicDownloaderTests
 
         var resolution = (await downloader.ResolveTracksAsync([Track("Song", "Artist", 200)], null, CancellationToken.None)).Single();
 
-        Assert.That(resolution.Video?.VideoId, Is.EqualTo("original001"));
-        Assert.That(source.Extractions, Is.EqualTo(new[] { "cover000001", "original001" }));
+        await Assert.That(resolution.Video?.VideoId).IsEqualTo("original001");
+        await Assert.That(source.Extractions).IsEquivalentTo(new[] { "cover000001", "original001" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -314,13 +315,13 @@ public class YouTubeMusicDownloaderTests
 
         var resolutions = await reloaded.ResolveTracksAsync([UnderPressure, sameRecordingOnACompilation], null, CancellationToken.None);
 
-        Assert.That(resolutions.Select(r => (r.State, r.FromCache, r.Video?.VideoId, r.Video?.Source)), Is.EqualTo(new[]
+        await Assert.That(resolutions.Select(r => (r.State, r.FromCache, r.Video?.VideoId, r.Video?.Source))).IsEquivalentTo(new (TrackResolutionState, bool, string?, ResolutionSource?)[]
         {
             (TrackResolutionState.Resolved, true, "BaxnrepwXck", ResolutionSource.Automatic),
             (TrackResolutionState.Resolved, true, "BaxnrepwXck", ResolutionSource.Automatic),
-        }));
-        Assert.That(resolutions[0].Video!.Title, Is.EqualTo("Under Pressure"));
-        Assert.That(source.Searches, Is.Empty);
+        }, CollectionOrdering.Matching);
+        await Assert.That(resolutions[0].Video!.Title).IsEqualTo("Under Pressure");
+        await Assert.That(source.Searches).IsEmpty();
     }
 
     [Test]
@@ -338,30 +339,29 @@ public class YouTubeMusicDownloaderTests
         using (var downloader = CreateDownloader(source))
             resolution = (await downloader.ResolveTracksAsync([track], null, CancellationToken.None)).Single();
 
-        Assert.That(resolution.State, Is.EqualTo(TrackResolutionState.NeedsReview));
-        Assert.That(resolution.NeedsReview);
-        Assert.That(resolution.Video, Is.Null);
-        Assert.That(resolution.Candidates.Select(c => c.Video.Id), Is.EqualTo(new[] { "cover000001", "other000001" }));
-        Assert.That(resolution.Candidates[0].Video.Artists, Is.EqualTo(new[] { "Tribute Band" }));
-        Assert.That(resolution.Candidates[0].HasAcceptableAudio);
-        Assert.That(resolution.Reason, Is.EqualTo("No confident match on YouTube Music. The closest result was \"Song\" by Tribute Band (3:20)."));
+        await Assert.That(resolution.State).IsEqualTo(TrackResolutionState.NeedsReview);
+        await Assert.That(resolution.NeedsReview).IsTrue();
+        await Assert.That(resolution.Video).IsNull();
+        await Assert.That(resolution.Candidates.Select(c => c.Video.Id)).IsEquivalentTo(new[] { "cover000001", "other000001" }, CollectionOrdering.Matching);
+        await Assert.That(resolution.Candidates[0].Video.Artists).IsEquivalentTo(new[] { "Tribute Band" }, CollectionOrdering.Matching);
+        await Assert.That(resolution.Candidates[0].HasAcceptableAudio).IsTrue();
+        await Assert.That(resolution.Reason).IsEqualTo("No confident match on YouTube Music. The closest result was \"Song\" by Tribute Band (3:20).");
 
         using (var reloaded = CreateDownloader(source))
         {
             var remembered = (await reloaded.ResolveTracksAsync([track], null, CancellationToken.None)).Single();
 
-            Assert.That((remembered.State, remembered.FromCache, remembered.Reason), Is.EqualTo((TrackResolutionState.NeedsReview, true, resolution.Reason)));
-            Assert.That(remembered.Candidates.Select(c => (c.Video.Id, c.Video.Url, c.Video.Album, c.Video.Duration, c.Score, c.Format)),
-                Is.EqualTo(resolution.Candidates.Select(c => (c.Video.Id, c.Video.Url, c.Video.Album, c.Video.Duration, c.Score, c.Format))));
-            Assert.That(remembered.Candidates[0].Video.Artists, Is.EqualTo(new[] { "Tribute Band" }));
-            Assert.That(source.Searches, Has.Count.EqualTo(2), "Not looked up again");
+            await Assert.That((remembered.State, remembered.FromCache, remembered.Reason)).IsEqualTo((TrackResolutionState.NeedsReview, true, resolution.Reason));
+            await Assert.That(remembered.Candidates.Select(c => (c.Video.Id, c.Video.Url, c.Video.Album, c.Video.Duration, c.Score, c.Format))).IsEquivalentTo(resolution.Candidates.Select(c => (c.Video.Id, c.Video.Url, c.Video.Album, c.Video.Duration, c.Score, c.Format)), CollectionOrdering.Matching);
+            await Assert.That(remembered.Candidates[0].Video.Artists).IsEquivalentTo(new[] { "Tribute Band" }, CollectionOrdering.Matching);
+            await Assert.That(source.Searches).Count().IsEqualTo(2).Because("Not looked up again");
         }
 
         using var expired = new YouTubeMusicDownloader(
             new YouTubeMusicDownloaderOptions { ToolCacheDirectory = directory, ResolutionCachePath = cachePath, ReviewCacheLifetime = TimeSpan.Zero },
             source);
-        Assert.That((await expired.ResolveTracksAsync([track], null, CancellationToken.None)).Single().FromCache, Is.False);
-        Assert.That(source.Searches, Has.Count.EqualTo(4), "Looked up again after the review result expired");
+        await Assert.That((await expired.ResolveTracksAsync([track], null, CancellationToken.None)).Single().FromCache).IsFalse();
+        await Assert.That(source.Searches).Count().IsEqualTo(4).Because("Looked up again after the review result expired");
     }
 
     [Test]
@@ -370,15 +370,15 @@ public class YouTubeMusicDownloaderTests
         var source = new FakeSource();
         var track = Track("Song", "Artist", 200, uri: "spotify:track:song");
         using var downloader = CreateDownloader(source);
-        Assert.That((await downloader.ResolveTracksAsync([track], null, CancellationToken.None)).Single().State, Is.EqualTo(TrackResolutionState.NeedsReview));
+        await Assert.That((await downloader.ResolveTracksAsync([track], null, CancellationToken.None)).Single().State).IsEqualTo(TrackResolutionState.NeedsReview);
 
         source.AddSearch("Song Artist", [YtDlpSamples.Video("song0000001", "Song", "Song", ["Artist"], "", 200, 1, "Artist")]);
-        Assert.That((await downloader.ResolveTracksAsync([track], null, CancellationToken.None)).Single().FromCache, Is.True);
+        await Assert.That((await downloader.ResolveTracksAsync([track], null, CancellationToken.None)).Single().FromCache).IsTrue();
 
         var retried = await downloader.RetryAsync(track, CancellationToken.None);
 
-        Assert.That((retried.State, retried.Video?.VideoId, retried.FromCache), Is.EqualTo((TrackResolutionState.Resolved, "song0000001", false)));
-        Assert.That(downloader.GetCachedResolution(track)?.Video?.VideoId, Is.EqualTo("song0000001"));
+        await Assert.That((retried.State, retried.Video?.VideoId, retried.FromCache)).IsEqualTo((TrackResolutionState.Resolved, "song0000001", false));
+        await Assert.That(downloader.GetCachedResolution(track)?.Video?.VideoId).IsEqualTo("song0000001");
     }
 
     [Test]
@@ -390,10 +390,10 @@ public class YouTubeMusicDownloaderTests
 
         var resolution = (await downloader.ResolveTracksAsync([Track("Song", "Artist", 200)], null, CancellationToken.None)).Single();
 
-        Assert.That(resolution.State, Is.EqualTo(TrackResolutionState.Unavailable));
-        Assert.That(resolution.NeedsReview);
-        Assert.That(resolution.Reason, Does.Contain("no AAC"));
-        Assert.That(resolution.Candidates.Single().FormatProblem, Is.EqualTo(resolution.Reason));
+        await Assert.That(resolution.State).IsEqualTo(TrackResolutionState.Unavailable);
+        await Assert.That(resolution.NeedsReview).IsTrue();
+        await Assert.That(resolution.Reason).Contains("no AAC");
+        await Assert.That(resolution.Candidates.Single().FormatProblem).IsEqualTo(resolution.Reason);
     }
 
     [Test]
@@ -404,13 +404,13 @@ public class YouTubeMusicDownloaderTests
 
         var resolution = (await downloader.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).Single();
 
-        Assert.That(resolution.State, Is.EqualTo(TrackResolutionState.LookupFailed));
-        Assert.That(resolution.Reason, Does.Contain("getaddrinfo failed"));
-        Assert.That(downloader.GetCachedResolution(UnderPressure)?.State, Is.EqualTo(TrackResolutionState.LookupFailed));
+        await Assert.That(resolution.State).IsEqualTo(TrackResolutionState.LookupFailed);
+        await Assert.That(resolution.Reason).Contains("getaddrinfo failed");
+        await Assert.That(downloader.GetCachedResolution(UnderPressure)?.State).IsEqualTo(TrackResolutionState.LookupFailed);
 
         downloader.Dispose();
         using var reloaded = CreateDownloader(UnderPressureSource());
-        Assert.That(reloaded.GetCachedResolution(UnderPressure), Is.Null);
+        await Assert.That(reloaded.GetCachedResolution(UnderPressure)).IsNull();
     }
 
     [Test]
@@ -423,21 +423,21 @@ public class YouTubeMusicDownloaderTests
 
         using (var downloader = CreateDownloader(source))
         {
-            Assert.That((await downloader.ChooseVideoAsync(track, "https://music.youtube.com/playlist?list=OLAK5uy_abc", CancellationToken.None)).Error, Does.Contain("playlist"));
-            Assert.That((await downloader.ChooseVideoAsync(track, "https://youtu.be/missing0001", CancellationToken.None)).Error, Does.StartWith("YouTube couldn't load that video."));
-            Assert.That((await downloader.ChooseVideoAsync(track, "opusonly001", CancellationToken.None)).Error, Does.Contain("no AAC"));
+            await Assert.That((await downloader.ChooseVideoAsync(track, "https://music.youtube.com/playlist?list=OLAK5uy_abc", CancellationToken.None)).Error).Contains("playlist");
+            await Assert.That((await downloader.ChooseVideoAsync(track, "https://youtu.be/missing0001", CancellationToken.None)).Error).StartsWith("YouTube couldn't load that video.");
+            await Assert.That((await downloader.ChooseVideoAsync(track, "opusonly001", CancellationToken.None)).Error).Contains("no AAC");
 
             var chosen = await downloader.ChooseVideoAsync(track, "https://www.youtube.com/watch?v=chosen00001&list=RDchosen00001", CancellationToken.None);
 
-            Assert.That(chosen.Error, Is.Null);
-            Assert.That(chosen.Resolution!.State, Is.EqualTo(TrackResolutionState.Resolved));
-            Assert.That(chosen.Resolution.Video!.VideoId, Is.EqualTo("chosen00001"));
-            Assert.That(chosen.Resolution.Video.Source, Is.EqualTo(ResolutionSource.Manual));
+            await Assert.That(chosen.Error).IsNull();
+            await Assert.That(chosen.Resolution!.State).IsEqualTo(TrackResolutionState.Resolved);
+            await Assert.That(chosen.Resolution.Video!.VideoId).IsEqualTo("chosen00001");
+            await Assert.That(chosen.Resolution.Video.Source).IsEqualTo(ResolutionSource.Manual);
         }
 
         using var reloaded = CreateDownloader(new FakeSource());
         var remembered = (await reloaded.ResolveTracksAsync([track], null, CancellationToken.None)).Single();
-        Assert.That((remembered.Video?.VideoId, remembered.Video?.Source), Is.EqualTo(("chosen00001", ResolutionSource.Manual)));
+        await Assert.That((remembered.Video?.VideoId, remembered.Video?.Source)).IsEqualTo(("chosen00001", ResolutionSource.Manual));
     }
 
     [Test]
@@ -446,17 +446,17 @@ public class YouTubeMusicDownloaderTests
         var source = UnderPressureSource();
         using var downloader = CreateDownloader(source);
 
-        Assert.That(downloader.Skip(UnderPressure).State, Is.EqualTo(TrackResolutionState.Skipped));
+        await Assert.That(downloader.Skip(UnderPressure).State).IsEqualTo(TrackResolutionState.Skipped);
 
         using (var reloaded = CreateDownloader(new FakeSource()))
         {
             var skipped = (await reloaded.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).Single();
-            Assert.That((skipped.State, skipped.FromCache), Is.EqualTo((TrackResolutionState.Skipped, true)));
+            await Assert.That((skipped.State, skipped.FromCache)).IsEqualTo((TrackResolutionState.Skipped, true));
         }
 
-        Assert.That(downloader.Forget(UnderPressure));
+        await Assert.That(downloader.Forget(UnderPressure)).IsTrue();
         var resolved = (await downloader.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).Single();
-        Assert.That((resolved.State, resolved.FromCache), Is.EqualTo((TrackResolutionState.Resolved, false)));
+        await Assert.That((resolved.State, resolved.FromCache)).IsEqualTo((TrackResolutionState.Resolved, false));
     }
 
     [Test]
@@ -470,14 +470,14 @@ public class YouTubeMusicDownloaderTests
 
         var result = await downloader.DownloadTrackAsync(request, p => stages.Add(p.Stage), CancellationToken.None);
 
-        Assert.That(result.FailureReason, Is.Null);
-        Assert.That(result.Format!.FormatId, Is.EqualTo("140"));
-        Assert.That(result.Audio!.IsAac);
-        Assert.That(source.Extractions, Has.Count.EqualTo(1));
-        Assert.That(source.Downloads, Is.EqualTo(new[] { ("BaxnrepwXck", true, "140/bestaudio[acodec^=mp4a][abr>=96][protocol=https]") }));
-        Assert.That(M4aRemuxer.ReadAudioInfo(request.DestinationPath).IsAac);
-        Assert.That(stages.Distinct(), Is.EqualTo(new[] { TrackDownloadStage.Queued, TrackDownloadStage.Downloading, TrackDownloadStage.Remuxing, TrackDownloadStage.Succeeded }));
-        Assert.That(Directory.GetFiles(directory), Is.EqualTo(new[] { request.DestinationPath }), "No intermediate files are left behind");
+        await Assert.That(result.FailureReason).IsNull();
+        await Assert.That(result.Format!.FormatId).IsEqualTo("140");
+        await Assert.That(result.Audio!.IsAac).IsTrue();
+        await Assert.That(source.Extractions).Count().IsEqualTo(1);
+        await Assert.That(source.Downloads).IsEquivalentTo(new[] { ("BaxnrepwXck", true, "140/bestaudio[acodec^=mp4a][abr>=96][protocol=https]") }, CollectionOrdering.Matching);
+        await Assert.That(M4aRemuxer.ReadAudioInfo(request.DestinationPath).IsAac).IsTrue();
+        await Assert.That(stages.Distinct()).IsEquivalentTo(new[] { TrackDownloadStage.Queued, TrackDownloadStage.Downloading, TrackDownloadStage.Remuxing, TrackDownloadStage.Succeeded }, CollectionOrdering.Matching);
+        await Assert.That(Directory.GetFiles(directory)).IsEquivalentTo(new[] { request.DestinationPath }, CollectionOrdering.Matching).Because("No intermediate files are left behind");
     }
 
     [Test]
@@ -492,25 +492,26 @@ public class YouTubeMusicDownloaderTests
 
         var result = await reloaded.DownloadTrackAsync(Request(cached, "track"), null, CancellationToken.None);
 
-        Assert.That(result.NeedsReview);
-        Assert.That(result.FailureReason, Does.StartWith("The YouTube video is no longer available."));
-        Assert.That(source.Downloads, Is.Empty);
+        await Assert.That(result.NeedsReview).IsTrue();
+        await Assert.That(result.FailureReason).StartsWith("The YouTube video is no longer available.");
+        await Assert.That(source.Downloads).IsEmpty();
 
         using var afterward = CreateDownloader(UnderPressureSource());
-        Assert.That((await afterward.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).Single().FromCache, Is.False);
+        await Assert.That((await afterward.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).Single().FromCache).IsFalse();
     }
 
-    [TestCase("ERROR: [youtube] chosen00001: Sign in to confirm you’re not a bot. Use --cookies-from-browser or --cookies for the authentication.")]
-    [TestCase("ERROR: [youtube] chosen00001: Video unavailable. This content isn't available, try again later.")]
-    [TestCase("ERROR: [youtube] chosen00001: Unable to download API page: <urlopen error [Errno 11001] getaddrinfo failed> (caused by TransportError)")]
-    [TestCase("ERROR: [youtube] chosen00001: Unable to download webpage: HTTP Error 429: Too Many Requests")]
+    [Test]
+    [Arguments("ERROR: [youtube] chosen00001: Sign in to confirm you’re not a bot. Use --cookies-from-browser or --cookies for the authentication.")]
+    [Arguments("ERROR: [youtube] chosen00001: Video unavailable. This content isn't available, try again later.")]
+    [Arguments("ERROR: [youtube] chosen00001: Unable to download API page: <urlopen error [Errno 11001] getaddrinfo failed> (caused by TransportError)")]
+    [Arguments("ERROR: [youtube] chosen00001: Unable to download webpage: HTTP Error 429: Too Many Requests")]
     public async Task Manual_choice_survives_a_transient_failure_while_downloading(string transientError)
     {
         var source = new FakeSource();
         source.AddVideo(YtDlpSamples.Video("chosen00001", "Song", "Song", ["Artist"], "", 200, 1, "Artist"));
         var track = Track("Song", "Artist", 200, uri: "spotify:track:song");
         using (var downloader = CreateDownloader(source))
-            Assert.That((await downloader.ChooseVideoAsync(track, "chosen00001", CancellationToken.None)).Succeeded);
+            await Assert.That((await downloader.ChooseVideoAsync(track, "chosen00001", CancellationToken.None)).Succeeded).IsTrue();
 
         source.ExtractError = transientError;
         using (var reloaded = CreateDownloader(source))
@@ -518,16 +519,16 @@ public class YouTubeMusicDownloaderTests
             var cached = reloaded.GetCachedResolution(track)!;
             var result = await reloaded.DownloadTrackAsync(Request(cached, "track"), null, CancellationToken.None);
 
-            Assert.That(result.Succeeded, Is.False);
-            Assert.That(result.NeedsReview, Is.False);
-            Assert.That(result.FailureReason, Does.StartWith("Couldn't reach YouTube; try again later.").Or.EqualTo(YouTubeMusicDownloader.YouTubeBusyMessage));
+            await Assert.That(result.Succeeded).IsFalse();
+            await Assert.That(result.NeedsReview).IsFalse();
+            await Assert.That(result.FailureReason).StartsWith("Couldn't reach YouTube; try again later.").Or.IsEqualTo(YouTubeMusicDownloader.YouTubeBusyMessage);
         }
 
         source.ExtractError = null;
         using var afterward = CreateDownloader(source);
         var kept = afterward.GetCachedResolution(track);
-        Assert.That((kept?.State, kept?.Video?.VideoId, kept?.Video?.Source), Is.EqualTo((TrackResolutionState.Resolved, "chosen00001", ResolutionSource.Manual)));
-        Assert.That((await afterward.DownloadTrackAsync(Request(kept!, "track"), null, CancellationToken.None)).Succeeded, "Downloads once YouTube is reachable again");
+        await Assert.That((kept?.State, kept?.Video?.VideoId, kept?.Video?.Source)).IsEqualTo((TrackResolutionState.Resolved, "chosen00001", ResolutionSource.Manual));
+        await Assert.That((await afterward.DownloadTrackAsync(Request(kept!, "track"), null, CancellationToken.None)).Succeeded).IsTrue().Because("Downloads once YouTube is reachable again");
     }
 
     [Test]
@@ -542,8 +543,8 @@ public class YouTubeMusicDownloaderTests
 
         var result = await downloader.DownloadTrackAsync(Request(chosen.Resolution!, "track"), null, CancellationToken.None);
 
-        Assert.That(result.Succeeded, result.FailureReason);
-        Assert.That(result.CoverArtUrl, Is.EqualTo("https://yt3.googleusercontent.com/art=w500-h500-l90-rj"));
+        await Assert.That(result.Succeeded).IsTrue().Because(result.FailureReason ?? "");
+        await Assert.That(result.CoverArtUrl).IsEqualTo("https://yt3.googleusercontent.com/art=w500-h500-l90-rj");
     }
 
     [Test]
@@ -553,15 +554,15 @@ public class YouTubeMusicDownloaderTests
         source.AddVideo(YtDlpSamples.Video("chosen00001", "Song", "Song", ["Artist"], "", 200, 1, "Artist"));
         var track = Track("Song", "Artist", 200, uri: "spotify:track:song");
         using (var downloader = CreateDownloader(source))
-            Assert.That((await downloader.ChooseVideoAsync(track, "chosen00001", CancellationToken.None)).Succeeded);
+            await Assert.That((await downloader.ChooseVideoAsync(track, "chosen00001", CancellationToken.None)).Succeeded).IsTrue();
 
         source.ExtractError = "ERROR: [youtube] chosen00001: Private video. Sign in if you've been granted access to this video.";
         using var reloaded = CreateDownloader(source);
         var result = await reloaded.DownloadTrackAsync(Request(reloaded.GetCachedResolution(track)!, "track"), null, CancellationToken.None);
 
-        Assert.That(result.NeedsReview);
-        Assert.That(result.FailureReason, Does.StartWith("The YouTube video is no longer available."));
-        Assert.That(reloaded.GetCachedResolution(track), Is.Null);
+        await Assert.That(result.NeedsReview).IsTrue();
+        await Assert.That(result.FailureReason).StartsWith("The YouTube video is no longer available.");
+        await Assert.That(reloaded.GetCachedResolution(track)).IsNull();
     }
 
     [Test]
@@ -574,15 +575,15 @@ public class YouTubeMusicDownloaderTests
         {
             var resolution = (await downloader.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).Single();
 
-            Assert.That((resolution.State, resolution.IsThrottled, resolution.Reason), Is.EqualTo((TrackResolutionState.LookupFailed, true, YouTubeMusicDownloader.YouTubeBusyMessage)));
-            Assert.That(resolution.Candidates, Is.Empty);
-            Assert.That(downloader.GetCachedResolution(UnderPressure)?.IsThrottled, Is.True, "Remembered briefly so it isn't retried right away");
+            await Assert.That((resolution.State, resolution.IsThrottled, resolution.Reason)).IsEqualTo((TrackResolutionState.LookupFailed, true, YouTubeMusicDownloader.YouTubeBusyMessage));
+            await Assert.That(resolution.Candidates).IsEmpty();
+            await Assert.That(downloader.GetCachedResolution(UnderPressure)?.IsThrottled).IsTrue().Because("Remembered briefly so it isn't retried right away");
         }
 
         source.ExtractError = null;
         using var reloaded = CreateDownloader(source);
-        Assert.That(reloaded.GetCachedResolution(UnderPressure), Is.Null, "Not saved: looked up again next run");
-        Assert.That((await reloaded.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).Single().State, Is.EqualTo(TrackResolutionState.Resolved));
+        await Assert.That(reloaded.GetCachedResolution(UnderPressure)).IsNull().Because("Not saved: looked up again next run");
+        await Assert.That((await reloaded.ResolveTracksAsync([UnderPressure], null, CancellationToken.None)).Single().State).IsEqualTo(TrackResolutionState.Resolved);
     }
 
     [Test]
@@ -597,8 +598,8 @@ public class YouTubeMusicDownloaderTests
 
         var result = await reloaded.DownloadTrackAsync(Request(reloaded.GetCachedResolution(UnderPressure)!, "track"), null, CancellationToken.None);
 
-        Assert.That((result.IsThrottled, result.NeedsReview, result.FailureReason), Is.EqualTo((true, false, YouTubeMusicDownloader.YouTubeBusyMessage)));
-        Assert.That(reloaded.GetCachedResolution(UnderPressure)?.Video?.VideoId, Is.EqualTo("BaxnrepwXck"));
+        await Assert.That((result.IsThrottled, result.NeedsReview, result.FailureReason)).IsEqualTo((true, false, YouTubeMusicDownloader.YouTubeBusyMessage));
+        await Assert.That(reloaded.GetCachedResolution(UnderPressure)?.Video?.VideoId).IsEqualTo("BaxnrepwXck");
     }
 
     [Test]
@@ -609,33 +610,35 @@ public class YouTubeMusicDownloaderTests
 
         var result = await downloader.ChooseVideoAsync(Track("Song", "Artist", 200, uri: "spotify:track:song"), "chosen00001", CancellationToken.None);
 
-        Assert.That((result.Succeeded, result.IsThrottled, result.Error), Is.EqualTo((false, true, YouTubeMusicDownloader.YouTubeBusyMessage)));
+        await Assert.That((result.Succeeded, result.IsThrottled, result.Error)).IsEqualTo((false, true, YouTubeMusicDownloader.YouTubeBusyMessage));
     }
 
-    [TestCase("WARNING: [youtube] x: Unable to download webpage: HTTP Error 429: Too Many Requests (caused by <HTTPError 429: Too Many Requests>)", true)]
-    [TestCase("ERROR: [youtube] x: Sign in to confirm you’re not a bot. This helps protect our community.", true)]
-    [TestCase("ERROR: [youtube] x: Video unavailable. This content isn't available, try again later.", true)]
-    [TestCase("ERROR: [youtube] x: Video unavailable", false)]
-    [TestCase("ERROR: unable to download video data: HTTP Error 403: Forbidden", false)]
-    [TestCase("ERROR: [youtube] x: Sign in to confirm your age.", false)]
-    [TestCase("ERROR: Unable to download API page: <urlopen error [Errno 11001] getaddrinfo failed>", false)]
-    public void Classifies_throttling(string message, bool isThrottled)
+    [Test]
+    [Arguments("WARNING: [youtube] x: Unable to download webpage: HTTP Error 429: Too Many Requests (caused by <HTTPError 429: Too Many Requests>)", true)]
+    [Arguments("ERROR: [youtube] x: Sign in to confirm you’re not a bot. This helps protect our community.", true)]
+    [Arguments("ERROR: [youtube] x: Video unavailable. This content isn't available, try again later.", true)]
+    [Arguments("ERROR: [youtube] x: Video unavailable", false)]
+    [Arguments("ERROR: unable to download video data: HTTP Error 403: Forbidden", false)]
+    [Arguments("ERROR: [youtube] x: Sign in to confirm your age.", false)]
+    [Arguments("ERROR: Unable to download API page: <urlopen error [Errno 11001] getaddrinfo failed>", false)]
+    public async Task Classifies_throttling(string message, bool isThrottled)
     {
-        Assert.That(YtDlpException.IsThrottledMessage(message), Is.EqualTo(isThrottled));
+        await Assert.That(YtDlpException.IsThrottledMessage(message)).IsEqualTo(isThrottled);
     }
 
-    [TestCase("ERROR: [youtube] x: Video unavailable", true)]
-    [TestCase("ERROR: [youtube] x: Video unavailable. This video has been removed by the uploader", true)]
-    [TestCase("ERROR: [youtube] x: Private video. Sign in if you've been granted access to this video", true)]
-    [TestCase("ERROR: [youtube] x: The uploader has not made this video available in your country", true)]
-    [TestCase("ERROR: [youtube] x: Sign in to confirm your age. This video may be inappropriate for some users.", true)]
-    [TestCase("ERROR: [youtube] x: Video unavailable. This content isn't available, try again later.", false)]
-    [TestCase("ERROR: [youtube] x: Sign in to confirm you’re not a bot.", false)]
-    [TestCase("ERROR: Unable to download webpage: HTTP Error 503: Service Unavailable", false)]
-    [TestCase("yt-dlp exited with code 1.", false)]
-    public void Classifies_gone_videos(string message, bool isGone)
+    [Test]
+    [Arguments("ERROR: [youtube] x: Video unavailable", true)]
+    [Arguments("ERROR: [youtube] x: Video unavailable. This video has been removed by the uploader", true)]
+    [Arguments("ERROR: [youtube] x: Private video. Sign in if you've been granted access to this video", true)]
+    [Arguments("ERROR: [youtube] x: The uploader has not made this video available in your country", true)]
+    [Arguments("ERROR: [youtube] x: Sign in to confirm your age. This video may be inappropriate for some users.", true)]
+    [Arguments("ERROR: [youtube] x: Video unavailable. This content isn't available, try again later.", false)]
+    [Arguments("ERROR: [youtube] x: Sign in to confirm you’re not a bot.", false)]
+    [Arguments("ERROR: Unable to download webpage: HTTP Error 503: Service Unavailable", false)]
+    [Arguments("yt-dlp exited with code 1.", false)]
+    public async Task Classifies_gone_videos(string message, bool isGone)
     {
-        Assert.That(YtDlpException.IsVideoGoneMessage(message), Is.EqualTo(isGone));
+        await Assert.That(YtDlpException.IsVideoGoneMessage(message)).IsEqualTo(isGone);
     }
 
     [Test]
@@ -651,9 +654,9 @@ public class YouTubeMusicDownloaderTests
 
         var result = await reloaded.DownloadTrackAsync(Request(cached, "track"), p => stages.Add(p.Stage), CancellationToken.None);
 
-        Assert.That(result.Succeeded, result.FailureReason);
-        Assert.That(source.Extractions, Is.EqualTo(new[] { "BaxnrepwXck" }));
-        Assert.That(stages, Does.Contain(TrackDownloadStage.Preparing));
+        await Assert.That(result.Succeeded).IsTrue().Because(result.FailureReason ?? "");
+        await Assert.That(source.Extractions).IsEquivalentTo(new[] { "BaxnrepwXck" }, CollectionOrdering.Matching);
+        await Assert.That(stages).Contains(TrackDownloadStage.Preparing);
     }
 
     [Test]
@@ -666,8 +669,8 @@ public class YouTubeMusicDownloaderTests
 
         var result = await downloader.DownloadTrackAsync(Request(resolution, "track"), null, CancellationToken.None);
 
-        Assert.That(result.FailureReason, Is.EqualTo("YouTube sent Opus audio instead of AAC."));
-        Assert.That(Directory.GetFiles(directory), Is.Empty);
+        await Assert.That(result.FailureReason).IsEqualTo("YouTube sent Opus audio instead of AAC.");
+        await Assert.That(Directory.GetFiles(directory)).IsEmpty();
     }
 
     [Test]
@@ -677,7 +680,7 @@ public class YouTubeMusicDownloaderTests
 
         var result = await downloader.DownloadTrackAsync(Request(downloader.Skip(UnderPressure), "track"), null, CancellationToken.None);
 
-        Assert.That(result.FailureReason, Is.EqualTo("The track hasn't been resolved to a YouTube video."));
+        await Assert.That(result.FailureReason).IsEqualTo("The track hasn't been resolved to a YouTube video.");
     }
 
     [Test]
@@ -692,8 +695,8 @@ public class YouTubeMusicDownloaderTests
             null,
             CancellationToken.None);
 
-        Assert.That(results[0].Succeeded, results[0].FailureReason);
-        Assert.That(results[1].FailureReason, Does.StartWith("No confident match"));
+        await Assert.That(results[0].Succeeded).IsTrue().Because(results[0].FailureReason ?? "");
+        await Assert.That(results[1].FailureReason).StartsWith("No confident match");
     }
 
     [Test]
@@ -715,10 +718,10 @@ public class YouTubeMusicDownloaderTests
 
         var results = await downloader.DownloadTracksAsync(requests, null, CancellationToken.None);
 
-        Assert.That(results.Select(r => r.Request), Is.EqualTo(requests));
-        Assert.That(results.Select(r => r.Succeeded), Is.EqualTo(new[] { true, true, false, true, true, true }));
-        Assert.That(results[2].FailureReason, Is.EqualTo("ERROR: [youtube] video000002: Video unavailable"));
-        Assert.That(source.MaxConcurrentDownloads, Is.EqualTo(2));
+        await Assert.That(results.Select(r => r.Request)).IsEquivalentTo(requests, CollectionOrdering.Matching);
+        await Assert.That(results.Select(r => r.Succeeded)).IsEquivalentTo(new[] { true, true, false, true, true, true }, CollectionOrdering.Matching);
+        await Assert.That(results[2].FailureReason).IsEqualTo("ERROR: [youtube] video000002: Video unavailable");
+        await Assert.That(source.MaxConcurrentDownloads).IsEqualTo(2);
     }
 
     [Test]
@@ -736,14 +739,14 @@ public class YouTubeMusicDownloaderTests
         var lookup = downloader.ResolveTracksAsync([track], null, CancellationToken.None);
         await WaitUntilAsync(() => traffic.BusyUntil is not null);
         await Task.Delay(100);
-        Assert.That(lookup.IsCompleted, Is.False);
-        Assert.That(downloader.GetCachedResolution(track), Is.Null, "Nothing is remembered about the track while YouTube is busy.");
+        await Assert.That(lookup.IsCompleted).IsFalse();
+        await Assert.That(downloader.GetCachedResolution(track)).IsNull().Because("Nothing is remembered about the track while YouTube is busy.");
 
         clock.Advance(YouTubeTraffic.Cooldowns[0]);
         var resolution = (await lookup.WaitAsync(TimeSpan.FromSeconds(30))).Single();
 
-        Assert.That(resolution.State, Is.EqualTo(TrackResolutionState.Resolved));
-        Assert.That(checks, Is.EqualTo(1));
+        await Assert.That(resolution.State).IsEqualTo(TrackResolutionState.Resolved);
+        await Assert.That(checks).IsEqualTo(1);
     }
 
     [Test]
@@ -761,7 +764,7 @@ public class YouTubeMusicDownloaderTests
 
         var choice = await downloader.ChooseVideoAsync(track, "BaxnrepwXck", CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
 
-        Assert.That((choice.Resolution, choice.Error, choice.IsThrottled), Is.EqualTo(((TrackResolution?)null, "YouTube is busy; continuing in 60 min", true)));
+        await Assert.That((choice.Resolution, choice.Error, choice.IsThrottled)).IsEqualTo(((TrackResolution?)null, "YouTube is busy; continuing in 60 min", true));
     }
 
     [Test]
@@ -778,13 +781,15 @@ public class YouTubeMusicDownloaderTests
         await WaitUntilAsync(() => source.ConcurrentSearches == 2);
         var downloads = downloader.DownloadTracksAsync(resolutions.Select((r, i) => Request(r, $"track{i}")).ToList(), null, CancellationToken.None);
         await Task.Delay(100);
-        lock (source) Assert.That(source.Downloads, Is.Empty, "Downloads started while both slots were taken by lookups.");
+        (string VideoId, bool FromInfoJson, string FormatSelector)[] started;
+        lock (source) started = [.. source.Downloads];
+        await Assert.That(started).IsEmpty().Because("Downloads started while both slots were taken by lookups.");
 
         source.OpenGate();
         var results = await downloads;
 
-        Assert.That(results.Select(r => r.Succeeded), Is.All.True);
-        Assert.That(source.MaxConcurrentSearchesAndDownloads, Is.EqualTo(2));
+        await Assert.That(results.Select(r => r.Succeeded)).All(succeeded => succeeded);
+        await Assert.That(source.MaxConcurrentSearchesAndDownloads).IsEqualTo(2);
     }
 
     [Test]
@@ -801,8 +806,8 @@ public class YouTubeMusicDownloaderTests
             if (p.Stage == TrackDownloadStage.Downloading) cancellation.CancelAfter(50);
         }, cancellation.Token);
 
-        Assert.That(async () => await task, Throws.InstanceOf<OperationCanceledException>());
-        Assert.That(Directory.GetFiles(directory), Is.Empty);
+        await Assert.That(async () => await task).Throws<OperationCanceledException>();
+        await Assert.That(Directory.GetFiles(directory)).IsEmpty();
     }
 
     private sealed class SynchronousProgress<T>(Action<T> report) : IProgress<T>
