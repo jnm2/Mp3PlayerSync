@@ -15,6 +15,8 @@ namespace Mp3PlayerSync.E2EHost;
 /// together with <c>MP3PLAYERSYNC_EXPORTIFY_URL</c>, or neither is set.</item>
 /// <item><c>MP3PLAYERSYNC_TEST_FAKE_AUDIO</c>: the .m4a file every song is "downloaded" as.</item>
 /// <item><c>MP3PLAYERSYNC_TEST_DRIVES</c> (optional): drives to list instead of the real ones (see <see cref="TestDrives"/>).</item>
+/// <item><c>MP3PLAYERSYNC_TEST_RECORD_TRACKS</c> (optional): a file to write the songs the app looks for to, as the app
+/// read them from the export (see <see cref="TrackRecorder"/>).</item>
 /// </list>
 /// Links the app would open outside itself are written to <c>OpenedExternally.txt</c> in the data folder instead.
 /// While <c>HoldFinding.txt</c> exists in the data folder, looking for songs in the background pauses (see <see cref="FakeTrackFinder"/>).
@@ -28,6 +30,7 @@ public static class Program
         var dataDirectory = Required("MP3PLAYERSYNC_DATA_DIR");
         var fakeAudio = Required("MP3PLAYERSYNC_TEST_FAKE_AUDIO");
         var testDrives = TestDrives.FromEnvironment();
+        var recorder = TrackRecorder.FromEnvironment();
         var mockExportify = Optional("MP3PLAYERSYNC_EXPORTIFY_URL");
         var mockSpotifyAccounts = Optional("MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL");
         // Half the mock would send the app between the mock and the real sites.
@@ -40,7 +43,7 @@ public static class Program
             DataDirectory = dataDirectory,
             ExportifyUri = mockExportify is null ? defaults.ExportifyUri : new Uri(mockExportify),
             SpotifySignInOrigins = mockSpotifyAccounts is null ? defaults.SpotifySignInOrigins : (string[])[mockSpotifyAccounts],
-            CreateTrackFinder = _ => new FakeTrackFinder(fakeAudio, Path.Combine(dataDirectory, "HoldFinding.txt")),
+            CreateTrackFinder = _ => new FakeTrackFinder(fakeAudio, Path.Combine(dataDirectory, "HoldFinding.txt"), recorder),
             GetDrives = testDrives is null ? defaults.GetDrives : testDrives.List,
             DriveFolder = testDrives is null ? defaults.DriveFolder : testDrives.FolderOf,
             ShowWindow = window =>
