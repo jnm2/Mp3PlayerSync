@@ -7,7 +7,6 @@
   <ItemGroup>
     <StillNUnit Include="$(UnitTestsFolder)Download\*.cs" />
     <StillNUnit Include="$(UnitTestsFolder)Placement\*.cs" />
-    <StillNUnit Include="$(UnitTestsFolder)Scanning\*.cs" />
     <StillNUnit Include="$(UnitTestsFolder)Sync\*.cs" />
   </ItemGroup>
 </Project>
