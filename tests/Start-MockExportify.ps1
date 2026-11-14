@@ -39,6 +39,8 @@ $listener = [System.Net.HttpListener]::new()
 $listener.Prefixes.Add("http://localhost:$Port/")
 # The mock Spotify login page is served from here, so it is a different origin from the mock Exportify.
 $listener.Prefixes.Add("http://127.0.0.1:$Port/")
+# It answers one request at a time, so one that stalls while sending its body mustn't hold up the rest for long.
+$listener.TimeoutManager.EntityBody = [TimeSpan]::FromSeconds(10)
 $listener.Start()
 Write-Host "Mock Exportify listening on http://localhost:$Port/"
 
@@ -104,10 +106,19 @@ function Send-Response($context) {
     $context.Response.Close()
 }
 
+$failed = 0
 try {
     while ($listener.IsListening) {
         $context = $listener.GetContext()
-        Send-Response $context
+        # A client that goes away mid-request, as the app's page does when it closes or navigates, makes reading or
+        # writing throw. That's only this request's problem: the mock goes on serving the others, and says so for
+        # the test to show (see Test-MockEndToEnd.ps1).
+        try { Send-Response $context }
+        catch {
+            $failed++
+            Write-Host "Mock: $($context.Request.HttpMethod) $($context.Request.Url.PathAndQuery) failed ($failed so far): $($_.Exception.Message)"
+            try { $context.Response.Abort() } catch { }
+        }
     }
 } finally {
     $listener.Stop()

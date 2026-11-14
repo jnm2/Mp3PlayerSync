@@ -1102,7 +1102,12 @@ catch {
     Write-Host "  ERROR $_ $($_.ScriptStackTrace)" -ForegroundColor Red
 }
 finally {
-    if ($server) { Stop-Job $server; Remove-Job $server -Force }
+    if ($server) {
+        Stop-Job $server
+        # Requests the mock couldn't answer, which can explain a failure that shows up far from them
+        Receive-Job $server *>&1 | Where-Object { "$_" -like 'Mock: *' } | ForEach-Object { Write-Host "  $_" }
+        Remove-Job $server -Force
+    }
     Remove-Item Env:\MP3PLAYERSYNC_EXPORTIFY_URL -ErrorAction SilentlyContinue
     Remove-Item Env:\MP3PLAYERSYNC_SPOTIFY_ACCOUNTS_URL -ErrorAction SilentlyContinue
     Remove-Item Env:\MP3PLAYERSYNC_TEST_FAKE_AUDIO -ErrorAction SilentlyContinue
