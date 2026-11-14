@@ -163,24 +163,26 @@ try {
     $stolen = [System.Collections.Generic.List[string]]::new()
     $last = [IntPtr]::Zero
     $nextTreeRefresh = Get-Date
+    # The test run's processes as they are now: the script and everything descended from it, with their start times.
+    function Update-TestTree {
+        $all = Get-CimInstance Win32_Process -Property ProcessId, ParentProcessId, CreationDate
+        $tree = @{ [uint32]$testProcess.Id = $rootStart }
+        do {
+            $added = 0
+            foreach ($process in $all) {
+                $parentStart = $tree[[uint32]$process.ParentProcessId]
+                if ($null -ne $parentStart -and !$tree.ContainsKey([uint32]$process.ProcessId) -and $process.CreationDate -ge $parentStart) {
+                    $tree[[uint32]$process.ProcessId] = $process.CreationDate; $added++
+                }
+            }
+        } while ($added)
+        foreach ($id in $tree.Keys) { $testProcessStarts[$id] = $tree[$id] } # Kept for the cleanup afterwards
+        $script:currentTree = $tree
+        $script:nextTreeRefresh = (Get-Date).AddSeconds(2)
+    }
     $deadline = (Get-Date).AddMinutes($TimeoutMinutes)
     while (!$testProcess.HasExited -and (Get-Date) -lt $deadline) {
-        if ((Get-Date) -ge $nextTreeRefresh) {
-            $all = Get-CimInstance Win32_Process -Property ProcessId, ParentProcessId, CreationDate
-            $tree = @{ [uint32]$testProcess.Id = $rootStart }
-            do {
-                $added = 0
-                foreach ($process in $all) {
-                    $parentStart = $tree[[uint32]$process.ParentProcessId]
-                    if ($null -ne $parentStart -and !$tree.ContainsKey([uint32]$process.ProcessId) -and $process.CreationDate -ge $parentStart) {
-                        $tree[[uint32]$process.ProcessId] = $process.CreationDate; $added++
-                    }
-                }
-            } while ($added)
-            foreach ($id in $tree.Keys) { $testProcessStarts[$id] = $tree[$id] } # Kept for the cleanup afterwards
-            $currentTree = $tree
-            $nextTreeRefresh = (Get-Date).AddSeconds(2)
-        }
+        if ((Get-Date) -ge $nextTreeRefresh) { Update-TestTree }
         $foreground = [TestDesktop]::GetForegroundWindow()
         if ($foreground -ne $last) {
             $owner = [uint32]0
