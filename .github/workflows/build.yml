@@ -57,8 +57,9 @@ jobs:
       - name: Build
         run: dotnet build Mp3PlayerSync.slnx -c Release --no-restore -bl:logs\build.binlog
 
+      # On Microsoft.Testing.Platform (global.json's test runner), which takes --report-trx rather than VSTest's --logger.
       - name: Test
-        run: dotnet test tests\Mp3PlayerSync.Tests\Mp3PlayerSync.Tests.csproj -c Release --no-build --logger trx --results-directory TestResults -bl:logs\test.binlog
+        run: dotnet test --project tests\Mp3PlayerSync.Tests\Mp3PlayerSync.Tests.csproj -c Release --no-build --report-trx --results-directory TestResults -bl:logs\test.binlog
 
       - name: Test summary
         if: ${{ !cancelled() }}
