@@ -55,7 +55,9 @@ public class YouTubeTrafficTests
     private static TimeSpan WaitBefore(YouTubeTraffic traffic, int requests = 1)
     {
         var turn = traffic.TryTakeTurn(requests);
-        (turn.Granted, turn.NeedsCheck).ShouldBe((false, false));
+        turn.ShouldSatisfyAllConditions(
+            t => t.Granted.ShouldBeFalse(),
+            t => t.NeedsCheck.ShouldBeFalse());
         return turn.Wait;
     }
 
@@ -70,7 +72,7 @@ public class YouTubeTrafficTests
     /// <summary>Lets the cool-down end and YouTube be checked, as the next request would.</summary>
     private async Task EndCooldownAsync(YouTubeTraffic traffic)
     {
-        clock.Advance(traffic.BusyUntil!.Value - clock.GetUtcNow());
+        clock.Advance(traffic.BusyUntil.ShouldNotBeNull() - clock.GetUtcNow());
         AssertNeedsCheck(traffic);
         await traffic.CheckAsync();
     }
@@ -81,9 +83,9 @@ public class YouTubeTrafficTests
         var traffic = Create();
         for (var i = 0; i < 40; i++) Take(traffic);
 
-        (WaitBefore(traffic)).ShouldBe(TimeSpan.FromMinutes(1));
+        WaitBefore(traffic).ShouldBe(TimeSpan.FromMinutes(1));
         clock.Advance(TimeSpan.FromSeconds(59));
-        (WaitBefore(traffic)).ShouldBe(TimeSpan.FromSeconds(1));
+        WaitBefore(traffic).ShouldBe(TimeSpan.FromSeconds(1));
         clock.Advance(TimeSpan.FromSeconds(1));
         Take(traffic);
     }
@@ -119,11 +121,11 @@ public class YouTubeTrafficTests
 
         Trip(traffic);
         traffic.BusyText.ShouldBe("YouTube is busy; continuing in 60 min");
-        (WaitBefore(traffic)).ShouldBe(TimeSpan.FromMinutes(60));
+        WaitBefore(traffic).ShouldBe(TimeSpan.FromMinutes(60));
 
         clock.Advance(TimeSpan.FromMinutes(59.5));
         traffic.BusyText.ShouldBe("YouTube is busy; continuing in 1 min");
-        (WaitBefore(traffic)).ShouldBe(TimeSpan.FromMinutes(0.5));
+        WaitBefore(traffic).ShouldBe(TimeSpan.FromMinutes(0.5));
         checks.ShouldBe(0);
 
         clock.Advance(TimeSpan.FromMinutes(0.5));
@@ -183,7 +185,7 @@ public class YouTubeTrafficTests
 
         // The check's 4 count towards the 20 a minute.
         for (var i = 0; i < 16; i++) Take(traffic);
-        (WaitBefore(traffic)).ShouldBe(TimeSpan.FromMinutes(1));
+        WaitBefore(traffic).ShouldBe(TimeSpan.FromMinutes(1));
 
         clock.Advance(TimeSpan.FromHours(1));
         for (var i = 0; i < 40; i++) Take(traffic);
@@ -198,7 +200,7 @@ public class YouTubeTrafficTests
         await EndCooldownAsync(traffic);
 
         traffic.BusyText.ShouldBeNull();
-        (WaitBefore(traffic)).ShouldBe(TimeSpan.FromMinutes(1));
+        WaitBefore(traffic).ShouldBe(TimeSpan.FromMinutes(1));
 
         check = () => Task.FromResult(true);
         clock.Advance(TimeSpan.FromMinutes(1));
@@ -244,7 +246,7 @@ public class YouTubeTrafficTests
 
         var after = Create();
         after.BusyText.ShouldBe("YouTube is busy; continuing in 50 min");
-        (WaitBefore(after)).ShouldBe(TimeSpan.FromMinutes(50));
+        WaitBefore(after).ShouldBe(TimeSpan.FromMinutes(50));
 
         await EndCooldownAsync(after);
         Take(after);
@@ -259,7 +261,7 @@ public class YouTubeTrafficTests
         before.Dispose();
 
         var after = Create();
-        (WaitBefore(after)).ShouldBe(TimeSpan.FromMinutes(1));
+        WaitBefore(after).ShouldBe(TimeSpan.FromMinutes(1));
         clock.Advance(TimeSpan.FromMinutes(1));
         Take(after);
     }
@@ -297,7 +299,7 @@ public class YouTubeTrafficTests
 
         var earlier = new FakeTimeProvider(Start - TimeSpan.FromDays(2));
         var after = Create(earlier);
-        (WaitBefore(after)).ShouldBe(TimeSpan.FromMinutes(1));
+        WaitBefore(after).ShouldBe(TimeSpan.FromMinutes(1));
         earlier.Advance(TimeSpan.FromMinutes(1));
         Take(after);
     }

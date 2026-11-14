@@ -140,7 +140,9 @@ public class PlayersTests
             f => f.SubtitleToolTip.ShouldBe(f.FolderPath));
 
         var shortFolder = Players.ForFolder(@"D:\Music\Player", []);
-        (shortFolder.ShortSubtitle, shortFolder.SubtitleToolTip).ShouldBe((@"D:\Music\Player", (string?)null));
+        shortFolder.ShouldSatisfyAllConditions(
+            s => s.ShortSubtitle.ShouldBe(@"D:\Music\Player"),
+            s => s.SubtitleToolTip.ShouldBeNull());
     }
 
     [Test]
@@ -148,7 +150,10 @@ public class PlayersTests
     {
         var option = Players.ForFolder(@"C:\Users\me\Desktop\mp3player", []);
 
-        (option.Title, option.Subtitle, option.DisplayName).ShouldBe(("mp3player", @"C:\Users\me\Desktop\mp3player", @"Folder (C:\Users\me\Desktop\mp3player)"));
+        option.ShouldSatisfyAllConditions(
+            o => o.Title.ShouldBe("mp3player"),
+            o => o.Subtitle.ShouldBe(@"C:\Users\me\Desktop\mp3player"),
+            o => o.DisplayName.ShouldBe(@"Folder (C:\Users\me\Desktop\mp3player)"));
     }
 
     [Test]

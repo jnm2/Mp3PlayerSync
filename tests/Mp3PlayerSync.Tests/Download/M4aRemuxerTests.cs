@@ -37,15 +37,15 @@ public class M4aRemuxerTests
         var stbl = moov.RequiredChild("trak").RequiredChild("mdia").RequiredChild("minf").RequiredChild("stbl");
         stbl.Children.ShouldNotBeNull().Select(b => b.Type).ShouldBe(new[] { "stsd", "stts", "stsc", "stsz", "stco" });
 
-        var sampleSizes = ReadTable(stbl.RequiredChild("stsz").Payload!, start: 12, count: 9, entrySize: 4);
+        var sampleSizes = ReadTable(stbl.RequiredChild("stsz").Payload.ShouldNotBeNull(), start: 12, count: 9, entrySize: 4);
         sampleSizes.ShouldBe(fragments.SelectMany(f => f).Select(s => (long)s));
 
         // One chunk per fragment, each pointing at that fragment's samples.
-        var chunkOffsets = ReadTable(stbl.RequiredChild("stco").Payload!, start: 8, count: 3, entrySize: 4);
+        var chunkOffsets = ReadTable(stbl.RequiredChild("stco").Payload.ShouldNotBeNull(), start: 8, count: 3, entrySize: 4);
         var expected = fragments.Select((sizes, fragment) => sizes.SelectMany((size, sample) => Mp4TestFiles.SampleData(fragment, sample, size)).ToArray()).ToList();
         chunkOffsets.Select((offset, fragment) => file.AsSpan((int)offset, expected[fragment].Length).ToArray()).ShouldBe(expected);
 
-        var stts = stbl.RequiredChild("stts").Payload!;
+        var stts = stbl.RequiredChild("stts").Payload.ShouldNotBeNull();
         ReadTable(stts, start: 4, count: 3, entrySize: 4).ShouldBe(new long[] { 1, 9, Mp4TestFiles.SampleDuration });
 
         info.IsAac.ShouldBeTrue();

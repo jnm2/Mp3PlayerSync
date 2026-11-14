@@ -21,7 +21,10 @@ public class YouTubeVideoInfoTests
 
         var aac = video.Formats.Single(f => f.FormatId == "140");
         aac.ShouldBe(new YouTubeFormat("140", "m4a", "mp4a.40.2", "none", 129.573, 44100, "https", "medium", null, false));
-        (aac.IsAudioOnly && aac.IsAac && !aac.IsOpus).ShouldBeTrue();
+        aac.ShouldSatisfyAllConditions(
+            a => a.IsAudioOnly.ShouldBeTrue(),
+            a => a.IsAac.ShouldBeTrue(),
+            a => a.IsOpus.ShouldBeFalse());
     }
 
     [Test]

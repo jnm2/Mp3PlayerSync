@@ -68,7 +68,10 @@ public class PlaylistFoldersTests
     {
         var folder = Assign("My Mix", Folder("my mix"));
 
-        (folder.CurrentRelativePath, folder.FinalRelativePath, folder.Exists).ShouldBe(("my mix", "My Mix", true));
+        folder.ShouldSatisfyAllConditions(
+            f => f.CurrentRelativePath.ShouldBe("my mix"),
+            f => f.FinalRelativePath.ShouldBe("My Mix"),
+            f => f.Exists.ShouldBeTrue());
     }
 
     [Test]
@@ -84,7 +87,11 @@ public class PlaylistFoldersTests
     {
         var folder = Assign("New Name", Folder("Old Name", "spotify:playlist:mix1"), Folder("New", "spotify:playlist:other"));
 
-        (folder.CurrentRelativePath, folder.FinalRelativePath, folder.Exists, folder.NeedsRename).ShouldBe(("Old Name", "New Name", true, true));
+        folder.ShouldSatisfyAllConditions(
+            f => f.CurrentRelativePath.ShouldBe("Old Name"),
+            f => f.FinalRelativePath.ShouldBe("New Name"),
+            f => f.Exists.ShouldBeTrue(),
+            f => f.NeedsRename.ShouldBeTrue());
     }
 
     [Test]
@@ -100,7 +107,9 @@ public class PlaylistFoldersTests
     {
         var folder = Assign("My Mix", Folder("My Mix (2)", "spotify:playlist:mix1"));
 
-        (folder.CurrentRelativePath, folder.FinalRelativePath).ShouldBe(("My Mix (2)", "My Mix (2)"));
+        folder.ShouldSatisfyAllConditions(
+            f => f.CurrentRelativePath.ShouldBe("My Mix (2)"),
+            f => f.FinalRelativePath.ShouldBe("My Mix (2)"));
     }
 
     [Test]

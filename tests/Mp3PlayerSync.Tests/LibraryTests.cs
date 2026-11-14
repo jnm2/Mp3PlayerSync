@@ -129,7 +129,9 @@ public class LibraryBuilderTests
         var items = LibraryBuilder.Present(LibraryBuilder.Build(Rows, null, exports), LibraryFilter.CreatedPlaylists, Now);
 
         var mine = items.Single(i => i.Name == "Mine");
-        (mine.Stats, mine.DateText).ShouldBe(("30 tracks", ""));
+        mine.ShouldSatisfyAllConditions(
+            m => m.Stats.ShouldBe("30 tracks"),
+            m => m.DateText.ShouldBeEmpty());
     }
 
     [Test]
@@ -138,7 +140,10 @@ public class LibraryBuilderTests
         var album = LibraryBuilder.Present(LibraryBuilder.Build(Rows, Albums, NoExports), LibraryFilter.SavedAlbums, Now)
             .Single(i => i.Name == "New album");
 
-        (album.Byline, album.Stats, album.DateText).ShouldBe(("Band · 2020", "1 track", "Saved 2 days ago"));
+        album.ShouldSatisfyAllConditions(
+            a => a.Byline.ShouldBe("Band · 2020"),
+            a => a.Stats.ShouldBe("1 track"),
+            a => a.DateText.ShouldBe("Saved 2 days ago"));
     }
 
     [Test]
@@ -268,7 +273,9 @@ public class AppSettingsTests
 
             var loaded = AppSettings.Load(path);
 
-            (loaded.LastSelectedKey, loaded.Filter).ShouldBe(("k", LibraryFilter.SavedAlbums));
+            loaded.ShouldSatisfyAllConditions(
+                l => l.LastSelectedKey.ShouldBe("k"),
+                l => l.Filter.ShouldBe(LibraryFilter.SavedAlbums));
             loaded.Exports.ShouldBe(new Dictionary<string, ExportSummary> { ["p"] = summary }, ignoreOrder: true);
         }
         finally

@@ -92,7 +92,7 @@ public partial class DesignDecisionSourceTests
     {
         var window = XDocument.Load(Path.Combine(RepositoryRoot, @"src\Mp3PlayerSync\MainWindow.xaml")).Root!;
 
-        ((string?)window.Attribute("Title")).ShouldBe("MP3 Player Sync");
+        window.Attribute("Title").ShouldNotBeNull().Value.ShouldBe("MP3 Player Sync");
     }
 
     [Test]
