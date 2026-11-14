@@ -58,33 +58,9 @@ jobs:
         run: dotnet build Mp3PlayerSync.slnx -c Release --no-restore -bl:logs\build.binlog
 
       # On Microsoft.Testing.Platform (global.json's test runner), which takes --report-trx rather than VSTest's --logger.
+      # TUnit writes the job summary itself.
       - name: Test
-        env:
-          # The next step writes the summary
-          TUNIT_DISABLE_GITHUB_REPORTER: true
         run: dotnet test --project tests\Mp3PlayerSync.Tests\Mp3PlayerSync.Tests.csproj -c Release --no-build --report-trx --results-directory TestResults -bl:logs\test.binlog
-
-      - name: Test summary
-        if: ${{ !cancelled() }}
-        shell: pwsh
-        run: |
-          $files = Get-ChildItem TestResults -Filter *.trx -Recurse -ErrorAction SilentlyContinue
-          if (!$files) { '### Tests did not run' >> $env:GITHUB_STEP_SUMMARY; exit }
-          # Counted from the results: the summary counters leave out skipped tests.
-          $results = foreach ($file in $files) { ([xml](Get-Content $file -Raw)).TestRun.Results.UnitTestResult }
-          $passed = @($results | Where-Object outcome -eq 'Passed').Count
-          $failedResults = @($results | Where-Object outcome -eq 'Failed')
-          $failed = $failedResults.Count
-          $skipped = @($results).Count - $passed - $failed
-          $failures = $failedResults | ForEach-Object {
-              $message = "$($_.Output.ErrorInfo.Message)".Trim() -replace '\r?\n', ' ' -replace '\|', '\|'
-              "| $($_.testName -replace '\|', '\|') | $message |"
-          }
-          $icon = if ($failed) { '❌' } else { '✅' }
-          @(
-              "### $icon Tests: $passed passed, $failed failed, $skipped skipped"
-              if ($failures) { ''; '| Failed test | Message |'; '| --- | --- |'; $failures }
-          ) >> $env:GITHUB_STEP_SUMMARY
 
       - name: Upload test results
         if: failure()
