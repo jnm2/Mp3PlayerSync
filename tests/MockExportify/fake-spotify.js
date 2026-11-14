@@ -14,7 +14,7 @@
     const demoSeeds = {};
     const demoSeed = prefix => demoSeeds[prefix] ??= [...prefix].reduce((sum, c) => sum * 31 + c.charCodeAt(0) >>> 0, 7);
 
-    const playlistSpecs = demo ? demoLibrary.playlists.map(p => ({ ...p, owner: p.byOthers ? someoneElse : me })) : [
+    const playlistSpecs = demo ? demoLibrary.playlists.map(p => ({ ...p, owner: p.saved ? someoneElse : me })) : [
         { id: 'roadtrip', name: 'Road Trip, Vol. 2', total: 250 },
         { id: 'cafe', name: 'Café ☕ "Quotes"', total: 3 },
         { id: 'broken', name: 'Broken', total: 5, fail: true },

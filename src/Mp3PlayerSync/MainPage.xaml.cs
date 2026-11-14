@@ -103,10 +103,10 @@ public sealed partial class MainPage : Page
         suppressFilterEvents = true;
         FilterBar.SelectedItem = settings.Filter switch
         {
-            LibraryFilter.PlaylistsByOthers => ByOthersFilterItem,
+            LibraryFilter.SavedPlaylists => SavedPlaylistsFilterItem,
             LibraryFilter.SavedAlbums => SavedAlbumsFilterItem,
             LibraryFilter.All => AllFilterItem,
-            _ => ByYouFilterItem,
+            _ => CreatedFilterItem,
         };
         suppressFilterEvents = false;
 
@@ -680,10 +680,10 @@ public sealed partial class MainPage : Page
     {
         if (suppressFilterEvents) return;
 
-        settings.Filter = sender.SelectedItem == ByOthersFilterItem ? LibraryFilter.PlaylistsByOthers
+        settings.Filter = sender.SelectedItem == SavedPlaylistsFilterItem ? LibraryFilter.SavedPlaylists
             : sender.SelectedItem == SavedAlbumsFilterItem ? LibraryFilter.SavedAlbums
             : sender.SelectedItem == AllFilterItem ? LibraryFilter.All
-            : LibraryFilter.PlaylistsByYou;
+            : LibraryFilter.CreatedPlaylists;
         SaveSettings();
         ShowLibraryItems();
         MessageBar.IsOpen = false;

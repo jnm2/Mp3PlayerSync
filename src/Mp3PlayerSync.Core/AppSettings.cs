@@ -16,7 +16,7 @@ public sealed class AppSettings
 
     public string? LastSelectedKey { get; set; }
 
-    public LibraryFilter Filter { get; set; } = LibraryFilter.PlaylistsByYou;
+    public LibraryFilter Filter { get; set; } = LibraryFilter.CreatedPlaylists;
 
     /// <summary>What the last export of each playlist showed.</summary>
     public Dictionary<string, ExportSummary> Exports { get; init; } = [];

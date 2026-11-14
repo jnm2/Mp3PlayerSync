@@ -81,11 +81,11 @@ Every decision here was made by the user. Code and tests follow this list, not t
 | LOAD-1 | One uniform loading indicator (`LoadingIndicator`). | manual |
 | LOAD-2 | At startup, neither the sign-in screen nor the playlist screen flashes before the other. | e2e "No library page before signing in", "Sign-in screen is never shown when already signed in", "Nothing else shows behind the player page" |
 | GRID-1 | Library tiles: cover art and 18px titles. No public/private/collaborative badges: Exportify's table and exports don't say, and DATA-1 rules out asking Spotify. | manual |
-| GRID-2 | Owner names are hidden when they're "spotify", 8 or more digits, or exactly 25 or 28 lowercase letters and digits, and on "Playlists by you". | `LibraryTests.Is_shown`, `.Generated_owner_ids_are_hidden`, `.Owner_is_shown_except_on_your_own_playlists_tab` |
+| GRID-2 | Owner names are hidden when they're "spotify", 8 or more digits, or exactly 25 or 28 lowercase letters and digits, and on "Created playlists". | `LibraryTests.Is_shown`, `.Generated_owner_ids_are_hidden`, `.Owner_is_shown_except_on_created_playlists_tab` |
 | GRID-3 | Liked Songs is pinned first. | `LibraryTests.Liked_songs_is_first_and_never_an_album_wherever_Exportify_lists_it`; e2e "Liked Songs is first" |
 | GRID-4 | Spotify's DJ playlist is hidden. | `LibraryTests.Spotify_DJ_is_hidden_but_not_other_playlists_called_DJ` |
 | GRID-5 | No cached-only fields on tiles, such as "last added" or duration. | `LibraryTests.Playlists_show_only_what_Exportify_lists_even_after_an_export` |
-| GRID-6 | Tabs, in order: Playlists by you \| Playlists by others \| Saved albums \| All. | e2e "[GRID-6] Tabs" |
+| GRID-6 | Tabs, in order: Created playlists \| Saved playlists \| Saved albums \| All. | e2e "[GRID-6] Tabs" |
 | WIN-1 | Mica backdrop. | `DesignDecisionSourceTests.WIN_1_The_window_has_a_Mica_backdrop` |
 | WIN-2 | The window's minimum width is the narrowest at which the library page's single row (all the tabs, Refresh and Sign out of Spotify) fits unclipped, or 800px if that's wider. Its minimum height is 600px. The tabs stay on the same row as the buttons. | manual |
 
