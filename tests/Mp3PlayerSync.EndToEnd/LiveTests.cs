@@ -29,9 +29,11 @@ namespace Mp3PlayerSync.EndToEnd;
 /// </remarks>
 [Category(TestCategories.Live)]
 [Explicit]
-[ClassDataSource<RunContext>(Shared = SharedType.PerClass)]
-public sealed partial class LiveTests(RunContext run)
+public sealed partial class LiveTests
 {
+    [ClassDataSource<RunContext>(Shared = SharedType.PerClass)]
+    public required RunContext Run { get; init; }
+
     private static readonly Uri ExportifyHome = new("https://exportify.net/");
     private static readonly Uri SpotifyAccounts = new("https://accounts.spotify.com/");
 
@@ -63,10 +65,10 @@ public sealed partial class LiveTests(RunContext run)
         // No removable drive can be assumed, so the player is a folder, as if chosen with "Other folder" last time.
         // Nothing is ever synced to it.
         const string playerName = "Live check player";
-        run.WriteSettings(new { Player = new { FolderPath = run.CreateFolder(playerName) } });
-        var tracksFile = Path.Combine(run.DataDirectory, "Tracks.jsonl");
+        Run.WriteSettings(new { Player = new { FolderPath = Run.CreateFolder(playerName) } });
+        var tracksFile = Path.Combine(Run.DataDirectory, "Tracks.jsonl");
         await using var app = await AppUnderTest.StartAsync(
-            run.Automation, new HostLaunch(run.DataDirectory, null, null) { RecordTracksTo = tracksFile }, cancellationToken);
+            Run.Automation, new HostLaunch(Run.DataDirectory, null, null) { RecordTracksTo = tracksFile }, cancellationToken);
 
         var players = await Wait.UntilAsync(() => app.FindById("PlayerGridView"), "the MP3 player page", showing: app, cancellationToken: cancellationToken);
         var player = await Wait.UntilAsync(
@@ -212,7 +214,7 @@ public sealed partial class LiveTests(RunContext run)
     {
         foreach (var inputSite in NativeWindows.Children(app.Window.Properties.NativeWindowHandle.Value, "InputSiteWindowClass"))
         {
-            var document = run.Automation.FromHandle(inputSite).FindFirstDescendant(c => c.ByControlType(ControlType.Document));
+            var document = Run.Automation.FromHandle(inputSite).FindFirstDescendant(c => c.ByControlType(ControlType.Document));
             // A web page's value is its address.
             if (document?.Patterns.Value.PatternOrDefault?.Value.ValueOrDefault is { } address
                 && Uri.TryCreate(address, UriKind.Absolute, out var url)

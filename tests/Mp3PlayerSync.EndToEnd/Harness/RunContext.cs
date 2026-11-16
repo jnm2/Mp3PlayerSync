@@ -9,9 +9,14 @@ namespace Mp3PlayerSync.EndToEnd.Harness;
 /// <summary>
 /// Everything one run of the tests uses, its own so runs can go side by side: a data folder (and so the app's settings,
 /// WebView2 profile, caches and single-instance key, and the test's player and drive folders), the mock Exportify on
-/// a port of its own, and the apps it started. Shared by a test class's tests, through
+/// a port of its own, and the apps it started. Shared by a test class's tests, through a required property with
 /// <c>[ClassDataSource&lt;RunContext&gt;(Shared = SharedType.PerClass)]</c>.
 /// </summary>
+/// <remarks>
+/// It's a property rather than a constructor parameter because TUnit names a class with constructor parameters after
+/// them, such as <c>SmokeTests(RunContext)</c>, and then Visual Studio can't find the test that the editor's Run Tests or
+/// Debug Tests asks for.
+/// </remarks>
 public sealed class RunContext : IAsyncInitializer, IAsyncDisposable
 {
     private readonly List<AppUnderTest> apps = [];
