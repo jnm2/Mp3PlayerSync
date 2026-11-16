@@ -33,6 +33,8 @@ public sealed class RunContext : IAsyncInitializer, IAsyncDisposable
 
     public async Task InitializeAsync()
     {
+        // The test runs on a hidden desktop in another process, which makes its own.
+        if (HiddenDesktopForIdeRunsExecutor.RunsTestsElsewhere) return;
         Directory.CreateDirectory(DataDirectory);
         Mock = await MockExportifyServer.StartAsync(Console.WriteLine);
     }
