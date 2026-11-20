@@ -49,6 +49,21 @@ public sealed partial class MockExportifyServer : IAsyncDisposable
     }
 
     /// <summary>
+    /// How many of the requests logged so far, such as "export roadtrip" or "token", match <paramref name="pattern"/>, as
+    /// GET /requests lists them.
+    /// </summary>
+    public int CountRequests(string pattern)
+    {
+        lock (gate) return requests.Count(r => Regex.IsMatch(r, pattern));
+    }
+
+    /// <summary>Makes the token run out, as a POST to /expire does, for a page opened with <c>?expireWhenAsked</c>.</summary>
+    public void Expire()
+    {
+        lock (gate) expireAsked = true;
+    }
+
+    /// <summary>
     /// Starts serving the library the end-to-end tests check on a free port, for tests in the same process.
     /// <paramref name="log"/> hears of each request that failed.
     /// </summary>
