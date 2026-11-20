@@ -14,6 +14,9 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <!-- The Windows App SDK's single-file support needs it to embed resources.pri. -->
     <EnableMsixTooling>true</EnableMsixTooling>
+    <!-- The MSIX tooling would otherwise publish every Content and None item, which puts source files such as the
+         .xaml files, this file and Assets\Icon into the exe. Only the items marked with CopyToPublishDirectory ship. -->
+    <AutoIncludeCopyToPublishDirectoryItems>false</AutoIncludeCopyToPublishDirectoryItems>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <!-- NETSDK1244 says IncludeAllContentForSelfExtract (extracting everything to disk at first launch, rather than
