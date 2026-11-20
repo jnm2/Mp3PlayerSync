@@ -26,3 +26,10 @@ TerminateProcess
 WaitForSingleObject
 GENERIC_ACCESS_RIGHTS
 STILL_ACTIVE
+PrintWindow
+GetWindowRect
+ClientToScreen
+WTSQuerySessionInformation
+WTSFreeMemory
+WTSINFOEXW
+WTS_CURRENT_SESSION
