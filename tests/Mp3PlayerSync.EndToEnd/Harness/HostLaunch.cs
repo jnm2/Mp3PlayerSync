@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Mp3PlayerSync.EndToEnd.Harness;
 
 /// <summary>
@@ -25,6 +27,14 @@ public sealed record HostLaunch(string DataDirectory, Uri? ExportifyUrl, Uri? Sp
 
     /// <summary>The test host to run.</summary>
     public string AppPath { get; init; } = Locations.AppPath;
+
+    /// <summary>Starts the test host, without waiting for anything.</summary>
+    public Process StartProcess()
+    {
+        var start = new ProcessStartInfo(AppPath) { UseShellExecute = false };
+        foreach (var (name, value) in EnvironmentVariables()) start.Environment[name] = value;
+        return Process.Start(start) ?? throw new InvalidOperationException($"{AppPath} didn't start.");
+    }
 
     public Dictionary<string, string> EnvironmentVariables() => new()
     {

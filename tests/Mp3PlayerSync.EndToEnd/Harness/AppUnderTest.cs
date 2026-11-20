@@ -46,9 +46,7 @@ public sealed class AppUnderTest : IAsyncDisposable
     /// <summary>Starts the test host and waits for its window.</summary>
     public static async Task<AppUnderTest> StartAsync(AutomationBase automation, HostLaunch launch, CancellationToken cancellationToken = default)
     {
-        var start = new ProcessStartInfo(launch.AppPath) { UseShellExecute = false };
-        foreach (var (name, value) in launch.EnvironmentVariables()) start.Environment[name] = value;
-        var process = Process.Start(start) ?? throw new InvalidOperationException($"{launch.AppPath} didn't start.");
+        var process = launch.StartProcess();
         try
         {
             var window = await Wait.UntilAsync(
