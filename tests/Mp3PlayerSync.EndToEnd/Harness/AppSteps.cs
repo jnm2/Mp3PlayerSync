@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
+using FlaUI.Core.Exceptions;
 using Mp3PlayerSync.MockExportify;
 using Shouldly;
 
@@ -53,6 +54,29 @@ public static partial class AppSteps
         var virtualized = list.Patterns.ItemContainer.Pattern.FindItemByProperty(null, list.Automation.PropertyLibrary.Element.Name, name);
         virtualized?.Patterns.VirtualizedItem.PatternOrDefault?.Realize();
         return virtualized;
+    }
+
+/// <summary>
+    /// The first element under <paramref name="root"/> that <paramref name="match"/> picks, searched breadth first in UI
+    /// Automation's raw view, which has the Win32 controls of a dialog on a test desktop that the other views leave out.
+    /// </summary>
+    public static AutomationElement? FindRaw(this AutomationElement root, Func<AutomationElement, bool> match)
+    {
+        var walker = root.Automation.TreeWalkerFactory.GetRawViewWalker();
+        var queue = new Queue<AutomationElement>([root]);
+        while (queue.TryDequeue(out var element))
+        {
+            try
+            {
+                if (!ReferenceEquals(element, root) && match(element)) return element;
+            }
+            catch (ElementNotAvailableException)
+            {
+                continue;
+            }
+            for (var child = walker.GetFirstChild(element); child is not null; child = walker.GetNextSibling(child)) queue.Enqueue(child);
+        }
+        return null;
     }
 
     public static void Invoke(this AutomationElement element) => element.Patterns.Invoke.Pattern.Invoke();
