@@ -3,9 +3,6 @@ using Mp3PlayerSync.EndToEnd;
 using Mp3PlayerSync.EndToEnd.Harness;
 using Shouldly;
 
-[assembly: DesktopGuard]
-[assembly: TUnit.Core.Executors.TestExecutor<HiddenDesktopForIdeRunsExecutor>]
-
 namespace Mp3PlayerSync.EndToEnd;
 
 /// <summary>
