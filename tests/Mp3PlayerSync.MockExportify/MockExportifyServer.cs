@@ -39,6 +39,22 @@ public sealed partial class MockExportifyServer : IAsyncDisposable
     public int Port => Url.Port;
 
     /// <summary>
+    /// Whether the sign-in page's ?auto sign-in waits until it's let go on, so a test can see the sign-in screen first,
+    /// as a POST of 'hold' or 'release' to /sign-in-hold sets it.
+    /// </summary>
+    public bool SignInHeld
+    {
+        get { lock (gate) return signInHeld; }
+        set { lock (gate) signInHeld = value; }
+    }
+
+    /// <summary>
+    /// Starts serving the library the end-to-end tests check on a free port, for tests in the same process.
+    /// <paramref name="log"/> hears of each request that failed.
+    /// </summary>
+    public static Task<MockExportifyServer> StartAsync(Action<string> log) => StartAsync(MockLibrary.Test, 0, log);
+
+    /// <summary>
     /// Starts serving <paramref name="library"/> on <paramref name="port"/>, or on a free port when it's 0.
     /// <paramref name="log"/> hears of each request that failed.
     /// </summary>

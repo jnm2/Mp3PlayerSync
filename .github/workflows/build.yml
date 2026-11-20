@@ -222,7 +222,18 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force logs\screenshots | Out-Null
-          tests\Test-PublishedExe.ps1 -Runtime win-${{ matrix.arch }} -Desktop Current -ScreenshotFolder "$PWD\logs\screenshots" -BinlogFolder logs *>&1 | Tee-Object logs\e2e.log
+          tests\Test-PublishedExe.ps1 -Runtime win-${{ matrix.arch }} -Desktop Current -ScreenshotFolder "$PWD\logs\screenshots" -BinlogFolder logs -HostFolder "$env:RUNNER_TEMP\e2e-host" *>&1 | Tee-Object logs\e2e.log
+          exit $LASTEXITCODE
+
+      # The C# end-to-end tests (tests\Mp3PlayerSync.EndToEnd), which are taking over from the PowerShell ones: so far
+      # the harness's smoke test, against the trimmed test host the step above published. That one brings the Windows App
+      # SDK with it, whereas a host as built needs the SDK's runtime installed, which x64 runners don't have. TUnit writes
+      # its own job summary.
+      - name: End-to-end tests (C#)
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          dotnet run --project tests\Mp3PlayerSync.EndToEnd -c Release -- --app "$env:RUNNER_TEMP\e2e-host\Mp3PlayerSync.E2EHost.exe" --desktop Current --results-directory "$PWD\logs\TestResults" *>&1 | Tee-Object logs\e2e-csharp.log
           exit $LASTEXITCODE
 
       # After the publishes in the tests, which bring the target architecture's runtime packs. Arm64's only: x64's is the
