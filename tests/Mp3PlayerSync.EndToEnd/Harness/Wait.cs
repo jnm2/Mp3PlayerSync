@@ -11,14 +11,17 @@ namespace Mp3PlayerSync.EndToEnd.Harness;
 /// </summary>
 public static class Wait
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(200);
     private static readonly Lock ScaleGate = new();
-    private static double scale = Environment.GetEnvironmentVariable("CI") == "true" ? 2 : 1;
+    private static readonly double BaseScale = Environment.GetEnvironmentVariable("CI") == "true" ? 2 : 1;
+    private static int otherProcesses;
     private static long scaleCheckedAt;
+
+    /// <summary>How often a wait looks again.</summary>
+    public static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(200);
 
     /// <summary>
     /// How much longer than usual every wait may take: CI runners, with two cores on Arm64, are slower and busier than a
-    /// developer's PC, and other runs going at the same time slow this one down too.
+    /// developer's PC, and other runs going at the same time, in other processes or this one, slow this one down too.
     /// </summary>
     public static double Scale
     {
@@ -29,10 +32,10 @@ public static class Wait
                 if (Stopwatch.GetElapsedTime(scaleCheckedAt) >= TimeSpan.FromSeconds(5) && Environment.GetEnvironmentVariable(Launcher.Launcher.QueueVariable) is { Length: > 0 } queue)
                 {
                     scaleCheckedAt = Stopwatch.GetTimestamp();
-                    var running = Directory.EnumerateFiles(queue, "*.json").Count(IsRunning);
-                    scale = Math.Max(Environment.GetEnvironmentVariable("CI") == "true" ? 2.0 : 1.0, Math.Min(2.0, 1 + 0.5 * (running - 1)));
+                    otherProcesses = Math.Max(0, Directory.EnumerateFiles(queue, "*.json").Count(IsRunning) - 1);
                 }
-                return scale;
+                var others = otherProcesses + Math.Max(0, RunContext.Active - 1);
+                return Math.Max(BaseScale, Math.Min(2.0, 1 + 0.5 * others));
             }
         }
     }

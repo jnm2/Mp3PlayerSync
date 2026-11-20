@@ -9,8 +9,9 @@ namespace Mp3PlayerSync.EndToEnd.Harness;
 /// <summary>
 /// Everything one run of the tests uses, its own so runs can go side by side: a data folder (and so the app's settings,
 /// WebView2 profile, caches and single-instance key, and the test's player and drive folders), the mock Exportify on
-/// a port of its own, and the apps it started. Shared by a test class's tests, through a required property with
-/// <c>[ClassDataSource&lt;RunContext&gt;(Shared = SharedType.PerClass)]</c>.
+/// a port of its own, and the apps it started. A test class takes it through a required property with
+/// <c>[ClassDataSource&lt;RunContext&gt;]</c>: <c>Shared = SharedType.PerClass</c> shares one run among its tests, and
+/// <c>SharedType.None</c> gives each test a run of its own.
 /// </summary>
 /// <remarks>
 /// It's a property rather than a constructor parameter because TUnit names a class with constructor parameters after
@@ -19,7 +20,12 @@ namespace Mp3PlayerSync.EndToEnd.Harness;
 /// </remarks>
 public sealed class RunContext : IAsyncInitializer, IAsyncDisposable
 {
+    private static int active;
     private readonly List<AppUnderTest> apps = [];
+    private bool counted;
+
+    /// <summary>How many runs this process is driving at the same time, which slows each of them down (see <see cref="Wait.Scale"/>).</summary>
+    public static int Active => Volatile.Read(ref active);
 
     public RunContext()
     {
@@ -41,6 +47,8 @@ public sealed class RunContext : IAsyncInitializer, IAsyncDisposable
         // The test runs on a hidden desktop in another process, which makes its own.
         if (HiddenDesktopForIdeRunsExecutor.RunsTestsElsewhere) return;
         Directory.CreateDirectory(DataDirectory);
+        Interlocked.Increment(ref active);
+        counted = true;
         Mock = await MockExportifyServer.StartAsync(Console.WriteLine);
     }
 
@@ -68,6 +76,7 @@ public sealed class RunContext : IAsyncInitializer, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (counted) Interlocked.Decrement(ref active);
         foreach (var app in apps) await app.DisposeAsync();
         if (Mock is not null) await Mock.DisposeAsync();
         Automation.Dispose();
