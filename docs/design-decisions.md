@@ -133,6 +133,7 @@ Every decision here was made by the user. Code and tests follow this list, not t
 | ID | Rule | Check |
 |----|------|-------|
 | REL-1 | Versions are based on the git tags (see `build\Version.targets`), so the version is never bumped by hand after a release. A release gets exactly its tag's version, so `v0.1.0` gives 0.1.0. Every other build gets a prerelease of the next version. If its commit is tagged, that is the tag's version. Otherwise it is the newest tag's version with the patch part incremented, or the same version if that tag is a prerelease. If `VersionPrefix` in `Directory.Build.props` is higher, it is used instead, so it is only raised by hand to make the next release a minor or major version. The suffixes are `-ci.<run>+commit.<sha8>` on main, `-<run>.pr.<number>` for pull requests, `-<run>.<branch>` for other branches, `+build.<run>.commit.<sha8>` for releases and `-dev` for local builds. The exe's file version stays numeric, and in CI it is the version prefix followed by the run number. | The publish step in `build.yml` fails a release if the exe's version isn't the tag's. The rest is checked by hand in the exe's Properties > Details, or in the "Version:" line of the publish step's log. |
+| REL-2 | The release exe carries only the files the app needs at run time, because everything in it is extracted onto the user's disk. Repository files, such as the .xaml sources, build files, agent notes and the icon's sources, never ship in it. | manual: list the files in the exe's single-file bundle after publishing it |
 
 ## Known gaps
 
