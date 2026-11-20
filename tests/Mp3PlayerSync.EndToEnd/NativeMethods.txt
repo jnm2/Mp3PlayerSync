@@ -33,3 +33,5 @@ WTSQuerySessionInformation
 WTSFreeMemory
 WTSINFOEXW
 WTS_CURRENT_SESSION
+SHGetKnownFolderPath
+FOLDERID_Downloads
