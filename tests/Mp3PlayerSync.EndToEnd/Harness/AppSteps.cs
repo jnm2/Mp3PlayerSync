@@ -62,9 +62,9 @@ public static partial class AppSteps
     public static async Task ClickAsync(this AppUnderTest app, string automationId) =>
         (await app.UntilAsync(() => app.FindById(automationId), automationId)).Invoke();
 
-    /// <summary>Whether <paramref name="text"/> matches <paramref name="pattern"/>, where * stands for anything.</summary>
+    /// <summary>Whether <paramref name="text"/> matches <paramref name="pattern"/>, where * stands for anything, ignoring case.</summary>
     public static bool Like(string? text, string pattern) =>
-        text is not null && Regex.IsMatch(text, "^" + Regex.Escape(pattern).Replace(@"\*", ".*") + "$", RegexOptions.Singleline);
+        text is not null && Regex.IsMatch(text, "^" + Regex.Escape(pattern).Replace(@"\*", ".*") + "$", RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
     /// <summary>Selects a library tab, such as "All".</summary>
     public static async Task SelectFilterAsync(this AppUnderTest app, string name)
@@ -152,7 +152,7 @@ public static partial class AppSteps
             await app.SoonAsync(() => app.Window.Name() == "MP3 Player Sync", 10);
             checks.Check("[TEXT-3] The window is called 'MP3 Player Sync'", () => app.Window.Name().ShouldBe("MP3 Player Sync"));
             var refresh = app.Window.FindAllDescendants(c => c.ByControlType(ControlType.Button))
-                .Where(b => b.Name().Contains("Refresh", StringComparison.Ordinal) || (b.Properties.AutomationId.ValueOrDefault ?? "").Contains("Refresh", StringComparison.Ordinal))
+                .Where(b => b.Name().Contains("Refresh", StringComparison.OrdinalIgnoreCase) || (b.Properties.AutomationId.ValueOrDefault ?? "").Contains("Refresh", StringComparison.OrdinalIgnoreCase))
                 .Select(Name).ToList();
             checks.Check("[PLAYER-5] The player page has no Refresh button", () => refresh.ShouldBeEmpty());
             app.CheckNoBrowserText(checks, "player page");
