@@ -9,11 +9,9 @@
       1. Signed out: the sign-in screen appears (Exportify's landing page is skipped), the mock signs in by itself,
          then the library page, selector, playlist and album pages, refresh, and a failed export are checked.
       2. Restart: the last opened playlist reopens by itself and the selector choice is remembered.
-      2b. The token runs out while an album is open: it's renewed in the background without leaving the album.
-      2c. Spotify stops accepting the token during an export: it's renewed and the export retried, unseen.
-      3. Expired Exportify token: the session is renewed without showing the sign-in screen, and the last opened
-         saved album reopens.
-      4. Sign out: the sign-in screen comes back. Links on it open outside the app, and signing in on it works.
+      5. Player drives with a MUSIC folder: songs sync into it, in a folder of their own.
+    Tokens that run out or are refused, signing out, and the sign-in page's links are checked by the C# tests'
+    Session run (tests\Mp3PlayerSync.EndToEnd\SessionTests.cs).
     Throughout, Exportify's own page is never shown. Also checks that nothing was written to the Downloads folder.
 
     Exits with 0 when every check passed, 1 when any failed, and 2 when none failed but some were inconclusive:
@@ -24,16 +22,15 @@
     Build first: dotnet build Mp3PlayerSync.slnx
 
 .PARAMETER Only
-    Runs just these runs, for example -Only Run2b,Run2c, in a minute or two. Run3 and Run4 run together; Run5 syncs to
-    a player drive with a MUSIC folder. A run whose
-    earlier runs are skipped starts from what they would have left: signed in, with the expected item last opened.
+    Runs just these runs, for example -Only Run2,Run5, in a minute or two. A run whose earlier runs are skipped starts
+    from what they would have left: signed in, with the expected item last opened.
 #>
 param(
     [string] $AppPath = (Get-ChildItem "$PSScriptRoot\Mp3PlayerSync.E2EHost\bin\Debug" -Recurse -Filter Mp3PlayerSync.E2EHost.exe | Select-Object -First 1).FullName,
     # The mock Exportify (tests\Mp3PlayerSync.MockExportify); otherwise the Debug build
     [string] $MockPath = (Get-ChildItem "$PSScriptRoot\Mp3PlayerSync.MockExportify\bin\Debug" -Recurse -Filter Mp3PlayerSync.MockExportify.exe | Select-Object -First 1).FullName,
     [string] $ScreenshotFolder,
-    [ValidateSet('Run1', 'Run2', 'Run2b', 'Run2c', 'Run3', 'Run4', 'Run5')] [string[]] $Only,
+    [ValidateSet('Run1', 'Run2', 'Run5')] [string[]] $Only,
     # Where Invoke-EndToEnd.ps1 runs this. It watches the user's foreground window itself (TEST-1): from here, on a
     # hidden desktop, GetForegroundWindow always returns NULL.
     [ValidateSet('Hidden', 'Current')] [string] $Desktop = 'Hidden'
@@ -1177,111 +1174,6 @@ try {
             Wait-Contents $window 'Big Album' '*60 tracks, *'
         } finally { Stop-App $process }
         $lastOpened = 'Big Album'
-    }
-
-    if (Test-Selected 'Run2b') {
-        Prepare-State 'Big Album'
-        Write-Host 'Run 2b: the token runs out while the app is open'
-        $process, $window = Start-App "$($url)?expireWhenAsked"
-        try {
-            Choose-Player $window
-            Wait-Until { (Get-Text $window 'PlaylistTitle') -eq 'Spotify album: Big Album' } 'the last opened album to reopen' 60 | Out-Null
-            Wait-Contents $window 'Big Album (restored)' '*60 tracks, *'
-            # The token runs out now, while the test watches; the mock then refuses it, so only a renewed one works.
-            # The watch lasts until the renewal has asked Spotify for a new token, and a few seconds after.
-            $renewals = Get-MockRequests '^token$'
-            Invoke-RestMethod "$($url)expire" -Method Post | Out-Null
-            $interrupted = @()
-            $renewed = $null
-            $stopwatch = [Diagnostics.Stopwatch]::StartNew()
-            while (!$renewed -or ($stopwatch.Elapsed - $renewed).TotalSeconds -lt 5 * $script:waitScale) {
-                if (!$renewed -and $stopwatch.Elapsed.TotalSeconds -gt 60 * $script:waitScale) { break }
-                Watch-Page
-                if (Find-ById $window 'SignInTitle') { $interrupted += 'sign-in' }
-                if (Find-ById $window 'LoadingText') { $interrupted += 'loading' }
-                $title = Get-Text $window 'PlaylistTitle'
-                if ($title -ne 'Spotify album: Big Album') { $interrupted += "left the album ('$title')" }
-                if (!$renewed -and (Get-MockRequests '^token$') -gt $renewals) { $renewed = $stopwatch.Elapsed }
-                Start-Sleep -Milliseconds 200
-            }
-            Check ($null -ne $renewed) "The token that ran out is renewed in the background$(if ($renewed) { " after $([int]$renewed.TotalMilliseconds) ms" })"
-            Check (-not $interrupted) "The album stays on screen while the token is renewed $(($interrupted | Select-Object -Unique) -join ', ')"
-            Click-Refresh $window '^export albums$' 'the refresh'
-            Wait-Contents $window 'Big Album (after renewal)' '*60 tracks, *'
-            Check ((Get-AllText $window) -notlike '*Could not load*') 'Exports work with the renewed token'
-        } finally { Stop-App $process }
-        $lastOpened = 'Big Album'
-    }
-
-    if (Test-Selected 'Run2c') {
-        Prepare-State 'Big Album'
-        Write-Host 'Run 2c: Spotify stops accepting the token during an export'
-        $process, $window = Start-App "$($url)?expireOnExport"
-        try {
-            Choose-Player $window
-            $signInShown = [ref]$false
-            try {
-                Wait-Until {
-                    if (Find-ById $window 'SignInTitle') { $signInShown.Value = $true }
-                    (Get-Text $window 'PlaylistTitle') -eq 'Spotify album: Big Album' -and (Get-Text $window 'SummaryText') -like '*60 tracks*'
-                } 'the album after renewing the token mid-export' 90 | Out-Null
-            } catch { Write-Host "  Showing: $((Get-AllText $window) -replace "`n", ' | ')"; throw }
-            Check (!$signInShown.Value) 'A token rejected mid-export is renewed without showing the sign-in screen'
-            Check ((Get-AllText $window) -notlike '*Could not load*') 'The interrupted export is retried after renewing'
-        } finally { Stop-App $process }
-        $lastOpened = 'Big Album'
-    }
-
-    if (Test-Selected 'Run3', 'Run4') {
-        Prepare-State 'Big Album'
-        Write-Host 'Run 3: expired Exportify token, last opened a saved album'
-        $process, $window = Start-App "$($url)?expireToken"
-        try {
-            Choose-Player $window
-            $signInShown = [ref]$false
-            Wait-Until {
-                if (Find-ById $window 'SignInTitle') { $signInShown.Value = $true }
-                (Get-Text $window 'PlaylistTitle') -eq 'Spotify album: Big Album' -and (Get-Text $window 'SummaryText') -like '*60 tracks*'
-            } 'the saved album after renewing the session' 90 | Out-Null
-            Check (!$signInShown.Value) 'Expired token is renewed without showing the sign-in screen'
-            Check $true 'The last opened saved album reopened'
-
-            Write-Host 'Run 4: sign out'
-            Click $window 'BackButton'
-            $loginLoads = Get-MockRequests '^sign-in page$'
-            Click $window 'SignOutButton'
-            Wait-Until { Find-ById $window 'SignInTitle' } 'the sign-in screen after signing out' 30 | Out-Null
-            Check $true 'Signing out shows the sign-in screen'
-
-            # Links to elsewhere open outside the app; the sign-in page stays, and signing in still works.
-            # The mock logs serving the page, which tells a page that never loaded from one UI Automation can't see.
-            Wait-Until { (Get-MockRequests '^sign-in page$') -gt $loginLoads } "Spotify's sign-in page to load" 60 | Out-Null
-            $page = try { Wait-Until { Find-WebDocument $window 'Spotify login (mock)' } "Spotify's sign-in page in UI Automation" 60 }
-                catch { Write-Host "  The page loaded; the sign-in button instead of the page is $(if (Find-ById $window 'SignInPromptButton') { '' } else { 'not ' })showing"; throw }
-            $opened = Join-Path $env:MP3PLAYERSYNC_DATA_DIR 'OpenedExternally.txt'
-            foreach ($link in @(@('Sign up for Spotify', 'https://www.spotify.com/signup'), @('Help', 'https://support.spotify.com/'))) {
-                (Pattern (Wait-Until { Find-Named $page $ControlType::Hyperlink $link[0] } "the '$($link[0])' link" 10) ([System.Windows.Automation.InvokePattern])).Invoke()
-                Wait-Until { (Test-Path $opened) -and (Get-Content $opened) -contains $link[1] } "'$($link[0])' to open outside the app" 10 | Out-Null
-                # Asks the page found above, whose name is its title: it changes if the WebView goes elsewhere. Looking
-                # it up again through the window doesn't work once the click has put focus inside the WebView.
-                $stayed = $true
-                try {
-                    Wait-Until {
-                        $title = try { $page.Current.Name } catch [System.Windows.Automation.ElementNotAvailableException] { $null }
-                        $title -eq 'Spotify login (mock)' -and (Find-ById $window 'SignInTitle')
-                    } "the sign-in page after clicking '$($link[0])'" 10 | Out-Null
-                } catch {
-                    $stayed = $false
-                    Write-Host "  $($_.Exception.Message)"
-                }
-                Check $stayed "Clicking '$($link[0])' opens it outside the app and stays on the sign-in page"
-            }
-            (Pattern (Find-Named $page $ControlType::Button 'Sign in') ([System.Windows.Automation.InvokePattern])).Invoke()
-            $sawSignIn = $true
-            Wait-Library $window '*playlists*' ([ref]$sawSignIn)
-            Check ($null -eq (Find-ById $window 'SignInTitle')) 'Signing in on the page returns to the library'
-        } finally { Stop-App $process }
-        $lastOpened = $null
     }
 
     if (Test-Selected 'Run5') {
