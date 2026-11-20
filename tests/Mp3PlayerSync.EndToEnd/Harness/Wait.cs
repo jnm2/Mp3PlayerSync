@@ -39,7 +39,8 @@ public static class Wait
 
     /// <summary>
     /// Waits until <paramref name="probe"/> finds something, and returns it. UI Automation's errors from elements that
-    /// come and go while the app redraws count as not found yet.
+    /// come and go while the app redraws count as not found yet, as do its passing failures (E_FAIL) while several runs
+    /// start at once.
     /// </summary>
     /// <param name="what">What's waited for, as in "Timed out after 30 s waiting for the sign-in screen".</param>
     /// <param name="showing">The app whose window's text a timeout reports.</param>
@@ -56,7 +57,7 @@ public static class Wait
                 if (probe() is { } found) return found;
                 lastError = null;
             }
-            catch (Exception exception) when (exception is ElementNotAvailableException or COMException or TimeoutException)
+            catch (Exception exception) when (exception is ElementNotAvailableException or ExternalException or TimeoutException)
             {
                 lastError = exception;
             }
