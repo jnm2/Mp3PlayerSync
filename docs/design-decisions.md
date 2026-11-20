@@ -138,4 +138,4 @@ Every decision here was made by the user. Code and tests follow this list, not t
 
 Where the code on `main` doesn't follow a decision yet. Remove an entry in the change that fixes it.
 
-- DEVICE-1: `AppSettings.MusicFolders` remembers each drive's sync root (its MUSIC folder or the root) on the PC; the Player library scan session is removing it.
+There are no known gaps at the moment.
