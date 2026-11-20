@@ -17,17 +17,25 @@ public sealed class AppUnderTest : IAsyncDisposable
     private const string WindowClass = "WinUIDesktopWin32WindowClass";
 
     private readonly AutomationBase automation;
-    private readonly string dataDirectory;
 
     private AppUnderTest(AutomationBase automation, Process process, AutomationElement window, string dataDirectory)
     {
         this.automation = automation;
-        this.dataDirectory = dataDirectory;
+        DataDirectory = dataDirectory;
         Process = process;
         Window = window;
     }
 
     public Process Process { get; }
+
+    /// <summary>The app's data folder.</summary>
+    public string DataDirectory { get; }
+
+    /// <summary>
+    /// Whether the window ever showed Exportify's own page, which it may never do (SIGNIN-1, SIGNIN-2): the embedded page
+    /// is only shown while it's Spotify's sign-in. Every wait on the app watches for it (see <see cref="Watch"/>).
+    /// </summary>
+    public bool SawExportifyPage { get; private set; }
 
     /// <summary>The app's own window.</summary>
     public AutomationElement Window { get; }
@@ -90,6 +98,23 @@ public sealed class AppUnderTest : IAsyncDisposable
         return null;
     }
 
+    /// <summary>Notes whether the window shows Exportify's own page now (see <see cref="SawExportifyPage"/>).</summary>
+    public void Watch()
+    {
+        if (SawExportifyPage || Process.HasExited) return;
+        try
+        {
+            if (FindById("SignInTitle") is not null
+                && Window.FindFirstDescendant(c => c.ByControlType(ControlType.Pane).And(c.ByName("Spotify sign-in"))) is not null
+                && FindWebPage("Exportify (mock)") is not null)
+                SawExportifyPage = true;
+        }
+        catch (Exception exception) when (exception is FlaUI.Core.Exceptions.ElementNotAvailableException or System.Runtime.InteropServices.COMException or TimeoutException)
+        {
+            // The window is closing or busy; the next look will tell.
+        }
+    }
+
     /// <summary>What the window shows, for a message, or null if it can't be read.</summary>
     internal string? TryReadAllText()
     {
@@ -131,7 +156,7 @@ public sealed class AppUnderTest : IAsyncDisposable
             }
         }
 
-        var webViewData = Path.Combine(dataDirectory, "WebView2") + Path.DirectorySeparatorChar;
+        var webViewData = Path.Combine(DataDirectory, "WebView2") + Path.DirectorySeparatorChar;
         try
         {
             await Wait.UntilAsync(() => WebViewProcesses(webViewData).Count == 0, "the app's WebView2 processes to exit", timeout / Wait.Scale, cancellationToken: cancellationToken);

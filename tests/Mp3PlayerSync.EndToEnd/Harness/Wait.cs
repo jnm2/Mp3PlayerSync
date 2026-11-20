@@ -43,7 +43,7 @@ public static class Wait
     /// start at once.
     /// </summary>
     /// <param name="what">What's waited for, as in "Timed out after 30 s waiting for the sign-in screen".</param>
-    /// <param name="showing">The app whose window's text a timeout reports.</param>
+    /// <param name="showing">The app to watch while waiting (see <see cref="AppUnderTest.Watch"/>), and whose window's text a timeout reports.</param>
     public static async Task<T> UntilAsync<T>(Func<T?> probe, string what, TimeSpan? timeout = null, AppUnderTest? showing = null, CancellationToken cancellationToken = default)
         where T : class
     {
@@ -54,6 +54,7 @@ public static class Wait
         {
             try
             {
+                showing?.Watch();
                 if (probe() is { } found) return found;
                 lastError = null;
             }
