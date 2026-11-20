@@ -9,6 +9,9 @@ public static class TestCategories
     /// <summary>Starts the test host, finds its window and Spotify's sign-in page in it, and closes it.</summary>
     public const string Smoke = nameof(Smoke);
 
+    /// <summary>Spotify's session: tokens that run out or are refused, signing out, and the sign-in page's links.</summary>
+    public const string Session = nameof(Session);
+
     /// <summary>
     /// The weekly live check on the real exportify.net and Spotify (TEST-4). It's explicit, so it runs only when asked
     /// for with <c>--only Live</c>, never as part of the other runs.

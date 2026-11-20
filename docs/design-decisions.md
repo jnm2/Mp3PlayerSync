@@ -6,8 +6,9 @@ Every decision here was made by the user. Code and tests follow this list, not t
 - Don't contradict an entry without the user's explicit OK. If the user changes one, update its line in the same change.
 - When the user settles something new, add it here in the same change, with a new ID and its check.
 - IDs are stable: never renumber or reuse one. Retire an entry by striking it through with the date and reason.
-- Checks: `Class.Method` is a unit test in `tests\Mp3PlayerSync.Tests`; *e2e* quotes a check in
-  `tests\Test-MockEndToEnd.ps1` (run with `tests\Invoke-EndToEnd.ps1`); *manual* means look before merging.
+- Checks: `Class.Method` is a unit test in `tests\Mp3PlayerSync.Tests`; *e2e* quotes a check in the C# end-to-end
+  tests (`tests\Mp3PlayerSync.EndToEnd`) or, until they're all ported, in `tests\Test-MockEndToEnd.ps1` (run with
+  `tests\Invoke-EndToEnd.ps1`); *manual* means look before merging.
   New e2e checks start with their ID, e.g. `[TEXT-5]`. If a check fails, fix the code; don't weaken the check.
   An e2e check that can't see what it checks (say, no picture of the window) is INCONCLUSIVE, never a pass or a
   silent skip: the run lists those and exits with 2 (0 is all passed, 1 is a failure).

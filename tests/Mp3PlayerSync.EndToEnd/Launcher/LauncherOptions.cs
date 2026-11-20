@@ -6,6 +6,7 @@ internal sealed record LauncherOptions(
     bool HiddenDesktop,
     TimeSpan Timeout,
     string ResultsDirectory,
+    string? ScreenshotFolder,
     IReadOnlyList<string> TestArguments)
 {
     public const string Usage = """
@@ -21,6 +22,7 @@ internal sealed record LauncherOptions(
                                    asks for it on purpose. Agents never use it on the user's PC.
           --timeout-minutes <n>    How long the tests may take once they start (default 15)
           --results-directory <d>  Where the TRX report goes (default: TestResults beside this)
+          --screenshots <folder>   Where to save screenshots of the app at each step; otherwise there are none
 
         Exits with 0 when every test passed, 1 when any failed or didn't run, and 2 when none failed but some were
         inconclusive (they couldn't see what they check).
@@ -33,6 +35,7 @@ internal sealed record LauncherOptions(
         var hidden = true;
         var timeout = TimeSpan.FromMinutes(15);
         var results = Path.Combine(AppContext.BaseDirectory, "TestResults");
+        string? screenshots = null;
         var testArguments = new List<string>();
 
         for (var i = 0; i < args.Count; i++)
@@ -65,6 +68,9 @@ internal sealed record LauncherOptions(
                 case "--results-directory":
                     results = Path.GetFullPath(Value());
                     break;
+                case "--screenshots":
+                    screenshots = Path.GetFullPath(Value());
+                    break;
                 case "--":
                     testArguments.AddRange(args.Skip(i + 1));
                     i = args.Count;
@@ -74,7 +80,7 @@ internal sealed record LauncherOptions(
             }
         }
 
-        return new(only, app, hidden, timeout, results, testArguments);
+        return new(only, app, hidden, timeout, results, screenshots, testArguments);
     }
 
     /// <summary>The test platform's filter for <see cref="Only"/>, if any.</summary>

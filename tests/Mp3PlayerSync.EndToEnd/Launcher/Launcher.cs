@@ -61,6 +61,7 @@ internal static class Launcher
         Environment.SetEnvironmentVariable(DesktopVariable, desktopName ?? "Current");
         Environment.SetEnvironmentVariable(QueueVariable, SlotQueue.QueueFolder);
         Environment.SetEnvironmentVariable(Locations.AppVariable, appPath);
+        Environment.SetEnvironmentVariable(Harness.WindowPictures.FolderVariable, options.ScreenshotFolder);
 
         var self = Path.Combine(AppContext.BaseDirectory, "Mp3PlayerSync.EndToEnd.exe");
         var commandLine = new StringBuilder($"\"{self}\" --no-ansi --progress off --output Detailed --report-trx --report-trx-filename {trx} --results-directory \"{options.ResultsDirectory}\"");

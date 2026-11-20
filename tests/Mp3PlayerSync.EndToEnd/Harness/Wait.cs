@@ -11,14 +11,17 @@ namespace Mp3PlayerSync.EndToEnd.Harness;
 /// </summary>
 public static class Wait
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(200);
     private static readonly Lock ScaleGate = new();
-    private static double scale = Environment.GetEnvironmentVariable("CI") == "true" ? 2 : 1;
+    private static readonly double BaseScale = Environment.GetEnvironmentVariable("CI") == "true" ? 2 : 1;
+    private static int otherProcesses;
     private static long scaleCheckedAt;
+
+    /// <summary>How often a wait looks again.</summary>
+    public static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(200);
 
     /// <summary>
     /// How much longer than usual every wait may take: CI runners, with two cores on Arm64, are slower and busier than a
-    /// developer's PC, and other runs going at the same time slow this one down too.
+    /// developer's PC, and other runs going at the same time, in other processes or this one, slow this one down too.
     /// </summary>
     public static double Scale
     {
@@ -29,20 +32,21 @@ public static class Wait
                 if (Stopwatch.GetElapsedTime(scaleCheckedAt) >= TimeSpan.FromSeconds(5) && Environment.GetEnvironmentVariable(Launcher.Launcher.QueueVariable) is { Length: > 0 } queue)
                 {
                     scaleCheckedAt = Stopwatch.GetTimestamp();
-                    var running = Directory.EnumerateFiles(queue, "*.json").Count(IsRunning);
-                    scale = Math.Max(Environment.GetEnvironmentVariable("CI") == "true" ? 2.0 : 1.0, Math.Min(2.0, 1 + 0.5 * (running - 1)));
+                    otherProcesses = Math.Max(0, Directory.EnumerateFiles(queue, "*.json").Count(IsRunning) - 1);
                 }
-                return scale;
+                var others = otherProcesses + Math.Max(0, RunContext.Active - 1);
+                return Math.Max(BaseScale, Math.Min(2.0, 1 + 0.5 * others));
             }
         }
     }
 
     /// <summary>
     /// Waits until <paramref name="probe"/> finds something, and returns it. UI Automation's errors from elements that
-    /// come and go while the app redraws count as not found yet.
+    /// come and go while the app redraws count as not found yet, as do its passing failures (E_FAIL) while several runs
+    /// start at once.
     /// </summary>
     /// <param name="what">What's waited for, as in "Timed out after 30 s waiting for the sign-in screen".</param>
-    /// <param name="showing">The app whose window's text a timeout reports.</param>
+    /// <param name="showing">The app to watch while waiting (see <see cref="AppUnderTest.Watch"/>), and whose window's text a timeout reports.</param>
     public static async Task<T> UntilAsync<T>(Func<T?> probe, string what, TimeSpan? timeout = null, AppUnderTest? showing = null, CancellationToken cancellationToken = default)
         where T : class
     {
@@ -53,10 +57,11 @@ public static class Wait
         {
             try
             {
+                showing?.Watch();
                 if (probe() is { } found) return found;
                 lastError = null;
             }
-            catch (Exception exception) when (exception is ElementNotAvailableException or COMException or TimeoutException)
+            catch (Exception exception) when (exception is ElementNotAvailableException or ExternalException or TimeoutException)
             {
                 lastError = exception;
             }
