@@ -122,9 +122,13 @@ public sealed class AppUnderTest : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Whether the sign-in view shows, with its web page. UI Automation can still list a view that was just collapsed, with
+    /// no size, so the title and the page must have one.
+    /// </summary>
     private bool ShowsSignInView() =>
-        FindById("SignInTitle") is not null
-        && Window.FindFirstDescendant(c => c.ByControlType(ControlType.Pane).And(c.ByName("Spotify sign-in"))) is not null;
+        FindById("SignInTitle") is { BoundingRectangle.IsEmpty: false }
+        && Window.FindFirstDescendant(c => c.ByControlType(ControlType.Pane).And(c.ByName("Spotify sign-in"))) is { BoundingRectangle.IsEmpty: false };
 
     /// <summary>What the window shows, for a message, or null if it can't be read.</summary>
     internal string? TryReadAllText()
