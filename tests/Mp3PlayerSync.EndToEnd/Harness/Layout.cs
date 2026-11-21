@@ -152,6 +152,53 @@ public static class Layout
     }
 
     /// <summary>
+    /// The color of the icon just left of a status text in a track row: Success (green), Caution (yellow), Critical (red),
+    /// Neutral (grey), or None; or "Unknown (why)" without a picture of the window. Status icons aren't in UI Automation
+    /// (Narrator reads the text instead), so this reads the pixels, as the app draws them, which works while the PC is locked.
+    /// </summary>
+    public static string StatusTone(this AppUnderTest app, AutomationElement row, string status)
+    {
+        var text = row.FindFirstDescendant(c => c.ByName(status).And(c.ByControlType(ControlType.Text)))?.BoundingRectangle ?? Rectangle.Empty;
+        using var picture = WindowPictures.Render(app, out var why);
+        if (picture is null) return $"Unknown ({why})";
+        var counts = new Dictionary<string, int> { ["Success"] = 0, ["Caution"] = 0, ["Critical"] = 0, ["Neutral"] = 0 };
+        // The icon's 18px slot and 4px gap are just left of the text; the gap shows the row's background.
+        var right = text.Left - picture.Left - 2;
+        var top = text.Top - picture.Top;
+        var background = picture.Bitmap.GetPixel(right, top).GetBrightness();
+        for (var x = right - 20; x < right; x++)
+        {
+            for (var y = top; y < text.Bottom - picture.Top; y++)
+            {
+                var color = picture.Bitmap.GetPixel(x, y);
+                // By hue, which anti-aliasing against the background keeps, unlike the channels themselves. Fluent's
+                // brushes: success #0F7B0F (light) and #6CCB5F (dark) at 120° and 113°, caution #9D5D00 and #FCE100 at 36°
+                // and 54°, critical #C42B1C and #FF99A4 at 5° and 354°.
+                var chroma = Math.Max(color.R, Math.Max(color.G, color.B)) - Math.Min(color.R, Math.Min(color.G, color.B));
+                var hue = color.GetHue();
+                if (chroma >= 40)
+                {
+                    if (hue is >= 90 and <= 150) counts["Success"]++;
+                    else if (hue is >= 25 and <= 65) counts["Caution"]++;
+                    else if (hue is < 15 or > 340) counts["Critical"]++;
+                }
+                else if (chroma < 30 && Math.Abs(color.GetBrightness() - background) > 0.25) counts["Neutral"]++;
+            }
+        }
+        var best = counts.MaxBy(pair => pair.Value);
+        return best.Value >= 5 ? best.Key : "None";
+    }
+
+    /// <summary>Checks the tones <see cref="StatusTone"/> found, which is inconclusive rather than a pass or a failure if any is Unknown.</summary>
+    public static void CheckTones(Checks checks, string[] tones, string[] expected, string description)
+    {
+        if (tones.Any(tone => tone.StartsWith("Unknown", StringComparison.Ordinal)))
+            checks.Inconclusive(description, string.Join(", ", tones));
+        else
+            checks.Check(description, () => tones.ShouldBe(expected));
+    }
+
+    /// <summary>
     /// A heading beside a back arrow, measured from the pixels the app drew (so it holds while the PC is locked): the
     /// arrow's ink is centered on the capitals' (the heading starts with a capital), and its descenders are drawn in full.
     /// The text's layout box ends at its baseline (HeadingTextStyle), so the descenders are looked for just below it.
