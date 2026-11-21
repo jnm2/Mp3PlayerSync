@@ -102,16 +102,29 @@ public sealed class AppUnderTest : IAsyncDisposable
         if (SawExportifyPage || Process.HasExited) return;
         try
         {
-            if (FindById("SignInTitle") is not null
-                && Window.FindFirstDescendant(c => c.ByControlType(ControlType.Pane).And(c.ByName("Spotify sign-in"))) is not null
-                && FindWebPage("Exportify (mock)") is not null)
+            // The sign-in view is asked about again after the page is found: the page is found through the WebView's window
+            // even while the view is hidden, and the app hides the view as soon as the page starts back to Exportify, which can
+            // happen between one question and the next.
+            if (ShowsSignInView() && FindWebPage("Exportify (mock)") is not null && ShowsSignInView())
+            {
                 SawExportifyPage = true;
+                // What showed, to tell a page on screen from one UI Automation reached in a hidden view
+                var pane = Window.FindFirstDescendant(c => c.ByControlType(ControlType.Pane).And(c.ByName("Spotify sign-in")));
+                Console.WriteLine($"  Exportify's own page in the sign-in view at {DateTime.Now:HH:mm:ss.fff}: the view's web page is at {pane?.BoundingRectangle}, " +
+                    $"off-screen {pane?.Properties.IsOffscreen.ValueOrDefault}, with the sign-in button {(FindById("SignInPromptButton") is null ? "not " : "")}showing. " +
+                    $"The window showed: {TryReadAllText()}");
+                WindowPictures.SaveScreenshot(this, "exportify-page");
+            }
         }
         catch (Exception exception) when (exception is FlaUI.Core.Exceptions.ElementNotAvailableException or System.Runtime.InteropServices.COMException or TimeoutException)
         {
             // The window is closing or busy; the next look will tell.
         }
     }
+
+    private bool ShowsSignInView() =>
+        FindById("SignInTitle") is not null
+        && Window.FindFirstDescendant(c => c.ByControlType(ControlType.Pane).And(c.ByName("Spotify sign-in"))) is not null;
 
     /// <summary>What the window shows, for a message, or null if it can't be read.</summary>
     internal string? TryReadAllText()

@@ -38,3 +38,4 @@ FOLDERID_Downloads
 EnumWindows
 IsWindowVisible
 BM_CLICK
+SetWindowPos

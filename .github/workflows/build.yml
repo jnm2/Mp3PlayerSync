@@ -226,9 +226,9 @@ jobs:
           exit $LASTEXITCODE
 
       # The C# end-to-end tests (tests\Mp3PlayerSync.EndToEnd), which are taking over from the PowerShell ones: so far
-      # the harness's smoke test and the Session, Restart and Drives runs, against the trimmed test host the step above
-      # published. That one brings the Windows App SDK with it, whereas a host as built needs the SDK's runtime installed,
-      # which x64 runners don't have. TUnit writes its own job summary.
+      # the harness's smoke test and the Session, Restart, Drives and Browsing runs, against the trimmed test host the step
+      # above published. That one brings the Windows App SDK with it, whereas a host as built needs the SDK's runtime
+      # installed, which x64 runners don't have. TUnit writes its own job summary.
       - name: End-to-end tests (C#)
         if: ${{ !cancelled() }}
         shell: pwsh

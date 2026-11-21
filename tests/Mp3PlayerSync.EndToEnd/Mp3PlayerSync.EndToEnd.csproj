@@ -9,11 +9,18 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- For TextRenderer, which measures text as the app's list draws it -->
+    <UseWindowsForms>true</UseWindowsForms>
     <!-- A test project, so Visual Studio's Test Explorer finds, runs and debugs its tests on this desktop. Program.cs is
          the entry point: it runs the tests as the platform's generated one would when an IDE or dotnet test starts it,
          and is otherwise the launcher. Agents only use the launcher (TEST-1). -->
     <GenerateTestingPlatformEntryPoint>false</GenerateTestingPlatformEntryPoint>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Its Button and Application would clash with FlaUI's -->
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
@@ -23,7 +30,6 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Shouldly" Version="4.3.0" />
-    <PackageReference Include="System.Drawing.Common" Version="11.0.0" />
     <PackageReference Include="System.Management" Version="11.0.0" />
     <PackageReference Include="TUnit" Version="1.84.0" />
   </ItemGroup>
