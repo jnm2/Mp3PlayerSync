@@ -51,15 +51,10 @@ jobs:
           key: nuget-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('global.json', '**/*.csproj', '**/Directory.*.props', '**/Directory.*.targets') }}
           restore-keys: nuget-${{ runner.os }}-${{ runner.arch }}-
 
-      # The test host trimmed as the app is released, as the build workflow's end-to-end job publishes it. The app's XAML is in
-      # Mp3PlayerSync.pri, which Windows only looks for beside Mp3PlayerSync.exe, while resources.pri is found beside
-      # any exe.
-      - name: Publish the trimmed test host
-        shell: pwsh
-        run: |
-          dotnet publish tests\Mp3PlayerSync.E2EHost\Mp3PlayerSync.E2EHost.csproj -c Release -r win-x64 -o "$env:RUNNER_TEMP\host" -p:SelfContained=true -p:WindowsAppSDKSelfContained=true
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          Copy-Item "$env:RUNNER_TEMP\host\Mp3PlayerSync.pri" "$env:RUNNER_TEMP\host\resources.pri"
+      # The test host published as the app is released, trimmed and as a single file, as the build workflow's
+      # end-to-end job publishes it.
+      - name: Publish the test host
+        run: dotnet publish tests\Mp3PlayerSync.E2EHost\Mp3PlayerSync.E2EHost.csproj -c Release -r win-x64 -o "$env:RUNNER_TEMP\host" -p:PublishSingleFile=true
 
       - name: Build the end-to-end tests
         run: dotnet build tests\Mp3PlayerSync.EndToEnd\Mp3PlayerSync.EndToEnd.csproj -c Release
