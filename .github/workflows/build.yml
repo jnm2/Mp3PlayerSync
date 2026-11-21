@@ -256,12 +256,66 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # Only when the publishes and the end-to-end tests on both architectures passed, and so the build job, which the
-  # publishes need: a job's own `if` without always() or failure() also requires every job it needs (and each leg of a
-  # matrix) to have succeeded.
+  # The exe exactly as released, from the publish job, started on each architecture's runner as a user would start it.
+  # ReleasedExeTests (tests\Mp3PlayerSync.EndToEnd) checks that it extracts and shows its window and the player page,
+  # fetches its tools, hands a second launch over and closes with exit code 0. It uses the real %LOCALAPPDATA% and takes
+  # the foreground, which a CI VM can spare and a person's PC can't (TEST-1).
+  smoke:
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # This fetches the git tags, which the version is based on.
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Read-only: the build job keeps x64's current, and the e2e job Arm64's.
+      - name: Restore NuGet package cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('global.json', '**/*.csproj', '**/Directory.*.props', '**/Directory.*.targets') }}
+          restore-keys: nuget-${{ runner.os }}-${{ runner.arch }}-
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: MP3-Player-Sync-${{ matrix.arch }}
+
+      - name: Smoke test the released exe
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force logs | Out-Null
+          dotnet run --project tests\Mp3PlayerSync.EndToEnd -c Release -- --only ReleasedExe --app "$PWD\MP3-Player-Sync-${{ matrix.arch }}.exe" `
+              --desktop Current --results-directory "$PWD\logs\TestResults" --screenshots "$PWD\logs\screenshots" *>&1 | Tee-Object logs\smoke.log
+          exit $LASTEXITCODE
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: smoke-${{ matrix.arch }}
+          path: logs
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Only when the publishes, the end-to-end tests and the released exes' smoke tests on both architectures passed, and
+  # so the build job, which the publishes need: a job's own `if` without always() or failure() also requires every job
+  # it needs (and each leg of a matrix) to have succeeded.
   release:
     if: github.ref_type == 'tag'
-    needs: [publish, e2e]
+    needs: [publish, e2e, smoke]
     runs-on: ubuntu-latest
     permissions:
       contents: write
