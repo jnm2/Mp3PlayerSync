@@ -59,12 +59,16 @@ public sealed class RunContext : IAsyncInitializer, IAsyncDisposable
         Mock = await MockExportifyServer.StartAsync(Console.WriteLine);
     }
 
-    /// <summary>How to start the app against the mock, with <paramref name="query"/>'s test switches, such as <c>?autoSignIn</c>.</summary>
-    public HostLaunch Launch(string query = "") => new(
-        DataDirectory,
-        new Uri(Mock.Url, query),
+    /// <summary>
+    /// How to start the app against the mock, or against <paramref name="mock"/>, with <paramref name="query"/>'s test
+    /// switches, such as <c>?autoSignIn</c>.
+    /// </summary>
+    public HostLaunch Launch(string query = "", MockExportifyServer? mock = null)
+    {
+        var url = (mock ?? Mock).Url;
         // The mock's fake Spotify sign-in page, on another origin like accounts.spotify.com
-        new UriBuilder(Mock.Url) { Host = "127.0.0.1" }.Uri);
+        return new(DataDirectory, new Uri(url, query), new UriBuilder(url) { Host = "127.0.0.1" }.Uri);
+    }
 
     /// <summary>Starts the app against the mock and waits for its window; it's closed with the run, if not before.</summary>
     public Task<AppUnderTest> StartAppAsync(string query = "", CancellationToken cancellationToken = default) =>
