@@ -14,7 +14,11 @@ namespace Mp3PlayerSync.E2EHost;
 /// batch, so a test can see progress that would otherwise be over in a moment.
 /// </param>
 /// <param name="recorder">Writes down the songs it's asked to look for in the background, if a test asked for it.</param>
-internal sealed class FakeTrackFinder(string audioPath, string? holdFile = null, TrackRecorder? recorder = null) : ITrackFinder
+/// <param name="coverArtSite">
+/// Where each match's cover is, as YouTube's thumbnails are for a real match: the mock Exportify, which draws one per
+/// video. Without it, matches have no cover.
+/// </param>
+internal sealed class FakeTrackFinder(string audioPath, string? holdFile = null, TrackRecorder? recorder = null, Uri? coverArtSite = null) : ITrackFinder
 {
     public const int HeldAfter = 10;
     private static readonly YouTubeFormat Aac = new("140", "m4a", "mp4a.40.2", "none", 129, 44100, "https", "medium", null, false);
@@ -177,7 +181,10 @@ internal sealed class FakeTrackFinder(string audioPath, string? holdFile = null,
             }
 
             File.Copy(audioPath, request.DestinationPath, overwrite: true);
-            results.Add(new(request, Aac, null, null));
+            results.Add(new(request, Aac, null, null)
+            {
+                CoverArtUrl = coverArtSite is null ? null : new Uri(coverArtSite, "album-cover/" + Uri.EscapeDataString(request.Resolution.Video?.VideoId ?? track.Title) + ".png").AbsoluteUri,
+            });
         }
         return results;
     }
