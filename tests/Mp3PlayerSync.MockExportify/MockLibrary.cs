@@ -32,6 +32,9 @@ internal abstract class MockLibrary
 
     protected abstract MockTrack Track(string listId, int index);
 
+    /// <summary>A list's track at <paramref name="index"/>, as its export has it.</summary>
+    public MockTrack TrackAt(string listId, int index) => Track(listId, index);
+
     protected abstract DateTimeOffset AddedAt(MockPlaylist playlist, int index);
 
     /// <summary>
@@ -80,7 +83,10 @@ internal abstract class MockLibrary
 
     public static MockLibrary Test { get; } = new TestLibrary();
 
-    public static MockLibrary LoadDemo(string jsonPath) =>
+    /// <summary>The made-up library in DemoLibrary.json, beside the mock.</summary>
+    public static MockLibrary LoadDemo() => LoadDemo(Path.Combine(AppContext.BaseDirectory, "DemoLibrary.json"));
+
+    private static MockLibrary LoadDemo(string jsonPath) =>
         new DemoLibrary(JsonSerializer.Deserialize<DemoLibraryFile>(File.ReadAllText(jsonPath), new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidDataException($"{jsonPath} is empty."));
 
@@ -146,7 +152,7 @@ internal abstract class MockLibrary
 
     /// <summary>
     /// The made-up library in DemoLibrary.json. Track i of a list has title (seed + 5i) and artist (seed + 7i), where
-    /// seed is a hash of the list's ID, as tests\Update-ReadmeScreenshots.ps1 works out too.
+    /// seed is a hash of the list's ID.
     /// </summary>
     private sealed class DemoLibrary(DemoLibraryFile file) : MockLibrary
     {

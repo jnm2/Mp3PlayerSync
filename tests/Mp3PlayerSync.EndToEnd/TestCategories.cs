@@ -30,6 +30,12 @@ public static class TestCategories
     /// </summary>
     public const string Live = nameof(Live);
 
+    /// <summary>
+    /// Regenerates the README's screenshots in docs\images from the mock's demo library. It's explicit, so it runs only when
+    /// asked for with <c>--only ReadmeScreenshots</c>, never as part of the other runs.
+    /// </summary>
+    public const string ReadmeScreenshots = nameof(ReadmeScreenshots);
+
     public static IReadOnlyList<string> All { get; } =
         typeof(TestCategories).GetFields().Where(f => f.IsLiteral).Select(f => (string)f.GetRawConstantValue()!).ToArray();
 }

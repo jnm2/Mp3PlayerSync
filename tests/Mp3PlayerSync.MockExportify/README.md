@@ -72,5 +72,6 @@ three saved albums. Playlists 5 and 14 have album covers, so they look like albu
 has a mosaic and Playlist 10 an uploaded cover. Every export comes with a warning (HTTP 403), which the app should
 pass on in its own words.
 
-With `--demo`, the mock lists the made-up library in `DemoLibrary.json` instead, with drawn covers
-(`/demo-cover/<id>.png`, from `DemoCovers.cs`), for the README's screenshots (`tests\Update-ReadmeScreenshots.ps1`).
+With `--demo`, or started in a test's process with `MockExportifyServer.StartDemoAsync`, the mock lists the made-up
+library in `DemoLibrary.json` instead, with drawn covers (`/demo-cover/<id>.png`, from `DemoCovers.cs`), for the
+README's screenshots (`ReadmeScreenshots` in `tests\Mp3PlayerSync.EndToEnd`).
