@@ -1,7 +1,7 @@
 # Mock Exportify
 
 This is the stand-in for exportify.net, and for Spotify's sign-in page, that the end-to-end tests
-(`tests\Test-MockEndToEnd.ps1`) run the app against. It is written from scratch for those tests. It doesn't copy
+(`tests\Mp3PlayerSync.EndToEnd`) run the app against. It is written from scratch for those tests. It doesn't copy
 or imitate exportify.net's code, markup or styles, and it loads nothing from the internet. It only provides what the
 app's bridge (`src\Mp3PlayerSync\ExportifyBridge.js`), the app's navigation rules (`ExportifyHost.cs`) and the tests
 rely on, which is listed below so that the next person knows why each piece exists. Anything not on this list can go.

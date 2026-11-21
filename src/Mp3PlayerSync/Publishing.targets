@@ -1,6 +1,6 @@
 <Project>
   <!-- How the released exe is published (dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true), shared with
-       the end-to-end tests' host (tests\Test-PublishedExe.ps1) so they can test the app as it's trimmed. -->
+       the end-to-end tests' host (tests\Mp3PlayerSync.E2EHost) so they can test the app as it's trimmed. -->
   <PropertyGroup>
     <!-- ReadyToRun would add 9 MB to the 37 MB exe for about half a second off each start. -->
     <PublishReadyToRun>False</PublishReadyToRun>
