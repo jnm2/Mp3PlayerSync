@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The made-up library the mock lists with its demo switch, which tests\Update-ReadmeScreenshots.ps1 also reads -->
+    <!-- The made-up library the mock lists with its demo switch, for the README's screenshots -->
     <Content Include="DemoLibrary.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

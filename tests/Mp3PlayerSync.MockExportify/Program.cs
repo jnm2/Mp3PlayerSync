@@ -8,7 +8,7 @@ var library = MockLibrary.Test;
 for (var i = 0; i < args.Length; i++)
 {
     if (args[i] is "--port" && i + 1 < args.Length && int.TryParse(args[++i], out var chosen) && chosen >= 0) port = chosen;
-    else if (args[i] is "--demo") library = MockLibrary.LoadDemo(Path.Combine(AppContext.BaseDirectory, "DemoLibrary.json"));
+    else if (args[i] is "--demo") library = MockLibrary.LoadDemo();
     else
     {
         Console.Error.WriteLine("Usage: Mp3PlayerSync.MockExportify [--port <port, or 0 for a free one>] [--demo]");

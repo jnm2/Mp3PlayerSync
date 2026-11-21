@@ -70,6 +70,20 @@ public sealed partial class MockExportifyServer : IAsyncDisposable
     public static Task<MockExportifyServer> StartAsync(Action<string> log) => StartAsync(MockLibrary.Test, 0, log);
 
     /// <summary>
+    /// Starts serving the made-up library in DemoLibrary.json on a free port, for the README's screenshots, which a test in
+    /// the same process takes. <paramref name="log"/> hears of each request that failed.
+    /// </summary>
+    public static Task<MockExportifyServer> StartDemoAsync(Action<string> log) => StartAsync(MockLibrary.LoadDemo(), 0, log);
+
+    /// <summary>The playlist with <paramref name="id"/>: its name, how many tracks it has, and how many of those were added since it was last synced.</summary>
+    public (string Name, int Total, int NewSinceLastSync) Playlist(string id) =>
+        library.Playlists.Single(p => p.Id == id) is var playlist ? (playlist.Name, playlist.Total, playlist.NewSinceLastSync) : default;
+
+    /// <summary>The title and first artist of a list's track at <paramref name="index"/>, as its export has them.</summary>
+    public (string Title, string Artist) Track(string listId, int index) =>
+        library.TrackAt(listId, index) is var track ? (track.Name, track.Artists[0]) : default;
+
+    /// <summary>
     /// Starts serving <paramref name="library"/> on <paramref name="port"/>, or on a free port when it's 0.
     /// <paramref name="log"/> hears of each request that failed.
     /// </summary>
