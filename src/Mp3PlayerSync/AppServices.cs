@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Mp3PlayerSync.Core;
 using Mp3PlayerSync.Core.Download;
 using Mp3PlayerSync.Core.Sync;
+using Mp3PlayerSync.Core.Tagging;
 
 namespace Mp3PlayerSync;
 
@@ -19,6 +20,12 @@ public sealed class AppServices
 
     /// <summary>The origins of Spotify's sign-in, consent and verification pages.</summary>
     public IReadOnlyList<string> SpotifySignInOrigins { get; init; } = (string[])["https://accounts.spotify.com", "https://challenge.spotify.com"];
+
+    /// <summary>
+    /// The origins cover art may be downloaded from: Spotify's image CDN and YouTube's (see
+    /// <see cref="HttpAlbumArtFetcher.DefaultOrigins"/>), and always Google's image hosts.
+    /// </summary>
+    public IReadOnlyList<string> CoverArtOrigins { get; init; } = HttpAlbumArtFetcher.DefaultOrigins;
 
     /// <summary>Finds and downloads songs, given the YouTube Music downloader.</summary>
     public Func<YouTubeMusicDownloader, ITrackFinder> CreateTrackFinder { get; init; } = downloader => new YouTubeTrackFinder(downloader);
