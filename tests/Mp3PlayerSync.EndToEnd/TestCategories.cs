@@ -36,6 +36,12 @@ public static class TestCategories
     /// </summary>
     public const string ReadmeScreenshots = nameof(ReadmeScreenshots);
 
+    /// <summary>
+    /// The exe exactly as released, given with <c>--app</c>. It's explicit and runs only on CI's VMs (TEST-1), since it
+    /// uses the real data folder and takes the foreground.
+    /// </summary>
+    public const string ReleasedExe = nameof(ReleasedExe);
+
     public static IReadOnlyList<string> All { get; } =
         typeof(TestCategories).GetFields().Where(f => f.IsLiteral).Select(f => (string)f.GetRawConstantValue()!).ToArray();
 }
