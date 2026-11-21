@@ -25,6 +25,12 @@ public sealed record HostLaunch(string DataDirectory, Uri? ExportifyUrl, Uri? Sp
     /// </summary>
     public string? RecordTracksTo { get; init; }
 
+    /// <summary>
+    /// Whether the app fetches yt-dlp and Deno from GitHub as it starts, as the released app does. Only the test of that
+    /// does: GitHub allows only 60 such requests an hour from one address without signing in, fewer than a run's launches.
+    /// </summary>
+    public bool FetchTools { get; init; }
+
     /// <summary>The test host to run.</summary>
     public string AppPath { get; init; } = Locations.AppPath;
 
@@ -44,5 +50,6 @@ public sealed record HostLaunch(string DataDirectory, Uri? ExportifyUrl, Uri? Sp
         ["MP3PLAYERSYNC_TEST_FAKE_AUDIO"] = FakeAudio,
         ["MP3PLAYERSYNC_TEST_DRIVES"] = TestDrives ?? "",
         ["MP3PLAYERSYNC_TEST_RECORD_TRACKS"] = RecordTracksTo ?? "",
+        ["MP3PLAYERSYNC_TEST_FETCH_TOOLS"] = FetchTools ? "1" : "",
     };
 }

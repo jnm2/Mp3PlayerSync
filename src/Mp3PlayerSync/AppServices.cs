@@ -29,6 +29,12 @@ public sealed class AppServices
     /// <summary>Where a drive's files are: its root folder.</summary>
     public Func<DriveCandidate, string> DriveFolder { get; init; } = drive => drive.RootPath;
 
+    /// <summary>
+    /// Whether to fetch the latest yt-dlp and Deno from GitHub when the app starts and when the player is changed, so they're
+    /// ready before the first sync.
+    /// </summary>
+    public bool UpdateToolsInBackground { get; init; } = true;
+
     /// <summary>How many YouTube lookups and downloads run at once, from this PC's processors and free memory.</summary>
     public DownloadConcurrency DownloadConcurrency { get; init; } = DownloadConcurrency.For(
         Environment.ProcessorCount,
