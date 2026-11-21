@@ -148,6 +148,16 @@ public static partial class AppSteps
         await app.UntilAsync(() => mock.CountRequests(requestPattern) > before, $"{what} to ask Spotify again");
     }
 
+    /// <summary>
+    /// A tool's exe, matching <paramref name="exe"/>, in its version folder (<c>v…</c>) under the app's
+    /// <paramref name="tools"/> folder, or null while there's none. The app moves each version into place only once it's
+    /// complete. yt-dlp's exe is named after the architecture, such as <c>yt-dlp_arm64.exe</c>, except on x64.
+    /// </summary>
+    public static string? Tool(string tools, string folder, string exe) =>
+        Directory.Exists(Path.Combine(tools, folder))
+            ? Directory.GetDirectories(Path.Combine(tools, folder), "v*").SelectMany(v => Directory.GetFiles(v, exe)).FirstOrDefault()
+            : null;
+
     /// <summary>TEXT-1: a page mentions neither the browser nor Exportify.</summary>
     public static void CheckNoBrowserText(this AppUnderTest app, Checks checks, string page)
     {
