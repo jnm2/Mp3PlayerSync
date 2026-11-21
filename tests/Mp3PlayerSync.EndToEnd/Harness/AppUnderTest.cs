@@ -96,32 +96,37 @@ public sealed class AppUnderTest : IAsyncDisposable
         return null;
     }
 
+    /// <summary>The documents UI Automation reaches in the window's WebView2, which can include one the page just left.</summary>
+    private List<AutomationElement> WebDocuments() =>
+        [.. NativeWindows.Children(Window.Properties.NativeWindowHandle.Value, "InputSiteWindowClass")
+            .SelectMany(inputSite => automation.FromHandle(inputSite).FindAllDescendants(c => c.ByControlType(ControlType.Document)))];
+
     /// <summary>Notes whether the window shows Exportify's own page now (see <see cref="SawExportifyPage"/>).</summary>
     public void Watch()
     {
         if (SawExportifyPage || Process.HasExited) return;
         try
         {
-            // The sign-in view is asked about again after the page is found: the page is found through the WebView's window
-            // even while the view is hidden, and the app hides the view as soon as the page starts back to Exportify, which can
-            // happen between one question and the next.
-            if (ShowsSignInView() && FindWebPage("Exportify (mock)") is not null && ShowsSignInView())
-            {
-                SawExportifyPage = true;
-                // What showed, to tell a page on screen from one UI Automation reached in a hidden view
-                var pane = Window.FindFirstDescendant(c => c.ByControlType(ControlType.Pane).And(c.ByName("Spotify sign-in")));
-                Console.WriteLine($"  Exportify's own page in the sign-in view at {DateTime.Now:HH:mm:ss.fff}: the view's web page is at {pane?.BoundingRectangle}, " +
-                    $"off-screen {pane?.Properties.IsOffscreen.ValueOrDefault}, with the sign-in button {(FindById("SignInPromptButton") is null ? "not " : "")}showing. " +
-                    $"The window showed: {TryReadAllText()}");
-                WindowPictures.SaveScreenshot(this, "exportify-page");
-            }
+            if (!ShowsSignInView()) return;
+            // UI Automation can still hold the document of a page the WebView just left, such as Exportify's when it goes on to
+            // Spotify's sign-in on another site. So Exportify's page counts as shown only when it has a size and no other page
+            // does, and the sign-in view is asked about again afterwards, since the app hides it as soon as the page starts
+            // back to Exportify, which can happen between one question and the next.
+            var shown = WebDocuments().Where(d => d.BoundingRectangle is { IsEmpty: false } && !d.Properties.IsOffscreen.ValueOrDefault).ToList();
+            if (shown.Count == 0 || shown.Any(d => d.Properties.Name.ValueOrDefault != "Exportify (mock)") || !ShowsSignInView()) return;
+
+            SawExportifyPage = true;
+            // What showed, to tell a page on screen from one UI Automation only seems to show
+            var documents = WebDocuments().Select(d => $"'{d.Properties.Name.ValueOrDefault}' at {d.BoundingRectangle}{(d.Properties.IsOffscreen.ValueOrDefault ? " off-screen" : "")}");
+            Console.WriteLine($"  Exportify's own page in the sign-in view at {DateTime.Now:HH:mm:ss.fff}. The web pages: {string.Join(", ", documents)}. " +
+                $"The window showed: {TryReadAllText()}");
+            WindowPictures.SaveScreenshot(this, "exportify-page");
         }
         catch (Exception exception) when (exception is FlaUI.Core.Exceptions.ElementNotAvailableException or System.Runtime.InteropServices.COMException or TimeoutException)
         {
             // The window is closing or busy; the next look will tell.
         }
     }
-
     /// <summary>
     /// Whether the sign-in view shows, with its web page. UI Automation can still list a view that was just collapsed, with
     /// no size, so the title and the page must have one.
