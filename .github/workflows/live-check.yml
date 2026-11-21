@@ -51,7 +51,7 @@ jobs:
           key: nuget-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('global.json', '**/*.csproj', '**/Directory.*.props', '**/Directory.*.targets') }}
           restore-keys: nuget-${{ runner.os }}-${{ runner.arch }}-
 
-      # The test host trimmed as the app is released, as tests\Test-PublishedExe.ps1 publishes it. The app's XAML is in
+      # The test host trimmed as the app is released, as the build workflow's end-to-end job publishes it. The app's XAML is in
       # Mp3PlayerSync.pri, which Windows only looks for beside Mp3PlayerSync.exe, while resources.pri is found beside
       # any exe.
       - name: Publish the trimmed test host

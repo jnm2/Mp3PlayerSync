@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 namespace Mp3PlayerSync.EndToEnd.Launcher;
 
 /// <summary>
-/// One of a few machine-wide slots for an end-to-end run, shared with tests\Invoke-EndToEnd.ps1: runs go in parallel,
+/// One of a few machine-wide slots for an end-to-end run, shared by every launcher on the machine: runs go in parallel,
 /// but only so many at once, or they starve each other of CPU and time out.
 /// </summary>
 /// <remarks>
@@ -125,7 +125,7 @@ internal sealed class SlotQueue : IDisposable
 
     private static void Write(string path, QueueEntry entry) => File.WriteAllText(path, JsonSerializer.Serialize(entry, Json));
 
-    // As Invoke-EndToEnd.ps1 writes them: {"pid":…,"since":"…","from":"…","only":"…","running":…}
+    // As JSON: {"pid":…,"since":"…","from":"…","only":"…","running":…}
     private sealed record QueueEntry(
         [property: JsonPropertyName("pid")] int Pid,
         [property: JsonPropertyName("since")] DateTime Since,

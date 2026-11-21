@@ -3,7 +3,7 @@
 First read the repository's [AGENTS.md](../../AGENTS.md) and
 [settled design decisions](../../docs/design-decisions.md). They take precedence over this file: in particular, the
 app must never take focus from the user's desktop, so run and inspect it only on the hidden test desktop
-(`tests\Invoke-EndToEnd.ps1`, never with `-Desktop Current`), not with `dotnet run`, `winapp run` or `winapp ui` on the
+(`dotnet run --project tests\Mp3PlayerSync.EndToEnd`, never with `--desktop Current`), not with `dotnet run`, `winapp run` or `winapp ui` on the
 user's desktop.
 
 This is a WinUI 3 app built with the

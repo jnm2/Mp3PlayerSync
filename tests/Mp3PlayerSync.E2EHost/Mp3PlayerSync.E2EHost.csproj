@@ -14,6 +14,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Mp3PlayerSync\Mp3PlayerSync.csproj" />
   </ItemGroup>
-  <!-- Published like the app by Test-PublishedExe.ps1, to test it as it's trimmed -->
+  <!-- Published like the app for CI's end-to-end tests and the live check, to test it as it's trimmed -->
   <Import Project="..\..\src\Mp3PlayerSync\Publishing.targets" />
 </Project>
