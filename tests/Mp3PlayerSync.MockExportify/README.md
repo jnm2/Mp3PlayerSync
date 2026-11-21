@@ -49,6 +49,12 @@ The home page (`/`, whatever its query) is what the app loads as Exportify.
   from the sign-in open outside the app.
 - With `?auto`, it signs in by itself after a moment, standing in for the user, unless a test holds it (see below).
 
+## Covers
+
+`/album-cover/<name>.png` draws a made-up 640×640 PNG cover. The test host's fake YouTube Music gives each match one,
+standing in for YouTube's thumbnails. It's bigger than the app embeds, and not a JPEG, so the app's cover art goes
+through fetching and converting as it does for a real match (TAG-3).
+
 ## What the tests control
 
 - `?autoSignIn` on the home page makes its sign-in button go to `/sign-in?auto`.
@@ -61,7 +67,8 @@ The home page (`/`, whatever its query) is what the app loads as Exportify.
 - `POST /sign-in-hold` with `hold` keeps the automatic sign-in waiting until the test has seen the sign-in screen,
   and `release` lets it go on.
 - `GET /requests` lists what the app has asked the mock for, such as `token`, `sign-in page` or `export roadtrip`,
-  so the tests can tell when the app renewed its token, loaded the sign-in page or exported a list again.
+  so the tests can tell when the app renewed its token, loaded the sign-in page or exported a list again, and
+  `album cover` for each cover it fetched.
 
 ## The libraries
 

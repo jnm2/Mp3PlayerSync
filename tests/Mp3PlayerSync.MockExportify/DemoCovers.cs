@@ -5,8 +5,8 @@ using System.Drawing.Imaging;
 namespace Mp3PlayerSync.MockExportify;
 
 /// <summary>
-/// Made-up playlist covers for the demo library (the mock's <c>--demo</c>): a gradient with soft circles, the same
-/// for the same name.
+/// Made-up covers: for the demo library's playlists (the mock's <c>--demo</c>), and for the albums of every library's
+/// tracks. A gradient with soft circles, the same for the same name.
 /// </summary>
 internal static class DemoCovers
 {
@@ -17,7 +17,7 @@ internal static class DemoCovers
         ["#556270", "#FF6B6B"], ["#1D976C", "#93F9B9"],
     ];
 
-    public static byte[] Draw(string name)
+    public static byte[] Draw(string name, int size = 300)
     {
         var hash = 7u;
         foreach (var c in name) hash = unchecked(hash * 31 + c);
@@ -26,7 +26,6 @@ internal static class DemoCovers
         var from = ColorTranslator.FromHtml(palette[0]);
         var to = ColorTranslator.FromHtml(palette[1]);
 
-        const int size = 300;
         using var bitmap = new Bitmap(size, size);
         using var graphics = Graphics.FromImage(bitmap);
         graphics.SmoothingMode = SmoothingMode.AntiAlias;

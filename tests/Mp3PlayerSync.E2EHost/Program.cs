@@ -43,7 +43,9 @@ public static class Program
             DataDirectory = dataDirectory,
             ExportifyUri = mockExportify is null ? defaults.ExportifyUri : new Uri(mockExportify),
             SpotifySignInOrigins = mockSpotifyAccounts is null ? defaults.SpotifySignInOrigins : (string[])[mockSpotifyAccounts],
-            CreateTrackFinder = _ => new FakeTrackFinder(fakeAudio, Path.Combine(dataDirectory, "HoldFinding.txt"), recorder),
+            // The fake YouTube Music's matches have their covers on the mock, so the app's own fetching and converting runs on them.
+            CoverArtOrigins = mockExportify is null ? defaults.CoverArtOrigins : (string[])[.. defaults.CoverArtOrigins, new Uri(mockExportify).GetLeftPart(UriPartial.Authority)],
+            CreateTrackFinder = _ => new FakeTrackFinder(fakeAudio, Path.Combine(dataDirectory, "HoldFinding.txt"), recorder, mockExportify is null ? null : new Uri(new Uri(mockExportify), "/")),
             GetDrives = testDrives is null ? defaults.GetDrives : testDrives.List,
             DriveFolder = testDrives is null ? defaults.DriveFolder : testDrives.FolderOf,
             ShowWindow = window =>

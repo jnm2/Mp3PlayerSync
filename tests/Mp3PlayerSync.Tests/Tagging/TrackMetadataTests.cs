@@ -182,6 +182,18 @@ public class HttpAlbumArtFetcherTests
     }
 
     [Test]
+    public async Task Fetches_only_from_the_origins_it_is_given()
+    {
+        var handler = new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(PngBytes) });
+        var fetcher = new HttpAlbumArtFetcher(new HttpClient(handler), origins: ["http://localhost:5178"]);
+
+        (await fetcher.FetchAsync("http://localhost:5178/album-cover/a.png")).ShouldNotBeNull();
+        (await fetcher.FetchAsync("https://i.scdn.co/image/abc")).ShouldBeNull();
+
+        handler.Requests.ShouldBe([new Uri("http://localhost:5178/album-cover/a.png")]);
+    }
+
+    [Test]
     public async Task Failures_return_null_and_are_retried()
     {
         var calls = 0;
