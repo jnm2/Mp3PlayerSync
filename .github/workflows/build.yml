@@ -149,7 +149,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # The end-to-end tests (tests\Invoke-EndToEnd.ps1) against the app trimmed as released, through the tests' host,
+  # The end-to-end tests (tests\Mp3PlayerSync.EndToEnd) against the app trimmed as released, through the tests' host,
   # the mock Exportify standing in for Spotify and the host's fakes for YouTube Music, on each architecture. A CI VM
   # has nobody to disturb, so they run on its own desktop. They're the longest job and build what they test themselves,
   # so they start straight away rather than after the build job.
@@ -218,25 +218,28 @@ jobs:
           $summary
           $summary >> $env:GITHUB_STEP_SUMMARY
 
+      # The test host, trimmed with the app's own publish settings (src\Mp3PlayerSync\Publishing.targets), so the tests
+      # find what trimming breaks. It bundles the Windows App SDK, which x64 runners don't have installed. The release exe
+      # itself is the publish job's. The app's XAML is in Mp3PlayerSync.pri, which Windows only looks for beside
+      # Mp3PlayerSync.exe, while resources.pri is found beside any exe.
+      - name: Publish the trimmed test host
+        shell: pwsh
+        run: |
+          dotnet publish tests\Mp3PlayerSync.E2EHost\Mp3PlayerSync.E2EHost.csproj -c Release -r win-${{ matrix.arch }} -o "$env:RUNNER_TEMP\e2e-host" `
+              -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -bl:logs\publish-e2e-host-${{ matrix.arch }}.binlog
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item "$env:RUNNER_TEMP\e2e-host\Mp3PlayerSync.pri" "$env:RUNNER_TEMP\e2e-host\resources.pri"
+
+      # Every run but the explicit ones (the live check and the README's screenshots). CI doubles every wait, so the tests
+      # get twice as long in all too. TUnit writes its own job summary.
       - name: End-to-end tests
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force logs\screenshots | Out-Null
-          tests\Test-PublishedExe.ps1 -Runtime win-${{ matrix.arch }} -Desktop Current -ScreenshotFolder "$PWD\logs\screenshots" -BinlogFolder logs -HostFolder "$env:RUNNER_TEMP\e2e-host" *>&1 | Tee-Object logs\e2e.log
+          dotnet run --project tests\Mp3PlayerSync.EndToEnd -c Release -- --app "$env:RUNNER_TEMP\e2e-host\Mp3PlayerSync.E2EHost.exe" --desktop Current `
+              --timeout-minutes 30 --results-directory "$PWD\logs\TestResults" --screenshots "$PWD\logs\screenshots" *>&1 | Tee-Object logs\e2e.log
           exit $LASTEXITCODE
 
-      # The C# end-to-end tests (tests\Mp3PlayerSync.EndToEnd), every run of which the PowerShell ones above still repeat
-      # until they're retired, against the trimmed test host the step above published. That one brings the Windows App
-      # SDK with it, whereas a host as built needs the SDK's runtime installed, which x64 runners don't have. TUnit writes
-      # its own job summary.
-      - name: End-to-end tests (C#)
-        if: ${{ !cancelled() }}
-        shell: pwsh
-        run: |
-          dotnet run --project tests\Mp3PlayerSync.EndToEnd -c Release -- --app "$env:RUNNER_TEMP\e2e-host\Mp3PlayerSync.E2EHost.exe" --desktop Current --results-directory "$PWD\logs\TestResults" --screenshots "$PWD\logs\screenshots" *>&1 | Tee-Object logs\e2e-csharp.log
-          exit $LASTEXITCODE
-
-      # After the publishes in the tests, which bring the target architecture's runtime packs. Arm64's only: x64's is the
+      # After the test host's publish, which brings the target architecture's runtime packs. Arm64's only: x64's is the
       # build job's.
       - name: Save NuGet package cache
         if: ${{ !cancelled() && matrix.arch == 'arm64' && github.ref == 'refs/heads/main' && steps.nuget-cache.outputs.cache-hit != 'true' }}
