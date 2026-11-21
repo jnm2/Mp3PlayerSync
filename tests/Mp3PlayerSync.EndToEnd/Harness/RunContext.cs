@@ -136,6 +136,16 @@ public sealed class RunContext : IAsyncInitializer, IAsyncDisposable
         await app.CloseAsync(cancellationToken);
     }
 
+    /// <summary>Sets up the player, then starts the app signed in, with the player chosen, and waits for the library.</summary>
+    public async Task<AppUnderTest> SignInAsync(CancellationToken cancellationToken = default)
+    {
+        SetUpPlayer();
+        var app = await StartAppAsync("?autoSignIn", cancellationToken);
+        await app.ChoosePlayerAsync(null, PlayerName);
+        await app.WaitLibraryAsync("40 playlists");
+        return app;
+    }
+
     /// <summary>
     /// Adds the checks that hold for a whole run, then finishes <paramref name="checks"/> (see <see cref="Checks.Finish"/>).
     /// </summary>
