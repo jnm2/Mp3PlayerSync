@@ -238,6 +238,14 @@ public sealed partial class MockExportifyServer : IAsyncDisposable
                 await WriteAsync(response, "text/plain", expire ? "expire" : "wait");
             }
         }
+        else if (AlbumCoverPath().Match(path) is { Success: true } album)
+        {
+            // The covers of the test host's fake YouTube Music matches: bigger than the app embeds, and a PNG, so the app
+            // converts them, as it does YouTube's.
+            Record("album cover");
+            response.ContentType = "image/png";
+            await response.Body.WriteAsync(DemoCovers.Draw(album.Groups[1].Value, 640), context.RequestAborted);
+        }
         else if (DemoCoverPath().Match(path) is { Success: true } cover)
         {
             response.ContentType = "image/png";
@@ -441,4 +449,7 @@ public sealed partial class MockExportifyServer : IAsyncDisposable
 
     [GeneratedRegex(@"^/demo-cover/(.+)\.png$", RegexOptions.IgnoreCase)]
     private static partial Regex DemoCoverPath();
+
+    [GeneratedRegex(@"^/album-cover/(.+)\.png$", RegexOptions.IgnoreCase)]
+    private static partial Regex AlbumCoverPath();
 }
