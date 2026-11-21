@@ -1,7 +1,7 @@
 namespace Mp3PlayerSync.E2EHost;
 
 /// <summary>
-/// Starts MP3 Player Sync for the end-to-end tests (tests\Test-MockEndToEnd.ps1): off-screen and never activated,
+/// Starts MP3 Player Sync for the end-to-end tests (tests\Mp3PlayerSync.EndToEnd): off-screen and never activated,
 /// against the mock Exportify, with its own data folder, and with <see cref="FakeTrackFinder"/> standing in for
 /// YouTube Music. Without the mock's addresses, it runs against the real exportify.net and Spotify, with the
 /// addresses the released app uses.

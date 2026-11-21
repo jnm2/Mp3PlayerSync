@@ -21,31 +21,29 @@ Only the user merges to `main` or creates tags.
 
 ## Running the app and tests
 
-The UI must never take focus from the user's desktop (TEST-1). Run it only through the end-to-end test on a hidden
-desktop, never with `dotnet run` or `winapp run` on the user's desktop.
+The UI must never take focus from the user's desktop (TEST-1). Run it only through the end-to-end tests' launcher, on a
+hidden desktop, never with `dotnet run` or `winapp run` on the user's desktop.
 
 ```powershell
 dotnet build Mp3PlayerSync.slnx
 dotnet test tests\Mp3PlayerSync.Tests
-pwsh tests\Invoke-EndToEnd.ps1
 dotnet run --project tests\Mp3PlayerSync.EndToEnd
 ```
 
-The end-to-end tests are moving from PowerShell (`Invoke-EndToEnd.ps1`) to C# (`tests\Mp3PlayerSync.EndToEnd`, TUnit
-with Shouldly, driven through FlaUI). The C# project is its own launcher: run as above, it runs its tests on a hidden
-desktop, with the same exit codes and pass text as `Invoke-EndToEnd.ps1`. Its `--only` takes run names, and `--help`
-lists its options. The user can also run and debug its tests from Visual Studio's Test Explorer (TEST-3). Debugging runs
-the app on their own desktop, and running without debugging sends the test to the launcher's hidden desktop. Agents
-never do that, and never run them through `dotnet test`, which skips them: agents use only the launcher.
+The end-to-end tests are in `tests\Mp3PlayerSync.EndToEnd` (TUnit with Shouldly, driven through FlaUI). The project is
+its own launcher: run as above, it runs its tests on a hidden desktop. Its `--only` takes run names, such as
+`--only Sync,Browsing`, and `--help` lists its options. The user can also run and debug its tests from Visual Studio's
+Test Explorer (TEST-3). Debugging runs the app on their own desktop, and running without debugging sends the test to the
+launcher's hidden desktop. Agents never do that, and never run them through `dotnet test`, which skips them: agents use
+only the launcher.
 
 The `Live` run (`--only Live`, TEST-4) is the weekly live check on the real exportify.net and Spotify, which
 `.github\workflows\live-check.yml` runs. It's explicit, so it never runs as part of the other runs. Without
 `SPOTIFY_TEST_USERNAME` and `SPOTIFY_TEST_PASSWORD`, it's a dry run that stops at Spotify's sign-in page and reports
-itself as inconclusive.
+itself as inconclusive. The `ReadmeScreenshots` run, also explicit, regenerates the README's pictures in `docs\images`.
 
-Agents never pass `-Desktop Current` to `Invoke-EndToEnd.ps1` (or `Test-PublishedExe.ps1`), or `--desktop Current` to
-the C# launcher, on the user's PC: it runs the app on their own desktop, covering and taking focus from their windows.
-It's for CI, or for a person who runs it on purpose.
+Agents never pass `--desktop Current` to the launcher on the user's PC: it runs the app on their own desktop, covering
+and taking focus from their windows. It's for CI, or for a person who runs it on purpose.
 
 The end-to-end run passes when it prints `All end-to-end checks passed`. It exits with 1 when a check failed, and with 2
 when nothing failed but some checks were INCONCLUSIVE (they couldn't see what they check), which is not a pass.
