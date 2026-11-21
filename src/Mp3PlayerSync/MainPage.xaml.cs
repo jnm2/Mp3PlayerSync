@@ -1359,7 +1359,7 @@ public sealed partial class MainPage : Page
 
     private PlayerSyncer Syncer => syncer ??= new PlayerSyncer(
         Finder,
-        new TrackTagWriter(new HttpAlbumArtFetcher(new HttpClient(), new WindowsAlbumArtConverter(), Traffic)),
+        new TrackTagWriter(new HttpAlbumArtFetcher(new HttpClient(), new WindowsAlbumArtConverter(), Traffic, services.CoverArtOrigins)),
         Path.Combine(services.DataDirectory, "Downloads"))
     {
         IsWriteProtected = DriveProbe.IsWriteProtected,
