@@ -218,17 +218,15 @@ jobs:
           $summary
           $summary >> $env:GITHUB_STEP_SUMMARY
 
-      # The test host, trimmed with the app's own publish settings (src\Mp3PlayerSync\Publishing.targets), so the tests
-      # find what trimming breaks. It bundles the Windows App SDK, which x64 runners don't have installed. The release exe
-      # itself is the publish job's. The app's XAML is in Mp3PlayerSync.pri, which Windows only looks for beside
-      # Mp3PlayerSync.exe, while resources.pri is found beside any exe.
-      - name: Publish the trimmed test host
+      # The test host, published as the app is released (src\Mp3PlayerSync\Publishing.targets): trimmed, as a single
+      # file that bundles the Windows App SDK (which x64 runners don't have installed) and the app's XAML, with the app's
+      # manifest and icon. So the tests find what trimming or the bundle breaks. The release exe itself is the publish
+      # job's.
+      - name: Publish the test host
         shell: pwsh
         run: |
           dotnet publish tests\Mp3PlayerSync.E2EHost\Mp3PlayerSync.E2EHost.csproj -c Release -r win-${{ matrix.arch }} -o "$env:RUNNER_TEMP\e2e-host" `
-              -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -bl:logs\publish-e2e-host-${{ matrix.arch }}.binlog
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          Copy-Item "$env:RUNNER_TEMP\e2e-host\Mp3PlayerSync.pri" "$env:RUNNER_TEMP\e2e-host\resources.pri"
+              -p:PublishSingleFile=true -bl:logs\publish-e2e-host-${{ matrix.arch }}.binlog
 
       # Every run but the explicit ones (the live check and the README's screenshots). CI doubles every wait, so the tests
       # get twice as long in all too. TUnit writes its own job summary.
