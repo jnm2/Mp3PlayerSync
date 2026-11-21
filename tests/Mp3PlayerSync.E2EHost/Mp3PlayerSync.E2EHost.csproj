@@ -10,10 +10,24 @@
     <EnableMsixTooling>false</EnableMsixTooling>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- The app's own manifest (Windows 11, per-monitor DPI) and icon, so the tests run it as it's released -->
+    <ApplicationManifest>..\..\src\Mp3PlayerSync\app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\src\Mp3PlayerSync\Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Mp3PlayerSync\Mp3PlayerSync.csproj" />
+    <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
-  <!-- Published like the app for CI's end-to-end tests and the live check, to test it as it's trimmed -->
+  <!-- Published like the app for CI's end-to-end tests and the live check, to test it as it's released -->
   <Import Project="..\..\src\Mp3PlayerSync\Publishing.targets" />
+  <!-- Published as a single file like the app, with the app's XAML in the bundle: the app builds it into its own
+       resources.pri, which Windows looks for beside the exe, and which only the app's own publish would bundle. -->
+  <Target Name="BundleAppResourcesPri" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(PublishSingleFile)' == 'true'">
+    <ItemGroup>
+      <_AppResourcesPri Include="@(ReferenceCopyLocalPaths->'%(RootDir)%(Directory)resources.pri')" Condition="'%(Filename)%(Extension)' == 'Mp3PlayerSync.dll'" />
+      <ResolvedFileToPublish Include="@(_AppResourcesPri)" RelativePath="resources.pri" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+    <Error Condition="'@(_AppResourcesPri)' == '' Or !Exists('@(_AppResourcesPri)')" Text="The app's resources.pri wasn't found beside its Mp3PlayerSync.dll (@(_AppResourcesPri))." />
+  </Target>
 </Project>
+
