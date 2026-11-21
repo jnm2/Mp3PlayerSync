@@ -225,10 +225,10 @@ jobs:
           tests\Test-PublishedExe.ps1 -Runtime win-${{ matrix.arch }} -Desktop Current -ScreenshotFolder "$PWD\logs\screenshots" -BinlogFolder logs -HostFolder "$env:RUNNER_TEMP\e2e-host" *>&1 | Tee-Object logs\e2e.log
           exit $LASTEXITCODE
 
-      # The C# end-to-end tests (tests\Mp3PlayerSync.EndToEnd), which are taking over from the PowerShell ones: so far
-      # the harness's smoke test and the Session, Restart, Drives and Browsing runs, against the trimmed test host the step
-      # above published. That one brings the Windows App SDK with it, whereas a host as built needs the SDK's runtime
-      # installed, which x64 runners don't have. TUnit writes its own job summary.
+      # The C# end-to-end tests (tests\Mp3PlayerSync.EndToEnd), every run of which the PowerShell ones above still repeat
+      # until they're retired, against the trimmed test host the step above published. That one brings the Windows App
+      # SDK with it, whereas a host as built needs the SDK's runtime installed, which x64 runners don't have. TUnit writes
+      # its own job summary.
       - name: End-to-end tests (C#)
         if: ${{ !cancelled() }}
         shell: pwsh

@@ -15,6 +15,9 @@ public static class TestCategories
     /// <summary>Signing in and looking around: the library, its tabs, a playlist's page at every width, and saved albums.</summary>
     public const string Browsing = nameof(Browsing);
 
+    /// <summary>Syncing a playlist: its choices, removing, cancelling, and settling matches before songs are copied and tagged.</summary>
+    public const string Sync = nameof(Sync);
+
     /// <summary>Starting the app again: a second copy, what it reopens, and changing the player, by folder dialog too.</summary>
     public const string Restart = nameof(Restart);
 
