@@ -62,10 +62,9 @@ dotnet run --project src\Mp3PlayerSync
 ```
 
 Unit tests ([TUnit](https://tunit.dev) and [Shouldly](https://docs.shouldly.org)): `dotnet test tests\Mp3PlayerSync.Tests`.
-End-to-end tests run on a hidden desktop: `dotnet build Mp3PlayerSync.slnx`, then `pwsh tests\Invoke-EndToEnd.ps1`. They
-are moving to C#, in `tests\Mp3PlayerSync.EndToEnd`: run those on a hidden desktop with
-`dotnet run --project tests\Mp3PlayerSync.EndToEnd`, or run and debug them from Visual Studio's Test Explorer. Debugging
-a test runs the app on your own desktop, off-screen, and running one without debugging runs it on a hidden desktop. The
+End-to-end tests run on a hidden desktop: `dotnet build Mp3PlayerSync.slnx`, then
+`dotnet run --project tests\Mp3PlayerSync.EndToEnd` (`--help` lists its options). You can also run and debug them from
+Visual Studio's Test Explorer. Debugging a test runs the app on your own desktop, off-screen, and running one without debugging runs it on a hidden desktop. The
 screenshots above are generated from a made-up library, on a hidden desktop, by
 `dotnet run --project tests\Mp3PlayerSync.EndToEnd -- --only ReadmeScreenshots`. Keep the PC unlocked, with its display
 on, while it runs.
