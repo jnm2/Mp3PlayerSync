@@ -6,8 +6,9 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <!-- Without these, the SDK uses the assembly's name as the company, which shows in each file's Properties. -->
-    <Company>Joseph N. Musser II</Company>
+    <!-- The company is left blank, since the copyright already names the author. The SDK would otherwise fill it in
+         with the authors, or with the assembly's name when there are none, so the attribute is turned off. -->
+    <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <Authors>Joseph N. Musser II</Authors>
     <Copyright>Copyright © 2026 Joseph N. Musser II</Copyright>
   </PropertyGroup>
