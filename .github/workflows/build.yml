@@ -111,18 +111,24 @@ jobs:
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -notmatch '^v(\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?)$') {
               throw "Tag '$env:GITHUB_REF_NAME' isn't a version like v1.2.3 or v1.2.3-beta.1"
           }
+          # The check in the next step compiles meanwhile, so that the step takes a fraction of a second. If this
+          # build fails, the check's own dotnet run builds it again and shows why.
+          $checkBuild = Start-Process dotnet 'build build\CheckReleaseExe.cs -nologo' -NoNewWindow -PassThru `
+              -RedirectStandardOutput "$env:RUNNER_TEMP\check-build.log"
           # Single-file, trimming and the rest come from the .csproj, and the version comes from the git tags (see
           # build\Version.targets). All of the app's files are extracted at first launch (the Windows App SDK's
           # IncludeAllContentForSelfExtract) for its DLL side-by-side redirection.
           dotnet publish src\Mp3PlayerSync\Mp3PlayerSync.csproj -c Release -r win-${{ matrix.arch }} -o publish `
               -p:PublishSingleFile=true -bl:logs\publish-${{ matrix.arch }}.binlog
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          $productVersion = (Get-Item publish\Mp3PlayerSync.exe).VersionInfo.ProductVersion
-          "Version: $productVersion"
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $productVersion -notlike "$($Matches[1])+*") {
-              throw "The exe's version is $productVersion, but the tag's version is $($Matches[1])."
-          }
+          $publishExitCode = $LASTEXITCODE
+          $checkBuild.WaitForExit()
+          if ($publishExitCode) { exit $publishExitCode }
           Move-Item publish\Mp3PlayerSync.exe MP3-Player-Sync-${{ matrix.arch }}.exe
+
+      # Only the files the app needs at run time are in the exe (REL-2), and its version fields are this build's,
+      # exactly the tag's for a release (REL-1). The check reads only the bundle's list of files and the version.
+      - name: Check the exe
+        run: dotnet run --file build\CheckReleaseExe.cs -- MP3-Player-Sync-${{ matrix.arch }}.exe
 
       - uses: actions/upload-artifact@v7
         with:
