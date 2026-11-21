@@ -1,7 +1,8 @@
 // This checks the single-file release exe after it's published. Its bundle has to carry exactly the kinds of files on
 // the allow-list below, with nothing else and nothing missing (REL-2), and its version fields have to be the ones that
-// build\Version.targets gives this build (REL-1). It reads only the bundle's list of files and the exe's version
-// resource, not the files in the bundle, so it takes a fraction of a second. CI's publish job runs it like this:
+// build\Version.targets gives this build (REL-1). Its product name, company and copyright are checked too (TEXT-3 and
+// REL-3). It reads only the bundle's list of files and the exe's version resource, not the files in the bundle, so it
+// takes a fraction of a second. CI's publish job runs it like this:
 //
 //   dotnet run --file build\CheckReleaseExe.cs -- MP3-Player-Sync-x64.exe
 
@@ -84,6 +85,10 @@ if (versionInfo.ProductName != "MP3 Player Sync")
     problems.Add($"The exe's product name is '{versionInfo.ProductName}', but it should be 'MP3 Player Sync' (TEXT-3).");
 if (versionInfo.FileDescription != "MP3 Player Sync")
     problems.Add($"The exe's file description is '{versionInfo.FileDescription}', but it should be 'MP3 Player Sync' (TEXT-3).");
+if (versionInfo.CompanyName != "Joseph N. Musser II")
+    problems.Add($"The exe's company is '{versionInfo.CompanyName}', but it should be 'Joseph N. Musser II' (REL-3).");
+if (versionInfo.LegalCopyright is not { } copyright || !Regex.IsMatch(copyright, @"^Copyright © 2026(–\d{4})? Joseph N\. Musser II$"))
+    problems.Add($"The exe's copyright is '{versionInfo.LegalCopyright}', but it should be 'Copyright © 2026 Joseph N. Musser II', or a range of years from 2026 (REL-3).");
 
 var (versionPattern, expectedVersion, runNumber) = ExpectedVersion();
 var version = versionInfo.ProductVersion ?? "";
