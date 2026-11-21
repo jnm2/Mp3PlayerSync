@@ -89,7 +89,7 @@ public sealed partial class BrowsingTests
     public async Task A_playlist_page_shows_its_songs_with_the_columns_lined_up_at_every_width(CancellationToken cancellationToken)
     {
         var checks = new Checks();
-        var app = await SignInAsync(cancellationToken);
+        var app = await Run.SignInAsync(cancellationToken);
         var libraryHeading = app.HeadingLayout("ChangePlayerButton", "LibraryTitle");
 
         // TEXT-15: one line counts the songs found while they're looked for, then goes away. The fake finder would be done
@@ -199,7 +199,7 @@ public sealed partial class BrowsingTests
     public async Task Saved_albums_list_album_like_playlists_then_saved_albums_whose_pages_leave_out_the_album(CancellationToken cancellationToken)
     {
         var checks = new Checks();
-        var app = await SignInAsync(cancellationToken);
+        var app = await Run.SignInAsync(cancellationToken);
         await app.SelectFilterAsync("Saved playlists");
         await app.WaitLibraryAsync("19 playlists");
 
@@ -248,16 +248,6 @@ public sealed partial class BrowsingTests
 
         await app.CloseAsync(cancellationToken);
         Run.Finish(checks);
-    }
-
-    /// <summary>Starts the app signed in, with the player chosen, and waits for the library.</summary>
-    private async Task<AppUnderTest> SignInAsync(CancellationToken cancellationToken)
-    {
-        Run.SetUpPlayer();
-        var app = await Run.StartAppAsync("?autoSignIn", cancellationToken);
-        await app.ChoosePlayerAsync(null, RunContext.PlayerName);
-        await app.WaitLibraryAsync("40 playlists");
-        return app;
     }
 
     private static async Task OpenThenGoBackAsync(AppUnderTest app, Checks checks, string name, string expectedSummary)
