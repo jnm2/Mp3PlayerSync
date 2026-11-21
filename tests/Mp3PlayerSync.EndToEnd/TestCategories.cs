@@ -12,6 +12,9 @@ public static class TestCategories
     /// <summary>Spotify's session: tokens that run out or are refused, signing out, and the sign-in page's links.</summary>
     public const string Session = nameof(Session);
 
+    /// <summary>Signing in and looking around: the library, its tabs, a playlist's page at every width, and saved albums.</summary>
+    public const string Browsing = nameof(Browsing);
+
     /// <summary>Starting the app again: a second copy, what it reopens, and changing the player, by folder dialog too.</summary>
     public const string Restart = nameof(Restart);
 
