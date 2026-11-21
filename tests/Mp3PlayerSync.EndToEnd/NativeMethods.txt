@@ -39,3 +39,6 @@ EnumWindows
 IsWindowVisible
 BM_CLICK
 SetWindowPos
+GetDpiForWindow
+DwmGetWindowAttribute
+DWMWINDOWATTRIBUTE
