@@ -245,8 +245,8 @@ public sealed partial class SyncTests
         // From GitHub, at startup, as the released app does: the fake YouTube Music never needs them. Each version is moved
         // into place only once it's complete.
         var tools = Path.Combine(Run.DataDirectory, "Tools");
-        var ytDlp = await app.UntilAsync(() => Tool(tools, "yt-dlp-win", "yt-dlp.exe"), "yt-dlp in the data folder", 180);
-        var deno = await app.UntilAsync(() => Tool(tools, "deno", "deno.exe"), "Deno in the data folder", 180);
+        var ytDlp = await app.UntilAsync(() => AppSteps.Tool(tools, "yt-dlp-win", "yt-dlp.exe"), "yt-dlp in the data folder", 180);
+        var deno = await app.UntilAsync(() => AppSteps.Tool(tools, "deno", "deno.exe"), "Deno in the data folder", 180);
         checks.Passed($"The app fetched {Path.GetRelativePath(tools, ytDlp)} and {Path.GetRelativePath(tools, deno)}");
 
         // Asks yt-dlp only for its version, which makes no request to YouTube.
@@ -269,12 +269,6 @@ public sealed partial class SyncTests
         await app.CloseAsync(cancellationToken);
         Run.Finish(checks);
     }
-
-    /// <summary>The tool's exe in its newest complete version folder (<c>v…</c>), or null while there's none.</summary>
-    private static string? Tool(string tools, string folder, string exe) =>
-        Directory.Exists(Path.Combine(tools, folder))
-            ? Directory.GetDirectories(Path.Combine(tools, folder), "v*").Select(v => Path.Combine(v, exe)).FirstOrDefault(File.Exists)
-            : null;
 
     /// <summary>A song's embedded cover, such as "500×500 baseline JPEG", or "no cover".</summary>
     private static string Cover(string file)
