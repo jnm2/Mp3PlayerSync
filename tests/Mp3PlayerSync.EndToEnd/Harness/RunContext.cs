@@ -81,9 +81,12 @@ public sealed class RunContext : IAsyncInitializer, IAsyncDisposable
     /// <summary>A folder in the data folder, for a player or a drive.</summary>
     public string CreateFolder(string name) => Directory.CreateDirectory(Path.Combine(DataDirectory, name)).FullName;
 
+    /// <summary>The app's settings.json.</summary>
+    public string SettingsFile => Path.Combine(DataDirectory, "settings.json");
+
     /// <summary>Writes the app's settings.json, as if it had been used before.</summary>
     public void WriteSettings(object settings) =>
-        File.WriteAllText(Path.Combine(DataDirectory, "settings.json"), JsonSerializer.Serialize(settings, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        File.WriteAllText(SettingsFile, JsonSerializer.Serialize(settings, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
 
     /// <summary>The player's folder (see <see cref="PlayerName"/>).</summary>
     public string PlayerFolder => Path.Combine(DataDirectory, PlayerName);

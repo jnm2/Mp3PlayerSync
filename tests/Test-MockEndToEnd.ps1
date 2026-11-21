@@ -8,10 +8,8 @@
     (Mp3PlayerSync.E2EHost), which runs it off-screen without activating it and puts in the fakes:
       1. Signed out: the sign-in screen appears (Exportify's landing page is skipped), the mock signs in by itself,
          then the library page, selector, playlist and album pages, refresh, and a failed export are checked.
-      2. Restart: the last opened playlist reopens by itself and the selector choice is remembered.
-      5. Player drives with a MUSIC folder: songs sync into it, in a folder of their own.
-    Tokens that run out or are refused, signing out, and the sign-in page's links are checked by the C# tests'
-    Session run (tests\Mp3PlayerSync.EndToEnd\SessionTests.cs).
+    The other runs are C# tests in tests\Mp3PlayerSync.EndToEnd: Session (tokens that run out or are refused, signing
+    out, and the sign-in page's links), Restart (a second copy, what reopens, and changing the player) and Drives.
     Throughout, Exportify's own page is never shown. Also checks that nothing was written to the Downloads folder.
 
     Exits with 0 when every check passed, 1 when any failed, and 2 when none failed but some were inconclusive:
@@ -22,15 +20,14 @@
     Build first: dotnet build Mp3PlayerSync.slnx
 
 .PARAMETER Only
-    Runs just these runs, for example -Only Run2,Run5, in a minute or two. A run whose earlier runs are skipped starts
-    from what they would have left: signed in, with the expected item last opened.
+    Runs just these runs. Run1 is the only one left here; the others are C# tests.
 #>
 param(
     [string] $AppPath = (Get-ChildItem "$PSScriptRoot\Mp3PlayerSync.E2EHost\bin\Debug" -Recurse -Filter Mp3PlayerSync.E2EHost.exe | Select-Object -First 1).FullName,
     # The mock Exportify (tests\Mp3PlayerSync.MockExportify); otherwise the Debug build
     [string] $MockPath = (Get-ChildItem "$PSScriptRoot\Mp3PlayerSync.MockExportify\bin\Debug" -Recurse -Filter Mp3PlayerSync.MockExportify.exe | Select-Object -First 1).FullName,
     [string] $ScreenshotFolder,
-    [ValidateSet('Run1', 'Run2', 'Run5')] [string[]] $Only,
+    [ValidateSet('Run1')] [string[]] $Only,
     # Where Invoke-EndToEnd.ps1 runs this. It watches the user's foreground window itself (TEST-1): from here, on a
     # hidden desktop, GetForegroundWindow always returns NULL.
     [ValidateSet('Hidden', 'Current')] [string] $Desktop = 'Hidden'
@@ -69,23 +66,8 @@ public static class E2EWin32 {
         }, IntPtr.Zero);
         return found;
     }
-    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc callback, IntPtr parameter);
-    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
-    public const uint BM_CLICK = 0xF5, WM_CLOSE = 0x10;
-    public static IntPtr ProcessWindow(uint processId, string className) {
-        var found = IntPtr.Zero;
-        EnumWindows((hwnd, _) => {
-            uint owner;
-            GetWindowThreadProcessId(hwnd, out owner);
-            var name = new System.Text.StringBuilder(256);
-            GetClassName(hwnd, name, name.Capacity);
-            if (owner != processId || name.ToString() != className || !IsWindowVisible(hwnd)) return true;
-            found = hwnd;
-            return false;
-        }, IntPtr.Zero);
-        return found;
-    }
+    public const uint WM_CLOSE = 0x10;
     public struct RECT { public int Left, Top, Right, Bottom; }
 }
 '@
@@ -176,20 +158,6 @@ function Find-Named($root, $type, [string] $name) {
         [System.Windows.Automation.PropertyCondition]::new($AE::ControlTypeProperty, $type),
         [System.Windows.Automation.PropertyCondition]::new($AE::NameProperty, $name))
     $root.FindFirst($TreeScope::Descendants, $conditions)
-}
-
-# Breadth-first through the raw view, which includes what the control view leaves out. $match tests .Current.
-function Find-Raw($root, [scriptblock] $match) {
-    $walker = [System.Windows.Automation.TreeWalker]::RawViewWalker
-    $queue = [System.Collections.Generic.Queue[object]]::new()
-    $queue.Enqueue($root)
-    while ($queue.Count) {
-        $element = $queue.Dequeue()
-        try { if ($element -ne $root -and ($element.Current | Where-Object $match)) { return $element } }
-        catch [System.Windows.Automation.ElementNotAvailableException] { continue }
-        $child = $walker.GetFirstChild($element)
-        while ($child) { $queue.Enqueue($child); $child = $walker.GetNextSibling($child) }
-    }
 }
 
 function Get-Items($list) {
@@ -649,29 +617,6 @@ function Click-Refresh($window, [string] $requestPattern, [string] $what) {
 }
 function Test-Selected([string[]] $names) { -not $Only -or @($names | Where-Object { $Only -contains $_ }).Count -gt 0 }
 
-# Gets to the state that the runs before a selected one leave behind, when they're skipped: signed in, with
-# everything listed, and the given item opened last.
-$lastOpened = $null
-function Prepare-State([string] $lastItem) {
-    if ($script:lastOpened -eq $lastItem) { return }
-    Write-Host "Preparing: signed in, '$lastItem' opened last"
-    $process, $window = Start-App "$($url)?autoSignIn"
-    try {
-        Choose-Player $window
-        # The item opened last reopens by itself; go back to the library from it.
-        Wait-Until { ((Get-Text $window 'LibrarySummaryText') -and !(Find-ById $window 'LibraryBusyText')) -or (Get-Text $window 'PlaylistTitle') } 'the library or the item opened last' 90 | Out-Null
-        if (Get-Text $window 'PlaylistTitle') { Click $window 'BackButton' }
-        Wait-Until { (Get-Text $window 'LibrarySummaryText') -and !(Find-ById $window 'LibraryBusyText') } 'the library' 90 | Out-Null
-        Select-Filter $window 'All'
-        # All of it, saved albums included: they arrive after the playlists, without busy text, and rebuild the grid,
-        # which would drop a click on a tile from before.
-        Wait-Until { (Get-Text $window 'LibrarySummaryText') -eq '64 playlists and albums' -and !(Find-ById $window 'LibraryBusyText') } 'the whole library' 60 | Out-Null
-        Open-LibraryItem $window $lastItem
-        Wait-Until { (Get-Text $window 'SummaryText') -and !(Find-ById $window 'PlaylistBusyText') } "'$lastItem' to load" 60 | Out-Null
-    } finally { Stop-App $process }
-    $script:lastOpened = $lastItem
-}
-
 # Everything this run uses is its own, so runs can go side by side: its data folder (and so the app's settings,
 # WebView2 profile, caches, staging and single-instance key, and the test's player and drive folders), and the mock's port.
 $env:MP3PLAYERSYNC_DATA_DIR = Join-Path ([IO.Path]::GetTempPath()) "Mp3PlayerSyncE2E-$PID-$([Guid]::NewGuid().ToString('N').Substring(0, 8))"
@@ -1095,144 +1040,8 @@ try {
             Stop-App $process
             Invoke-RestMethod "$($url)sign-in-hold" -Method Post -Body 'release' | Out-Null
         }
-        $lastOpened = 'Road Trip, Vol. 2'
     }
 
-    if (Test-Selected 'Run2') {
-        Prepare-State 'Road Trip, Vol. 2'
-        Write-Host 'Run 2: restart while signed in'
-        $process, $window = Start-App $url
-        try {
-            # Only one copy per data folder: launching again hands over to the running copy and exits.
-            $second = Start-Process $AppPath -PassThru
-            $script:appProcesses.Add($second)
-            Check ($second.WaitForExit(30000) -and $second.ExitCode -eq 0) "A second launch on the same data folder exits by itself (exit code $(if ($second.HasExited) { $second.ExitCode } else { 'none, still running' }))"
-            Check (!$process.HasExited -and $null -ne $AE::RootElement.FindFirst($TreeScope::Children, [System.Windows.Automation.PropertyCondition]::new($AE::ProcessIdProperty, $process.Id))) '...and the first copy stays open'
-            # A different data folder, like another test run's, is a separate copy.
-            $otherData = "$env:MP3PLAYERSYNC_DATA_DIR-other"
-            $env:MP3PLAYERSYNC_DATA_DIR, $sharedData = $otherData, $env:MP3PLAYERSYNC_DATA_DIR
-            try { $other, $otherWindow = Start-App $url } finally { $env:MP3PLAYERSYNC_DATA_DIR = $sharedData }
-            Check ($null -ne $otherWindow -and !$other.HasExited) 'A launch on another data folder runs alongside'
-            Stop-App $other
-            # Stop-App forgets the window it closes; the rest of the run watches the first one again.
-            $script:currentWindow = $window
-            Remove-Item $otherData -Recurse -Force -ErrorAction SilentlyContinue
-
-            Choose-Player $window
-            $sawSignIn = $false
-            $signInShown = [ref]$false
-            Wait-Until {
-                if (Find-ById $window 'SignInTitle') { $signInShown.Value = $true }
-                (Get-Text $window 'PlaylistTitle') -eq 'Spotify playlist: Road Trip, Vol. 2'
-            } 'the last opened playlist to reopen' 60 | Out-Null
-            Wait-Contents $window 'Road Trip, Vol. 2 (restored)' '250 tracks, *'
-            Check (!$signInShown.Value) 'Sign-in screen is never shown when already signed in'
-            Click $window 'BackButton'
-            Wait-Library $window '64 playlists and albums' ([ref]$sawSignIn)
-            Check $true 'Selector choice (All) was remembered'
-            $shown = Wait-Text $window 'SelectedPlayerTitle' "Player: Folder ($playerFolder)"
-            Check ($shown -eq "Player: Folder ($playerFolder)") "Library shows the chosen folder: '$shown'"
-            Check ((Get-Text $window 'LibraryTitle') -eq 'Select a playlist to sync') "Library banner: '$(Get-Text $window 'LibraryTitle')'"
-            Click $window 'ChangePlayerButton'
-            Choose-Player $window
-            Wait-Library $window '64 playlists and albums' ([ref]$sawSignIn)
-            Check $true 'Changing the MP3 player returns to the library'
-
-            # "Other folder" opens Windows' folder dialog in the player's folder, where Select Folder picks that folder.
-            Click $window 'ChangePlayerButton'
-            $grid = Wait-Until { Find-ById $window 'PlayerGridView' } 'the MP3 player page'
-            $hwnd = $window.Current.NativeWindowHandle
-            # The dialog is modal, so invoke the tile from another thread in case Invoke waits for it. The app's window
-            # is passed by its handle: the process can have other top-level windows too (see Start-App).
-            $invoke = Start-ThreadJob {
-                Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
-                $AE = [System.Windows.Automation.AutomationElement]; $TS = [System.Windows.Automation.TreeScope]
-                $app = $AE::FromHandle([IntPtr]$using:hwnd)
-                $tile = $app.FindFirst($TS::Descendants, [System.Windows.Automation.AndCondition]::new(
-                    [System.Windows.Automation.PropertyCondition]::new($AE::ControlTypeProperty, [System.Windows.Automation.ControlType]::ListItem),
-                    [System.Windows.Automation.PropertyCondition]::new($AE::NameProperty, 'Other folder')))
-                $tile.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
-            }
-            # Found through Win32: UI Automation searches from the root can time out while the app waits on the dialog.
-            # The thread's errors would otherwise go unseen, leaving only this timeout.
-            $dialog = try { Wait-Until { $h = [E2EWin32]::ProcessWindow([uint32]$process.Id, '#32770'); if ($h -ne [IntPtr]::Zero) { $AE::FromHandle($h) } } 'the folder dialog' 20 }
-                catch { Receive-Job $invoke *>&1 | ForEach-Object { Write-Host "  Invoking 'Other folder': $_" }; throw }
-            # On the test desktop the dialog's Win32 buttons appear as panes without InvokePattern, so the raw view is searched.
-            $selectFolder = Wait-Until { Find-Raw $dialog { $_.ClassName -eq 'Button' -and $_.Name -eq 'Select Folder' } } "the dialog's Select Folder button" 10
-            $address = Wait-Until { (Find-Raw $dialog { $_.Name -like 'Address: *' })?.Current.Name } "the dialog's address bar" 10
-            Check ($address -eq "Address: $playerFolder") "[PLAYER-6] The folder dialog opens in the player's folder: '$address'"
-            $items = Wait-Until { Find-Raw $dialog { $_.Name -eq 'Items View' } } "the dialog's folder contents" 10
-            Check ((Pattern $items ([System.Windows.Automation.SelectionPattern])).Current.GetSelection().Count -eq 0) '[PLAYER-6] Nothing is selected in the folder dialog'
-            Check $selectFolder.Current.IsEnabled '[PLAYER-6] Select Folder is enabled with nothing selected'
-            [E2EWin32]::PostMessage([IntPtr]$selectFolder.Current.NativeWindowHandle, [E2EWin32]::BM_CLICK, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
-            Wait-Library $window '64 playlists and albums' ([ref]$sawSignIn)
-            $invoke | Wait-Job -Timeout 10 | Remove-Job -Force
-            $settings = Get-Content (Join-Path $env:MP3PLAYERSYNC_DATA_DIR 'settings.json') -Raw | ConvertFrom-Json
-            $shown = Wait-Text $window 'SelectedPlayerTitle' "Player: Folder ($playerFolder)"
-            Check ($settings.lastPickedFolder -eq $playerFolder -and $shown -eq "Player: Folder ($playerFolder)") "[PLAYER-6] Select Folder picked the folder shown: '$shown', last picked '$($settings.lastPickedFolder)'"
-            Open-LibraryItem $window 'Big Album'
-            Wait-Contents $window 'Big Album' '*60 tracks, *'
-        } finally { Stop-App $process }
-        $lastOpened = 'Big Album'
-    }
-
-    if (Test-Selected 'Run5') {
-        Prepare-State 'Playlist 5'
-        Write-Host 'Run 5: player drives with a MUSIC folder'
-        # Drives listed as removable, each backed by a folder. Both have an empty MUSIC folder (in its own casing) and a
-        # file of the user's; the old card also has a playlist folder the app synced to its root before.
-        $newCard = Join-Path $env:MP3PLAYERSYNC_DATA_DIR 'E2E Walkman'
-        $oldCard = Join-Path $env:MP3PLAYERSYNC_DATA_DIR 'E2E Old Card'
-        foreach ($card in $newCard, $oldCard) { New-Item -ItemType Directory -Force (Join-Path $card $(if ($card -eq $newCard) { 'Music' } else { 'MUSIC' })) | Out-Null; Set-Content (Join-Path $card 'Notes.txt') 'mine' }
-        New-Item -ItemType Directory -Force (Join-Path $oldCard 'Road Trip') | Out-Null
-        Set-Content (Join-Path $oldCard 'Road Trip\.mp3playersync-playlist.json') '{}'
-        $env:MP3PLAYERSYNC_TEST_DRIVES = ConvertTo-Json -Compress @(
-            @{ root = 'W:\'; label = 'E2E WALKMAN'; bus = 'Usb'; totalBytes = 16GB; freeBytes = 8GB; folder = $newCard },
-            @{ root = 'X:\'; label = 'E2E OLD CARD'; bus = 'SecureDigital'; totalBytes = 16GB; freeBytes = 8GB; folder = $oldCard })
-
-        # Chooses the drive, opens Playlist 5 (six songs, and a playlist, unlike one-song playlists) and syncs it, then returns where its song went, relative to the card.
-        function Sync-To([string] $label, [string] $card) {
-            $process, $window = Start-App $url
-            try {
-                $grid = Wait-Until { Find-ById $window 'PlayerGridView' } 'the MP3 player page'
-                $drive = Wait-Until { Find-ListItem $grid $label } "the $label drive" 10
-                (Pattern $drive ([System.Windows.Automation.InvokePattern])).Invoke()
-                # A newly chosen player may show the library rather than reopen the last playlist.
-                Wait-Until { (Get-Text $window 'PlaylistTitle') -eq 'Spotify playlist: Playlist 5' -or (Find-ById $window 'LibraryGridView') } 'the library or the last opened playlist' 60 | Out-Null
-                if ((Get-Text $window 'PlaylistTitle') -ne 'Spotify playlist: Playlist 5') {
-                    Select-Filter $window 'All'
-                    Open-LibraryItem $window 'Playlist 5'
-                }
-                Wait-Contents $window "Playlist 5 on $label" '6 tracks, *'
-                $syncButton = Find-ById $window 'SyncButton'
-                Wait-Until { $syncButton.Current.IsEnabled } 'the Sync button' 15 | Out-Null
-                (Pattern $syncButton ([System.Windows.Automation.InvokePattern])).Invoke()
-                $synced = Wait-Until { $s = @(Get-ChildItem $card -Recurse -Filter *.m4a -ErrorAction SilentlyContinue); if ($s.Count -eq 6) { $s } } "the six songs on $label" 60
-                Wait-Until { (Get-AllText $window) -match '(?m)^On player$' } 'the synced song to show as on the player' 30 | Out-Null
-                # The sync goes on after the last file is in place (the playlist folder's marker, then the result), and
-                # closing the window before then asks "Stop syncing and close?" (SYNC-10).
-                Wait-Until { (Get-AllText $window) -match 'Synced 6 songs to' } "the sync to $label to finish" 30 | Out-Null
-                Check $true "[PLAYER-7] The scan reads where $label was synced: the synced song is on the player"
-                return @($synced | ForEach-Object { [IO.Path]::GetRelativePath($card, $_.FullName) })
-            } finally { Stop-App $process }
-        }
-
-        try {
-            $synced = Sync-To 'E2E WALKMAN' $newCard
-            Check (@($synced | Where-Object { $_ -notlike 'Music\Playlist 5\*.m4a' }).Count -eq 0) "[PLAYER-7] A card with a MUSIC folder and nothing from the app is synced into it: $($synced -join ', ')"
-            Check ((@(Get-ChildItem $newCard -Force | ForEach-Object Name) -join ', ') -eq 'Music, Notes.txt') "[PLAYER-7] Nothing is added at that card's root: $(@(Get-ChildItem $newCard -Force | ForEach-Object Name) -join ', ')"
-
-            $synced = Sync-To 'E2E OLD CARD' $oldCard
-            Check (@($synced | Where-Object { $_ -notlike 'Playlist 5\*.m4a' }).Count -eq 0) "[PLAYER-7] A card the app synced to at its root stays at its root, despite its empty MUSIC folder: $($synced -join ', ')"
-            Check (@(Get-ChildItem (Join-Path $oldCard 'MUSIC') -Force).Count -eq 0) '[PLAYER-7] ...and its MUSIC folder is left empty'
-
-            $settings = Get-Content (Join-Path $env:MP3PLAYERSYNC_DATA_DIR 'settings.json') -Raw
-            Check ($settings -notmatch '"musicFolders"') '[PLAYER-7] Where to sync is decided from the card, not remembered'
-        } finally {
-            Remove-Item Env:\MP3PLAYERSYNC_TEST_DRIVES -ErrorAction SilentlyContinue
-        }
-        $lastOpened = $null
-    }
     # Only what Exportify makes (CSV files, or a zip of them) or a download in progress: the user may well be
     # downloading something else meanwhile.
     $newDownloads = Get-ChildItem $downloads -File -ErrorAction SilentlyContinue |

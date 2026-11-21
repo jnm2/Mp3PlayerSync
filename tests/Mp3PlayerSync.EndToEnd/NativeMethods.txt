@@ -35,3 +35,6 @@ WTSINFOEXW
 WTS_CURRENT_SESSION
 SHGetKnownFolderPath
 FOLDERID_Downloads
+EnumWindows
+IsWindowVisible
+BM_CLICK

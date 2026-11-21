@@ -12,6 +12,12 @@ public static class TestCategories
     /// <summary>Spotify's session: tokens that run out or are refused, signing out, and the sign-in page's links.</summary>
     public const string Session = nameof(Session);
 
+    /// <summary>Starting the app again: a second copy, what it reopens, and changing the player, by folder dialog too.</summary>
+    public const string Restart = nameof(Restart);
+
+    /// <summary>Syncing to player drives, which decide where the songs go from what's on them (PLAYER-7).</summary>
+    public const string Drives = nameof(Drives);
+
     /// <summary>
     /// The weekly live check on the real exportify.net and Spotify (TEST-4). It's explicit, so it runs only when asked
     /// for with <c>--only Live</c>, never as part of the other runs.
