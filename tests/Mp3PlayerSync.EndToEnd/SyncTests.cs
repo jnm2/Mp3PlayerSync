@@ -202,6 +202,12 @@ public sealed partial class SyncTests
         checks.Check("The copied songs are tagged", () => tags.ShouldSatisfyAllConditions(
             () => tags.Count.ShouldBe(2),
             () => tags.ShouldAllBe(tag => tag.Title.StartsWith("cafe song ", StringComparison.OrdinalIgnoreCase) && tag.Artist.Length > 0)));
+        // The fake YouTube Music's matches have 640-pixel PNG covers on the mock, which the app fetches and converts with
+        // Windows' own imaging, trimmed as it's released.
+        Console.WriteLine($"  The app fetched {Run.Mock.CountRequests("^album cover$")} album cover(s) from the mock");
+        var covers = cafeFiles.Select(Cover).ToList();
+        checks.Check("[TAG-3] The copied songs have their album's cover as a 500×500 baseline JPEG",
+            () => covers.ShouldBe(["500×500 baseline JPEG", "500×500 baseline JPEG"]));
         var result = string.Join(' ', app.AllText().Split('\n').Where(line => SyncResult().IsMatch(line)));
         checks.Check("The sync says what it did", () => result.ShouldMatch(@"(?is)Synced 2 songs to Folder \(.*\).*1 song skipped\."));
 
@@ -298,6 +304,29 @@ public sealed partial class SyncTests
                 Marshal.FinalReleaseComObject(shell);
             }
         }
+    }
+
+    /// <summary>A song's embedded cover, such as "500×500 baseline JPEG", or "no cover".</summary>
+    private static string Cover(string file)
+    {
+        using var song = TagLib.File.Create(file);
+        if (song.Tag.Pictures is not [var picture, ..]) return "no cover";
+        var data = picture.Data.Data;
+        using var image = System.Drawing.Image.FromStream(new MemoryStream(data));
+        if (!image.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Jpeg)) return $"{image.Width}×{image.Height} {picture.MimeType}";
+        // A JPEG's frame header says how it's encoded: SOF0 (FF C0) is baseline, SOF2 (FF C2) progressive. Entropy-coded
+        // data never has FF followed by either.
+        var kind = HasMarker(data, 0xC2) ? "progressive" : HasMarker(data, 0xC0) ? "baseline" : "other";
+        return $"{image.Width}×{image.Height} {kind} JPEG";
+    }
+
+    private static bool HasMarker(byte[] data, byte marker)
+    {
+        for (var i = 0; i + 1 < data.Length; i++)
+        {
+            if (data[i] == 0xFF && data[i + 1] == marker) return true;
+        }
+        return false;
     }
 
     /// <summary>A character from Unicode's private use area, where Segoe Fluent Icons keeps its glyphs.</summary>

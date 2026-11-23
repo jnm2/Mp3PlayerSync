@@ -29,18 +29,26 @@ public interface IAlbumArtFetcher
 /// Turns art that isn't already <see cref="PlayerCoverArt"/> into it; without one, art is embedded as downloaded.
 /// </param>
 /// <param name="youTubeTraffic">Paces requests to YouTube's image CDNs with the app's other YouTube requests.</param>
-public sealed class HttpAlbumArtFetcher(HttpClient httpClient, IAlbumArtConverter? converter = null, YouTubeTraffic? youTubeTraffic = null) : IAlbumArtFetcher
+/// <param name="origins">
+/// The origins art may come from, <see cref="DefaultOrigins"/> unless given. Google's image hosts
+/// (<c>https://*.googleusercontent.com</c>), where YouTube Music keeps album art, are allowed too.
+/// </param>
+public sealed class HttpAlbumArtFetcher(
+    HttpClient httpClient, IAlbumArtConverter? converter = null, YouTubeTraffic? youTubeTraffic = null, IReadOnlyCollection<string>? origins = null)
+    : IAlbumArtFetcher
 {
     private const int MaxBytes = 10 * 1024 * 1024;
 
     private readonly ConcurrentDictionary<string, Lazy<Task<AlbumArt?>>> cache = new(StringComparer.Ordinal);
+    private readonly HashSet<string> allowedOrigins = new(origins ?? DefaultOrigins, StringComparer.OrdinalIgnoreCase);
 
-    public static bool IsAllowed(string url) =>
+    /// <summary>Spotify's image CDN and YouTube's.</summary>
+    public static IReadOnlyList<string> DefaultOrigins { get; } = ["https://i.scdn.co", "https://i.ytimg.com"];
+
+    public bool IsAllowed(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri)
-        && uri.Scheme == Uri.UriSchemeHttps
-        && (uri.Host.Equals("i.scdn.co", StringComparison.OrdinalIgnoreCase)
-            || uri.Host.Equals("i.ytimg.com", StringComparison.OrdinalIgnoreCase)
-            || uri.Host.EndsWith(".googleusercontent.com", StringComparison.OrdinalIgnoreCase));
+        && (allowedOrigins.Contains(uri.GetLeftPart(UriPartial.Authority))
+            || (uri.Scheme == Uri.UriSchemeHttps && uri.Host.EndsWith(".googleusercontent.com", StringComparison.OrdinalIgnoreCase)));
 
     public Task<AlbumArt?> FetchAsync(string url, CancellationToken cancellationToken = default)
     {
