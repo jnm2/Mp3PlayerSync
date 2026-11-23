@@ -44,17 +44,24 @@ public sealed class AppUnderTest : IAsyncDisposable
     public bool WasKilled { get; private set; }
 
     /// <summary>Starts the test host and waits for its window.</summary>
-    public static async Task<AppUnderTest> StartAsync(AutomationBase automation, HostLaunch launch, CancellationToken cancellationToken = default)
+    public static Task<AppUnderTest> StartAsync(AutomationBase automation, HostLaunch launch, CancellationToken cancellationToken = default) =>
+        ForProcessAsync(automation, launch.StartProcess(), launch.DataDirectory, cancellationToken: cancellationToken);
+
+    /// <summary>
+    /// Waits for the window of an app that was just started, which keeps its data in <paramref name="dataDirectory"/>.
+    /// If it doesn't show one, the process is ended.
+    /// </summary>
+    public static async Task<AppUnderTest> ForProcessAsync(
+        AutomationBase automation, Process process, string dataDirectory, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
-        var process = launch.StartProcess();
         try
         {
             var window = await Wait.UntilAsync(
                 () => process.HasExited
                     ? throw new InvalidOperationException($"The app exited with {process.ExitCode} before showing its window.")
                     : automation.GetDesktop().FindFirstChild(c => c.ByProcessId(process.Id).And(c.ByClassName(WindowClass))),
-                "the app's window", cancellationToken: cancellationToken);
-            return new AppUnderTest(automation, process, window, launch.DataDirectory);
+                "the app's window", timeout, cancellationToken: cancellationToken);
+            return new AppUnderTest(automation, process, window, dataDirectory);
         }
         catch (TimeoutException exception)
         {

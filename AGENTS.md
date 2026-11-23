@@ -41,6 +41,8 @@ The `Live` run (`--only Live`, TEST-4) is the weekly live check on the real expo
 `.github\workflows\live-check.yml` runs. It's explicit, so it never runs as part of the other runs. Without
 `SPOTIFY_TEST_USERNAME` and `SPOTIFY_TEST_PASSWORD`, it's a dry run that stops at Spotify's sign-in page and reports
 itself as inconclusive. The `ReadmeScreenshots` run, also explicit, regenerates the README's pictures in `docs\images`.
+The `ReleasedExe` run, explicit too, starts the exe as released (given with `--app`) for CI's smoke job. It uses the
+real data folder in `%LOCALAPPDATA%` and takes the foreground, so it skips itself anywhere but CI.
 
 Agents never pass `--desktop Current` to the launcher on the user's PC: it runs the app on their own desktop, covering
 and taking focus from their windows. It's for CI, or for a person who runs it on purpose.

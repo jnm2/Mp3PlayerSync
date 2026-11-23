@@ -244,8 +244,8 @@ public sealed partial class SyncTests
         string ytDlp, deno;
         try
         {
-            ytDlp = await app.UntilAsync(() => Tool(tools, "yt-dlp-win", "yt-dlp*.exe"), "yt-dlp in the data folder", 180);
-            deno = await app.UntilAsync(() => Tool(tools, "deno", "deno.exe"), "Deno in the data folder", 180);
+            ytDlp = await app.UntilAsync(() => AppSteps.Tool(tools, "yt-dlp-win", "yt-dlp*.exe"), "yt-dlp in the data folder", 180);
+            deno = await app.UntilAsync(() => AppSteps.Tool(tools, "deno", "deno.exe"), "Deno in the data folder", 180);
         }
         catch (TimeoutException)
         {
@@ -271,15 +271,6 @@ public sealed partial class SyncTests
         Console.WriteLine($"  yt-dlp --version: {(await output).Trim()} {(await errors).Trim()}");
         checks.Check("yt-dlp runs: '--version' exits with 0", () => exitCode.ShouldBe(0));
     }
-    /// <summary>
-    /// The tool's exe, matching <paramref name="exe"/>, in a complete version folder (<c>v…</c>), or null while there's
-    /// none. yt-dlp's exe is named after the architecture, such as <c>yt-dlp_arm64.exe</c>, except on x64.
-    /// </summary>
-    private static string? Tool(string tools, string folder, string exe) =>
-        Directory.Exists(Path.Combine(tools, folder))
-            ? Directory.GetDirectories(Path.Combine(tools, folder), "v*").SelectMany(v => Directory.GetFiles(v, exe)).FirstOrDefault()
-            : null;
-
     /// <summary>What GitHub's API says of this address's requests without signing in, which don't count against it.</summary>
     private static async Task<string> GitHubRateLimitAsync(CancellationToken cancellationToken)
     {
