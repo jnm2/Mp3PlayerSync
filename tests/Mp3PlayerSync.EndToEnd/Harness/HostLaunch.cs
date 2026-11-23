@@ -26,8 +26,9 @@ public sealed record HostLaunch(string DataDirectory, Uri? ExportifyUrl, Uri? Sp
     public string? RecordTracksTo { get; init; }
 
     /// <summary>
-    /// Whether the app fetches yt-dlp and Deno from GitHub as it starts, as the released app does. Only the test of that
-    /// does: GitHub allows only 60 such requests an hour from one address without signing in, fewer than a run's launches.
+    /// Whether the app fetches yt-dlp and Deno from GitHub as it starts, as the released app does. Only the test that checks
+    /// them does it: GitHub allows only 60 such requests an hour from one address without signing in, fewer than a run's
+    /// launches.
     /// </summary>
     public bool FetchTools { get; init; }
 

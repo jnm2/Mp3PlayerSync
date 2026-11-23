@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using FlaUI.Core.AutomationElements;
@@ -29,7 +30,9 @@ public sealed partial class SyncTests
     public async Task Songs_start_selected_unless_on_the_player_which_refreshing_keeps_then_a_removal_syncs(CancellationToken cancellationToken)
     {
         var checks = new Checks();
-        var app = await Run.SignInAsync(cancellationToken);
+        // This test's app also fetches yt-dlp and Deno as the released app does, which the end checks. Only this one does:
+        // GitHub allows only 60 such requests an hour from one address, fewer than a run's launches of the app.
+        var app = await Run.SignInAsync(cancellationToken, fetchTools: true);
         await app.OpenLibraryItemAsync(RoadTrip);
         await app.WaitContentsAsync(checks, RoadTrip, "250 tracks, 21:08:45");
 
@@ -87,6 +90,8 @@ public sealed partial class SyncTests
         selectAll.Patterns.Toggle.Pattern.Toggle();
         await app.UntilAsync(() => sync.IsEnabled, "the Sync button to enable again", 5);
         checks.Passed("Select all selects every track again");
+
+        await CheckToolsAsync(app, checks, cancellationToken);
 
         await app.CloseAsync(cancellationToken);
         Run.Finish(checks);
@@ -225,6 +230,71 @@ public sealed partial class SyncTests
 
         await app.CloseAsync(cancellationToken);
         Run.Finish(checks);
+    }
+
+    /// <summary>
+    /// Checks that the app fetched yt-dlp and Deno into its data folder, as the released app does from GitHub at startup,
+    /// and that yt-dlp runs. It's done at the end of a test whose app was started with them (see HostLaunch.FetchTools),
+    /// which has fetched them by then, so it adds no wait.
+    /// </summary>
+    private async Task CheckToolsAsync(AppUnderTest app, Checks checks, CancellationToken cancellationToken)
+    {
+        // Each version is moved into place only once it's complete.
+        var tools = Path.Combine(Run.DataDirectory, "Tools");
+        string ytDlp, deno;
+        try
+        {
+            ytDlp = await app.UntilAsync(() => Tool(tools, "yt-dlp-win", "yt-dlp*.exe"), "yt-dlp in the data folder", 180);
+            deno = await app.UntilAsync(() => Tool(tools, "deno", "deno.exe"), "Deno in the data folder", 180);
+        }
+        catch (TimeoutException)
+        {
+            Console.WriteLine($"  GitHub's API rate limit for this address: {await GitHubRateLimitAsync(cancellationToken)}");
+            throw;
+        }
+        checks.Passed($"The app fetched {Path.GetRelativePath(tools, ytDlp)} and {Path.GetRelativePath(tools, deno)}");
+
+        // Asks yt-dlp only for its version, which makes no request to YouTube.
+        var start = new ProcessStartInfo(ytDlp, "--version") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
+        using var version = Process.Start(start).ShouldNotBeNull();
+        var output = version.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errors = version.StandardError.ReadToEndAsync(cancellationToken);
+        try
+        {
+            await version.WaitForExitAsync(cancellationToken).WaitAsync(TimeSpan.FromSeconds(60) * Wait.Scale, cancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            version.Kill(entireProcessTree: true);
+        }
+        var exitCode = version.HasExited ? version.ExitCode : (int?)null;
+        Console.WriteLine($"  yt-dlp --version: {(await output).Trim()} {(await errors).Trim()}");
+        checks.Check("yt-dlp runs: '--version' exits with 0", () => exitCode.ShouldBe(0));
+    }
+    /// <summary>
+    /// The tool's exe, matching <paramref name="exe"/>, in a complete version folder (<c>v…</c>), or null while there's
+    /// none. yt-dlp's exe is named after the architecture, such as <c>yt-dlp_arm64.exe</c>, except on x64.
+    /// </summary>
+    private static string? Tool(string tools, string folder, string exe) =>
+        Directory.Exists(Path.Combine(tools, folder))
+            ? Directory.GetDirectories(Path.Combine(tools, folder), "v*").SelectMany(v => Directory.GetFiles(v, exe)).FirstOrDefault()
+            : null;
+
+    /// <summary>What GitHub's API says of this address's requests without signing in, which don't count against it.</summary>
+    private static async Task<string> GitHubRateLimitAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mp3PlayerSync-EndToEnd");
+            using var json = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("https://api.github.com/rate_limit", cancellationToken));
+            var core = json.RootElement.GetProperty("resources").GetProperty("core");
+            return $"{core.GetProperty("remaining")} of {core.GetProperty("limit")} left, until {DateTimeOffset.FromUnixTimeSeconds(core.GetProperty("reset").GetInt64()).ToLocalTime():HH:mm:ss}";
+        }
+        catch (Exception exception) when (exception is HttpRequestException or System.Text.Json.JsonException or KeyNotFoundException or TaskCanceledException)
+        {
+            return $"unknown ({exception.Message})";
+        }
     }
 
     /// <summary>A track row, realized first if it's outside the viewport.</summary>
