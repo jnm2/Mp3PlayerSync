@@ -6,6 +6,14 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <!-- Without a company, the SDK uses the assembly's name. Explorer's tooltip and Process Explorer show the company
+         but not the copyright, so it names the author too. -->
+    <Company>Joseph N. Musser II</Company>
+    <Authors>Joseph N. Musser II</Authors>
+    <Copyright>Copyright © 2026 Joseph N. Musser II</Copyright>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <!-- The patch part of this version is automatically incremented based on git tags in build\Version.targets. -->
     <VersionPrefix>0.1.0</VersionPrefix>
   </PropertyGroup>
