@@ -17,6 +17,8 @@ namespace Mp3PlayerSync.E2EHost;
 /// <item><c>MP3PLAYERSYNC_TEST_DRIVES</c> (optional): drives to list instead of the real ones (see <see cref="TestDrives"/>).</item>
 /// <item><c>MP3PLAYERSYNC_TEST_RECORD_TRACKS</c> (optional): a file to write the songs the app looks for to, as the app
 /// read them from the export (see <see cref="TrackRecorder"/>).</item>
+/// <item><c>MP3PLAYERSYNC_TEST_FETCH_TOOLS</c> (optional): <c>1</c> to fetch yt-dlp and Deno from GitHub as the app does,
+/// which the tests otherwise leave out: GitHub allows only 60 such requests an hour from one address without signing in.</item>
 /// </list>
 /// Links the app would open outside itself are written to <c>OpenedExternally.txt</c> in the data folder instead.
 /// While <c>HoldFinding.txt</c> exists in the data folder, looking for songs in the background pauses (see <see cref="FakeTrackFinder"/>).
@@ -46,6 +48,7 @@ public static class Program
             CreateTrackFinder = _ => new FakeTrackFinder(fakeAudio, Path.Combine(dataDirectory, "HoldFinding.txt"), recorder),
             GetDrives = testDrives is null ? defaults.GetDrives : testDrives.List,
             DriveFolder = testDrives is null ? defaults.DriveFolder : testDrives.FolderOf,
+            UpdateToolsInBackground = Optional("MP3PLAYERSYNC_TEST_FETCH_TOOLS") is "1",
             ShowWindow = window =>
             {
                 // Off-screen rather than minimized, which would stop the window's content from rendering.

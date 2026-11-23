@@ -1369,6 +1369,7 @@ public sealed partial class MainPage : Page
     /// <summary>Gets the latest yt-dlp ready before the first sync. Offline, a copy fetched earlier is used.</summary>
     private async Task UpdateDownloadToolAsync()
     {
+        if (!services.UpdateToolsInBackground) return;
         try
         {
             await Downloader.UpdateToolAsync(CancellationToken.None);

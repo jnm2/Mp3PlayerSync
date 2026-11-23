@@ -140,11 +140,14 @@ public sealed class RunContext : IAsyncInitializer, IAsyncDisposable
         await app.CloseAsync(cancellationToken);
     }
 
-    /// <summary>Sets up the player, then starts the app signed in, with the player chosen, and waits for the library.</summary>
-    public async Task<AppUnderTest> SignInAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Sets up the player, then starts the app signed in, with the player chosen, and waits for the library. With
+    /// <paramref name="fetchTools"/>, the app fetches yt-dlp and Deno as it starts (see <see cref="HostLaunch.FetchTools"/>).
+    /// </summary>
+    public async Task<AppUnderTest> SignInAsync(CancellationToken cancellationToken = default, bool fetchTools = false)
     {
         SetUpPlayer();
-        var app = await StartAppAsync("?autoSignIn", cancellationToken);
+        var app = await StartAppAsync(Launch("?autoSignIn") with { FetchTools = fetchTools }, cancellationToken);
         await app.ChoosePlayerAsync(null, PlayerName);
         await app.WaitLibraryAsync("40 playlists");
         return app;
