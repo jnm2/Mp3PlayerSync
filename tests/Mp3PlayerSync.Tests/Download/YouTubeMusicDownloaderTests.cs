@@ -19,6 +19,14 @@ public class YouTubeMusicDownloaderTests
     [After(Test)]
     public void TearDown() => Directory.Delete(directory, recursive: true);
 
+    // As yt-dlp publishes them: each architecture's one-folder build names its exe after the architecture, but x64's.
+    [Test]
+    [Arguments(System.Runtime.InteropServices.Architecture.X64, "yt-dlp_win.zip", "yt-dlp.exe")]
+    [Arguments(System.Runtime.InteropServices.Architecture.Arm64, "yt-dlp_win_arm64.zip", "yt-dlp_arm64.exe")]
+    [Arguments(System.Runtime.InteropServices.Architecture.X86, "yt-dlp_win_x86.zip", "yt-dlp_x86.exe")]
+    public void Each_architecture_runs_the_exe_its_yt_dlp_build_has(System.Runtime.InteropServices.Architecture architecture, string assetName, string exeName) =>
+        YouTubeMusicDownloader.YtDlpBuild(architecture).ShouldBe((assetName, exeName));
+
     private static readonly ExportedTrack UnderPressure = Track("Under Pressure", "Queen;David Bowie", 248, uri: "spotify:track:under-pressure", isrc: "GBUM71029604") with { Album = "Hot Space" };
 
     private static ExportedTrack Track(string title, string artists, int seconds, string uri = "", string isrc = "") =>

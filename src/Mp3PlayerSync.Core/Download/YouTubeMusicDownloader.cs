@@ -193,11 +193,15 @@ public sealed partial class YouTubeMusicDownloader : IDisposable
     private const string YtDlpCacheFolderName = "yt-dlp-win";
     private const string LegacyYtDlpCacheFolderName = "yt-dlp";
 
-    private static string YtDlpAssetName => System.Runtime.InteropServices.RuntimeInformation.OSArchitecture switch
+    /// <summary>
+    /// yt-dlp's one-folder build for <paramref name="architecture"/>: the release asset, and the exe in it, whose name
+    /// differs by architecture.
+    /// </summary>
+    internal static (string AssetName, string ExeName) YtDlpBuild(System.Runtime.InteropServices.Architecture architecture) => architecture switch
     {
-        System.Runtime.InteropServices.Architecture.Arm64 => "yt-dlp_win_arm64.zip",
-        System.Runtime.InteropServices.Architecture.X86 => "yt-dlp_win_x86.zip",
-        _ => "yt-dlp_win.zip",
+        System.Runtime.InteropServices.Architecture.Arm64 => ("yt-dlp_win_arm64.zip", "yt-dlp_arm64.exe"),
+        System.Runtime.InteropServices.Architecture.X86 => ("yt-dlp_win_x86.zip", "yt-dlp_x86.exe"),
+        _ => ("yt-dlp_win.zip", "yt-dlp.exe"),
     };
 
     /// <summary>Deno publishes no 32-bit Windows build; there, yt-dlp runs without a JavaScript runtime.</summary>
@@ -231,10 +235,11 @@ public sealed partial class YouTubeMusicDownloader : IDisposable
         cache = options.ResolutionCachePath is { } cachePath ? TrackResolutionCache.Load(cachePath) : TrackResolutionCache.CreateInMemory();
 
         var toolCacheDirectory = Path.GetFullPath(options.ToolCacheDirectory);
+        var ytDlp = YtDlpBuild(System.Runtime.InteropServices.RuntimeInformation.OSArchitecture);
         toolResolver = new ToolResolver(
             Path.Join(toolCacheDirectory, YtDlpCacheFolderName),
-            "yt-dlp.exe",
-            DownloadResolvers.GitHubReleaseAsset("yt-dlp", "yt-dlp", YtDlpAssetName, options.UserAgent));
+            ytDlp.ExeName,
+            DownloadResolvers.GitHubReleaseAsset("yt-dlp", "yt-dlp", ytDlp.AssetName, options.UserAgent));
 
         if (DenoAssetName is { } denoAssetName)
         {
